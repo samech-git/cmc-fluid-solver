@@ -1,0 +1,29 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestApp", "TestApp\TestApp.vcproj", "{CC8CB381-2BDA-4DFB-9239-3C1141E7D1AE}"
+	ProjectSection(ProjectDependencies) = postProject
+		{50DFBBBD-4259-4AC2-B7C7-20957C72659A} = {50DFBBBD-4259-4AC2-B7C7-20957C72659A}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FluidSolver", "FluidSolver\FluidSolver.vcproj", "{50DFBBBD-4259-4AC2-B7C7-20957C72659A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CC8CB381-2BDA-4DFB-9239-3C1141E7D1AE}.Debug|Win32.ActiveCfg = Debug|Win32
+		{CC8CB381-2BDA-4DFB-9239-3C1141E7D1AE}.Debug|Win32.Build.0 = Debug|Win32
+		{CC8CB381-2BDA-4DFB-9239-3C1141E7D1AE}.Release|Win32.ActiveCfg = Release|Win32
+		{CC8CB381-2BDA-4DFB-9239-3C1141E7D1AE}.Release|Win32.Build.0 = Release|Win32
+		{50DFBBBD-4259-4AC2-B7C7-20957C72659A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{50DFBBBD-4259-4AC2-B7C7-20957C72659A}.Debug|Win32.Build.0 = Debug|Win32
+		{50DFBBBD-4259-4AC2-B7C7-20957C72659A}.Release|Win32.ActiveCfg = Release|Win32
+		{50DFBBBD-4259-4AC2-B7C7-20957C72659A}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
