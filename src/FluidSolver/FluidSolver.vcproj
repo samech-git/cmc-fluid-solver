@@ -150,6 +150,10 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\ExplicitSolver2D.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\Grid2D.cpp"
 				>
 			</File>
@@ -164,11 +168,23 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ExplicitSolver2D.h"
+				>
+			</File>
+			<File
 				RelativePath=".\FluidSolver.h"
 				>
 			</File>
 			<File
 				RelativePath=".\Grid2D.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Solver2D.h"
+				>
+			</File>
+			<File
+				RelativePath=".\TimeLayer2D.h"
 				>
 			</File>
 		</Filter>

@@ -27,6 +27,18 @@ namespace FluidSolver
 		Point2D(double _x, double _y) : x(_x), y(_y) { }
 	};
 
+	enum CondType { NONE, NOSLIP, FREE };
+
+	struct CondData2D
+	{
+		CondType type;
+		Vec2D vel;
+		double T;
+
+		CondData2D() : type(NONE), vel(Vec2D(0.0, 0.0)), T(0.0) { }
+		CondData2D(CondType _type, Vec2D _vel, double _T) : type(_type), vel(_vel), T(_T) { }
+	};
+
 	struct BBox2D
 	{
 		Point2D pMin, pMax;
@@ -51,25 +63,33 @@ namespace FluidSolver
 	struct Grid2D
 	{
 		Grid2D(double _dx, double _dy);
+		Grid2D(Grid2D &grid);
 		~Grid2D();
+
+		int dimx, dimy;
+		double dx, dy;
+
+		CellType GetType(int x, int y);
+		CondData2D GetData(int x, int y);
 
 		int LoadFromFile(char *filename);
 		void TestPrint();
 	
-	private:
-		double dx, dy;
-		int dimx, dimy;
-		int *data;
+	protected:
+		int *typeData;
+		CondData2D *initData;
 
 		BBox2D bbox;
 
 		void RasterLine(Point2D p1, Point2D p2, int steps, CellType color);
 		void FloodFill(CellType color);
 
+		void FillTestInitData(Vec2D startVel);
+		
 		void BuildBBox(int num_points, Point2D *points);
 		void Build(int num_points, Point2D *points);
-
-		CellType GetCell(int x, int y);
-		void SetCell(int x, int y, CellType t);
+		
+		void SetType(int x, int y, CellType t);
+		void SetData(int x, int y, CondData2D d);
 	};
 }
