@@ -51,7 +51,7 @@ namespace FluidSolver
 							- temp->Tx(i, j)
 							+ (1 / params.Re) * (temp->Uxx(i, j) + temp->Uyy(i, j)) );
 					}
-			next_loc->MergeUto(grid, next, IN);
+			next_loc->CopyUto(grid, next, IN);
 			cur->CopyUto(grid, next, BOUND);
 			cur->CopyUto(grid, next, VALVE);
 		}
@@ -76,7 +76,7 @@ namespace FluidSolver
 							- temp->Ty(i, j)
 							+ (1 / params.Re) * (temp->Vxx(i, j) + temp->Vyy(i, j)) );
 					}
-			next_loc->MergeVto(grid, next, IN);
+			next_loc->CopyVto(grid, next, IN);
 			cur->CopyVto(grid, next, BOUND);
 			cur->CopyVto(grid, next, VALVE);
 		}
@@ -101,7 +101,7 @@ namespace FluidSolver
 							+ (1 / (params.Re * params.Pr)) * (temp->Txx(i, j) + temp->Tyy(i, j)) 
 							+ ((params.lambda - 1) / (params.lambda * params.Re)) * temp->DissFunc(i, j));
 					}
-			next_loc->MergeTto(grid, next, IN);
+			next_loc->CopyTto(grid, next, IN);
 			cur->CopyTto(grid, next, BOUND);
 			cur->CopyTto(grid, next, VALVE);
 		}
@@ -122,16 +122,26 @@ namespace FluidSolver
 			SolveT(dt, num_local, cur, temp, next);
 
 			err = next->EvalDivError(grid);
-
+			
 			next->MergeUto(grid, temp, IN);
 			next->MergeVto(grid, temp, IN);
 			next->MergeTto(grid, temp, IN);
 
-			if (it > MAX_GLOBAL_ITERS) { printf("Exceeded max number of iterations (%i)\n", MAX_GLOBAL_ITERS); exit(1); }
+			if (it > MAX_GLOBAL_ITERS) 
+			{
+				printf("Exceeded max number of iterations (%i)\n", MAX_GLOBAL_ITERS); 
+				exit(1); 
+			}
+
+			if (err > ERR_THRESHOLD * 10)
+			{
+				printf("Error is too big!\n", err);
+				exit(1);
+			}
 		}
 
-		// output number of global iterations
-		printf("%i - ", it);
+		// output number of global iterations & error
+		printf("%i,%i,%.4f,", it, num_local, err);
 
 		next->CopyAllto(grid, cur);
 	}
