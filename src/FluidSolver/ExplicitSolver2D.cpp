@@ -2,14 +2,16 @@
 
 namespace FluidSolver
 {
-	void ExplicitSolver2D::Init(Grid2D &_grid, FluidParams &_params)
+	void ExplicitSolver2D::Init(Grid2D* _grid, FluidParams &_params)
 	{
-		FreeMemory();
+		//FreeMemory();
 	
-		dimx = _grid.dimx;
-		dimy = _grid.dimy;
+		//grid = new Grid2D(_grid);
+		grid = _grid;
 
-		grid = new Grid2D(_grid);
+		dimx = grid->dimx;
+		dimy = grid->dimy;
+
 		params = _params;
 
 		cur = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
@@ -109,6 +111,34 @@ namespace FluidSolver
 		delete next_loc;
 	}
 
+	void ExplicitSolver2D::UpdateBoundaries()
+	{
+		for (int i = 0; i < dimx; i++)
+			for (int j = 0; j < dimy; j++)
+				switch(grid->GetType(i, j))
+				{
+				case BOUND:
+				case VALVE:
+					cur->U(i, j) = grid->GetData(i, j).vel.x;
+					cur->V(i, j) = grid->GetData(i, j).vel.y;
+					cur->T(i, j) = grid->GetData(i, j).T;
+					break;
+				}
+		cur->CopyUto(grid, next, BOUND);
+		cur->CopyVto(grid, next, BOUND);
+		cur->CopyTto(grid, next, BOUND);
+		cur->CopyUto(grid, next, VALVE);
+		cur->CopyVto(grid, next, VALVE);
+		cur->CopyTto(grid, next, VALVE);
+		
+		cur->CopyUto(grid, temp, BOUND);
+		cur->CopyVto(grid, temp, BOUND);
+		cur->CopyTto(grid, temp, BOUND);
+		cur->CopyUto(grid, temp, VALVE);
+		cur->CopyVto(grid, temp, VALVE);
+		cur->CopyTto(grid, temp, VALVE);
+	}
+
 	void ExplicitSolver2D::TimeStep(double dt, int num_global, int num_local)
 	{
 		// do global iterations
@@ -140,6 +170,16 @@ namespace FluidSolver
 			}
 		}
 
+		// clear outter cells
+		for (int i = 0; i < dimx; i++)
+			for (int j = 0; j < dimy; j++)
+				if (grid->GetType(i, j) == OUT)
+				{
+					next->U(i, j) = 0.0;
+					next->V(i, j) = 0.0;
+					next->T(i, j) = 1.0;
+				}
+
 		// output number of global iterations & error
 		printf("%i,%i,%.4f,", it, num_local, err);
 
@@ -161,8 +201,6 @@ namespace FluidSolver
 
 	void ExplicitSolver2D::FreeMemory()
 	{
-		if (grid != NULL) delete grid;
-
 		if (cur != NULL) delete cur;
 		if (temp != NULL) delete temp;
 		if (next != NULL) delete next;

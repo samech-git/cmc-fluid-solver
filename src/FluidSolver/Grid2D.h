@@ -71,22 +71,35 @@ namespace FluidSolver
 
 		CellType GetType(int x, int y);
 		CondData2D GetData(int x, int y);
+		void Prepare(int frame);
 
 		int LoadFromFile(char *filename);
 		void TestPrint();
 
 		BBox2D bbox;
 	protected:
+		//---------------------------- Borders ---------------------------------
+
+		Point2D** points;
+		Vec2D* velocities;
+		int num_points;
+		int num_frames;
+		Vec2D* ComputeBorderVelocities(int frame);
+
+		//----------------------------------------------------------------------
+
 		int *typeData;
 		CondData2D *initData;
 
-		void RasterLine(Point2D p1, Point2D p2, int steps, CellType color);
+		void Init();
+
+		void RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, int steps, CellType color);
 		void FloodFill(CellType color);
 
 		void FillTestInitData(Vec2D startVel);
 		
-		void BuildBBox(int num_points, Point2D *points);
-		void Build(int num_points, Point2D *points);
+		void BuildBBox(int num_points, int num_frames, Point2D** points);
+		void Build(int num_points, Point2D *points, Vec2D* vels);
 		
 		void SetType(int x, int y, CellType t);
 		void SetData(int x, int y, CondData2D d);
