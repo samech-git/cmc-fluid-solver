@@ -74,12 +74,11 @@ namespace FluidSolver
 
 		int LoadFromFile(char *filename);
 		void TestPrint();
-	
+
+		BBox2D bbox;
 	protected:
 		int *typeData;
 		CondData2D *initData;
-
-		BBox2D bbox;
 
 		void RasterLine(Point2D p1, Point2D p2, int steps, CellType color);
 		void FloodFill(CellType color);

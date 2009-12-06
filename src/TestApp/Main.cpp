@@ -5,14 +5,16 @@ const double dy = 0.25;
 
 const double dt = 0.1;
 
-const double Re = 100.0;
+const double Re = 50.0;
 const double Pr = 0.82;
 const double lambda = 1.4;
 
-const int num_global = 4;
+const int num_global = 2;
 const int num_local = 1;
 
-const int nt = 1000;
+//const int nt = 1000;
+const int frames = 22;
+const int subframes = 400;
 
 const int outdimx = 50;
 const int outdimy = 50;
@@ -34,18 +36,36 @@ int main(int argc, char **argv)
 	ExplicitSolver2D solver;
 	solver.Init(grid, params);
 
-	printf("\nglobal,local,err,time\n");
-	for (int i = 0; i < nt; i++)
-	{
- 		solver.TimeStep(dt, num_global, num_local);
-		printf("%.3f\n", i * dt);
-	}
-
 	Vec2D *vel = new Vec2D[outdimx * outdimy];
 	double *T = new double[outdimx * outdimy];
-	solver.GetResult(outdimx, outdimy, vel, T);
 
-	TestPrintResult(outdimx, outdimy, vel, T);
+	FILE *file = NULL;
+	fopen_s(&file, "results.txt", "w");
+
+	fprintf(file, "%.2f %.2f %.2f %.2f\n", grid.bbox.pMin.x, grid.bbox.pMin.y, grid.bbox.pMax.x, grid.bbox.pMax.y);
+	
+	float ddx = (grid.bbox.pMax.x - grid.bbox.pMin.x) / outdimx;
+	float ddy = (grid.bbox.pMax.y - grid.bbox.pMin.y) / outdimy;
+	fprintf(file, "%.2f %.2f %i %i\n", ddx, ddy, outdimx, outdimy);
+	fprintf(file, "22\n");
+
+	int percent = frames * subframes;
+	int step = 0;
+	for (int i = 0; i < frames; i++)
+	{
+		fprintf(file, "0.035\n");
+		for (int j = 0; j < subframes; j++)
+		{
+ 			solver.TimeStep(dt, num_global, num_local);
+			printf(" frame %i, substep %i (%i\%)\n", i, j, step / percent);
+			step += 100;
+		}
+		solver.GetResult(outdimx, outdimy, vel, T);
+		ShiferTestPrintResult(outdimx, outdimy, vel, T, file);
+	}
+
+	//solver.GetResult(outdimx, outdimy, vel, T);
+	//TestPrintResult(outdimx, outdimy, vel, T);
 
 	return 0;
 }

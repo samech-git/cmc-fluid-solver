@@ -49,4 +49,15 @@ namespace FluidSolver
 			fprintf(file, "\n");
 		}
 	}
+
+
+		static void ShiferTestPrintResult(int dimx, int dimy, Vec2D *v, double *T, FILE* file)
+	{
+		for (int j = 0; j < dimy; j++)
+		{
+			for (int i = 0; i < dimx; i++)
+				fprintf(file, "%.2f %.2f ", v[i * dimy + j].x, v[i * dimy + j].y);
+			fprintf(file, "\n");
+		}
+	}
 }
