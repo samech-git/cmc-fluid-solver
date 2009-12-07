@@ -146,6 +146,26 @@ namespace FluidSolver
                 i--;
             }
         }
+
+		// go through all the column
+		for (int i = 0; i < dimx; i++) 
+		{
+			// up to down
+			int j = 0;
+			while (j < dimy && GetType(i, j) == IN) 
+			{
+				SetType(i, j, color);
+				j++;
+			}
+
+			// down to up
+			j = dimy - 1;
+			while (GetType(i, j) == IN && j >= 0) 
+			{
+				SetType(i, j, color);
+				j--;
+			}
+		}
     }
 
 	void Grid2D::Init()
@@ -216,38 +236,74 @@ namespace FluidSolver
 		for (int j=0; j<num_frames; j++)
 		{
 			points[j] = new Point2D[num_points];
-			//fscanf_s(file, "");
+			char str[7];
+			fscanf_s(file, "%s", str, 7);
 			for (int i = 0; i < num_points; i++)
 				ReadPoint2D(file, points[j][i]);
 
-			ReadPoint2D(file, p);
-			velocities[j] = Vec2D(p.x, p.y);
+			fscanf_s(file, "%s", str, 7);
+			if (str[0] == 'M')
+			{
+				ReadPoint2D(file, p);
+				velocities[j] = Vec2D(p.x, p.y);
+
+				velocities[j].x /= 1000;
+				velocities[j].y /= 1000;
+			}
+			else
+				velocities[j] = Vec2D(0, 0);
 		}
 	
 		Init();
 		return OK;
 	}
 
-	Vec2D* Grid2D::ComputeBorderVelocities(int frame)
+	Vec2D* Grid2D::ComputeBorderVelocities(int frame, double substep)
 	{
 		Vec2D* res = new Vec2D[num_points];
 		int nextframe = (frame == num_frames - 1) ? frame : frame + 1;
+		int next2frame = (nextframe == num_frames - 1) ? nextframe : nextframe + 1;
 		
+		double vx1, vy1, vx2, vy2;
+
+
+		double m = 0.03;
 		for (int i=0; i<num_points; i++)
 		{
-			res[i].x = (points[nextframe][i].x - points[frame][i].x) * 0.06;
-			res[i].y = (points[nextframe][i].y - points[frame][i].y) * 0.06;
+			vx1 = (points[nextframe][i].x - points[frame][i].x) * m;
+			vy1 = (points[nextframe][i].y - points[frame][i].y) * m;
+
+			vx2 = (points[next2frame][i].x - points[nextframe][i].x) * m;
+			vy2 = (points[next2frame][i].y - points[nextframe][i].y) * m;
+
+			res[i].x = vx2 * substep + vx1 * (1 - substep);
+			res[i].y = vy2 * substep + vy1 * (1 - substep);
 		}
 		return res;
 	}
 
-	void Grid2D::Prepare(int frame)
+	Point2D* Grid2D::ComputeSubBorder(int frame, double substep)
+	{
+		Point2D* res = new Point2D[num_points];
+		int nextframe = (frame == num_frames - 1) ? frame : frame + 1;
+
+		for (int i=0; i<num_points; i++)
+		{
+			res[i].x = points[nextframe][i].x * substep + points[frame][i].x * (1 - substep);
+			res[i].y = points[nextframe][i].y * substep + points[frame][i].y * (1 - substep);
+		}
+		return res;
+	}
+
+	void Grid2D::Prepare(int frame, double substep)
 	{
 		if (frame >= num_frames) frame = num_frames-1;
-		Vec2D* tempvec = ComputeBorderVelocities(frame);
-		Build(num_points, points[frame], tempvec);
+		Vec2D* tempvec = ComputeBorderVelocities(frame, substep);
+		Point2D* temppoints = ComputeSubBorder(frame, substep);
+		Build(num_points, temppoints, tempvec);
 		FillTestInitData(velocities[frame]);
 		delete[] tempvec;
+		delete[] temppoints;
 	}
 
 
