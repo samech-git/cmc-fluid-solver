@@ -4,9 +4,6 @@ namespace FluidSolver
 {
 	void ExplicitSolver2D::Init(Grid2D* _grid, FluidParams &_params)
 	{
-		//FreeMemory();
-	
-		//grid = new Grid2D(_grid);
 		grid = _grid;
 
 		dimx = grid->dimx;
@@ -15,8 +12,10 @@ namespace FluidSolver
 		params = _params;
 
 		cur = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-		temp = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
 		next = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
+		
+		temp = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
+		next_local = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
 
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
@@ -38,8 +37,6 @@ namespace FluidSolver
 
 	void ExplicitSolver2D::SolveU(double dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next)
 	{
-		TimeLayer2D *next_loc = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-
 		for (int it = 0; it < num_local; it++)
 		{
 			// eval new layer
@@ -47,24 +44,18 @@ namespace FluidSolver
 				for (int j = 0; j < dimy; j++)
 					if (grid->GetType(i, j) == IN)
 					{
-						next_loc->U(i, j) = cur->U(i, j) + dt * ( 
+						next_local->U(i, j) = cur->U(i, j) + dt * ( 
 							- temp->U(i, j) * temp->Ux(i, j) 
 							- temp->V(i, j) * temp->Uy(i, j) 
 							- temp->Tx(i, j)
 							+ (1 / params.Re) * (temp->Uxx(i, j) + temp->Uyy(i, j)) );
 					}
-			next_loc->CopyUto(grid, next, IN);
-			cur->CopyUto(grid, next, BOUND);
-			cur->CopyUto(grid, next, VALVE);
+			next_local->CopyUto(grid, next, IN);
 		}
-
-		delete next_loc;
 	}
 
 	void ExplicitSolver2D::SolveV(double dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next)
 	{
-		TimeLayer2D *next_loc = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-
 		for (int it = 0; it < num_local; it++)
 		{
 			// eval new layer
@@ -72,24 +63,18 @@ namespace FluidSolver
 				for (int j = 0; j < dimy; j++)
 					if (grid->GetType(i, j) == IN)
 					{
-						next_loc->V(i, j) = cur->V(i, j) + dt * ( 
+						next_local->V(i, j) = cur->V(i, j) + dt * ( 
 							- temp->U(i, j) * temp->Vx(i, j) 
 							- temp->V(i, j) * temp->Vy(i, j) 
 							- temp->Ty(i, j)
 							+ (1 / params.Re) * (temp->Vxx(i, j) + temp->Vyy(i, j)) );
 					}
-			next_loc->CopyVto(grid, next, IN);
-			cur->CopyVto(grid, next, BOUND);
-			cur->CopyVto(grid, next, VALVE);
+			next_local->CopyVto(grid, next, IN);
 		}
-
-		delete next_loc;
 	}
 
 	void ExplicitSolver2D::SolveT(double dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next)
 	{
-		TimeLayer2D *next_loc = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-
 		for (int it = 0; it < num_local; it++)
 		{
 			// eval new layer
@@ -97,66 +82,38 @@ namespace FluidSolver
 				for (int j = 0; j < dimy; j++)
 					if (grid->GetType(i, j) == IN)
 					{
-						next_loc->T(i, j) = cur->T(i, j) + dt * ( 
+						next_local->T(i, j) = cur->T(i, j) + dt * ( 
 							- temp->U(i, j) * temp->Tx(i, j) 
 							- temp->V(i, j) * temp->Ty(i, j) 
-							+ (1 / (params.Re * params.Pr)) * (temp->Txx(i, j) + temp->Tyy(i, j)) 
+							+ (1 / (params.Re * params.Pr)) * (temp->Txx(i, j) + temp->Tyy(i, j))
 							+ ((params.lambda - 1) / (params.lambda * params.Re)) * temp->DissFunc(i, j));
 					}
-			next_loc->CopyTto(grid, next, IN);
-			cur->CopyTto(grid, next, BOUND);
-			cur->CopyTto(grid, next, VALVE);
+			next_local->CopyTto(grid, next, IN);
 		}
-
-		delete next_loc;
-	}
-
-	void ExplicitSolver2D::UpdateBoundaries()
-	{
-		for (int i = 0; i < dimx; i++)
-			for (int j = 0; j < dimy; j++)
-				switch(grid->GetType(i, j))
-				{
-				case BOUND:
-				case VALVE:
-					cur->U(i, j) = grid->GetData(i, j).vel.x;
-					cur->V(i, j) = grid->GetData(i, j).vel.y;
-					cur->T(i, j) = grid->GetData(i, j).T;
-					break;
-				}
-		cur->CopyUto(grid, next, BOUND);
-		cur->CopyVto(grid, next, BOUND);
-		cur->CopyTto(grid, next, BOUND);
-		cur->CopyUto(grid, next, VALVE);
-		cur->CopyVto(grid, next, VALVE);
-		cur->CopyTto(grid, next, VALVE);
-		
-		cur->CopyUto(grid, temp, BOUND);
-		cur->CopyVto(grid, temp, BOUND);
-		cur->CopyTto(grid, temp, BOUND);
-		cur->CopyUto(grid, temp, VALVE);
-		cur->CopyVto(grid, temp, VALVE);
-		cur->CopyTto(grid, temp, VALVE);
 	}
 
 	void ExplicitSolver2D::TimeStep(double dt, int num_global, int num_local)
 	{
+		// copy boundary conditions to temp
+		cur->CopyAllto(grid, temp, BOUND);
+		cur->CopyAllto(grid, temp, VALVE);
+
 		// do global iterations
 		int it;
 		double err = next->EvalDivError(grid);
 
 		for (it = 0; (it < num_global) || (err > ERR_THRESHOLD); it++)
 		{
+			// solve equations
 			SolveU(dt, num_local, cur, temp, next);
 			SolveV(dt, num_local, cur, temp, next);
 			SolveT(dt, num_local, cur, temp, next);
 
 			err = next->EvalDivError(grid);
 			
-			next->MergeUto(grid, temp, IN);
-			next->MergeVto(grid, temp, IN);
-			next->MergeTto(grid, temp, IN);
-
+			// update non-linear parameters
+			next->MergeAllto(grid, temp, IN);
+			
 			if (it > MAX_GLOBAL_ITERS) 
 			{
 				printf("Exceeded max number of iterations (%i)\n", MAX_GLOBAL_ITERS); 
@@ -183,34 +140,25 @@ namespace FluidSolver
 		// output number of global iterations & error
 		printf("%i,%i,%.4f,", it, num_local, err);
 
+		// copy result to current layer
 		next->CopyAllto(grid, cur);
-	}
-
-	void ExplicitSolver2D::GetResult(int nx, int ny, Vec2D *vel, double *T)
-	{
-		for (int i = 0; i < nx; i++)
-			for (int j = 0; j < ny; j++)
-			{
-				int x = (i * dimx / nx);
-				int y = (j * dimy / ny);
-				vel[i * ny + j].x = next->U(x, y); 
-				vel[i * ny + j].y = next->V(x, y);
-				T[i * ny + j] = next->T(x, y);
-			}
 	}
 
 	void ExplicitSolver2D::FreeMemory()
 	{
 		if (cur != NULL) delete cur;
 		if (temp != NULL) delete temp;
+		if (next_local != NULL) delete next_local;
 		if (next != NULL) delete next;
 	}
 
 	ExplicitSolver2D::ExplicitSolver2D()
 	{
 		grid = NULL;
+
 		cur = NULL;
 		temp = NULL;
+		next_local = NULL;
 		next = NULL;
 	}
 

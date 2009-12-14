@@ -10,7 +10,6 @@
 
 #define INF				1e10
 #define MAX_STR_SIZE	255
-#define NUM_STEPS		40
 #define BBOX_OFFSET		3.0
 
 using namespace std;
@@ -93,7 +92,7 @@ namespace FluidSolver
 
 		void Init();
 
-		void RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, int steps, CellType color);
+		void RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color);
 		void FloodFill(CellType color);
 
 		void FillTestInitData(Vec2D startVel);

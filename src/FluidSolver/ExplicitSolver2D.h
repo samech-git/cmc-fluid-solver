@@ -7,25 +7,18 @@
 
 namespace FluidSolver
 {
-	class ExplicitSolver2D : Solver2D
+	class ExplicitSolver2D : public Solver2D
 	{
 	public:
 		void Init(Grid2D* _grid, FluidParams &_params);
 		void TimeStep(double dt, int num_global, int num_local);
-		void GetResult(int outdimx, int outdimy, Vec2D *vel, double *T);
 
 		ExplicitSolver2D();
 		~ExplicitSolver2D();
-
-		Grid2D *grid;
-		void UpdateBoundaries();
-
-	protected:
-		//Grid2D *grid;
-		TimeLayer2D *cur, *temp, *next;
-		FluidParams params;
 	
 	private:
+		TimeLayer2D *temp, *next_local;
+
 		void SolveU(double dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
 		void SolveV(double dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
 		void SolveT(double dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);

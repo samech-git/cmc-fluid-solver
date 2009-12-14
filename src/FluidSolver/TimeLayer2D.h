@@ -44,17 +44,29 @@ namespace FluidSolver
 		
 		// other functions
 
-		double DissFunc(int i, int j)
+		double DissFuncX(int i, int j)
 		{
 			double ux = Ux(i, j);
 			double vx = Vx(i, j);
 			double uy = Uy(i, j);
 			double vy = Vy(i, j);
 
-			double diss_x = 2 * ux * ux + vx * vx + uy * vx;
-			double diss_y = uy * uy + 2 * vy * vy + vx * uy;
-			
-			return diss_x + diss_y;
+			return 2 * ux * ux + vx * vx + uy * vx;
+		}
+
+		double DissFuncY(int i, int j)
+		{
+			double ux = Ux(i, j);
+			double vx = Vx(i, j);
+			double uy = Uy(i, j);
+			double vy = Vy(i, j);
+
+			return uy * uy + 2 * vy * vy + vx * uy;
+		}
+
+		double DissFunc(int i, int j)
+		{
+			return DissFuncX(i, j) + DissFuncY(i, j);
 		}
 
 		double EvalDivError(Grid2D *grid)
@@ -121,23 +133,26 @@ namespace FluidSolver
 						dest->T(i, j) = (dest->T(i, j) + T(i, j)) / 2;
 		}
 
+		void MergeAllto(Grid2D *grid, TimeLayer2D *dest, CellType type)
+		{
+			MergeUto(grid, dest, type);
+			MergeVto(grid, dest, type);
+			MergeTto(grid, dest, type);
+		}
+
 		void CopyAllto(Grid2D *grid, TimeLayer2D *dest)
 		{
-			CopyUto(grid, dest, IN);
-			CopyVto(grid, dest, IN);
-			CopyTto(grid, dest, IN);
+			CopyAllto(grid, dest, IN);
+			CopyAllto(grid, dest, OUT);
+			CopyAllto(grid, dest, BOUND);
+			CopyAllto(grid, dest, VALVE);
+		}
 
-			CopyUto(grid, dest, OUT);
-			CopyVto(grid, dest, OUT);
-			CopyTto(grid, dest, OUT);
-
-			CopyUto(grid, dest, BOUND);
-			CopyVto(grid, dest, BOUND);
-			CopyTto(grid, dest, BOUND);
-
-			CopyUto(grid, dest, VALVE);
-			CopyVto(grid, dest, VALVE);
-			CopyTto(grid, dest, VALVE);
+		void CopyAllto(Grid2D *grid, TimeLayer2D *dest, CellType type)
+		{
+			CopyUto(grid, dest, type);
+			CopyVto(grid, dest, type);
+			CopyTto(grid, dest, type);
 		}
 
 		TimeLayer2D(int _dimx, int _dimy, double _dx, double _dy) : dimx(_dimx), dimy(_dimy), dx(_dx), dy(_dy)

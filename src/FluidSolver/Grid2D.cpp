@@ -101,8 +101,9 @@ namespace FluidSolver
 #endif
 	}
 
-	void Grid2D::RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, int steps, CellType color)
+	void Grid2D::RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color)
     {
+		int steps = (int)max(abs(p2.x - p1.x), abs(p2.y - p1.y));
         Point2D dp((p2.x - p1.x) / steps, (p2.y - p1.y) / steps);		// divide a segment into parts
 		Vec2D dv((v2.x - v1.x) / steps, (v2.y - v1.y) / steps);		// divide a segment into parts
 		
@@ -199,8 +200,8 @@ namespace FluidSolver
      
 		// rasterize lines
         for (int i = 0; i < num_points - 1; i++) 
-            RasterLine(points[i], points[i+1], vels[i], vels[i+1], NUM_STEPS, BOUND);
-        RasterLine(points[0], points[num_points-1], vels[0], vels[num_points-1], NUM_STEPS, VALVE);
+            RasterLine(points[i], points[i+1], vels[i], vels[i+1], BOUND);
+        RasterLine(points[0], points[num_points-1], vels[0], vels[num_points-1], VALVE);
 
         FloodFill(OUT); 
 	}
@@ -212,8 +213,7 @@ namespace FluidSolver
 				switch (GetType(i, j))
 				{
 				case IN: case OUT: SetData(i, j, CondData2D(NONE, Vec2D(0, 0), 1.0)); break; 
-				//case BOUND: SetData(i, j, CondData2D(NOSLIP, Vec2D(0, 0), 1.0)); break; 
-				case VALVE: SetData(i, j, CondData2D(FREE, startVel, 1.0)); break; 
+				case VALVE: SetData(i, j, CondData2D(NOSLIP, startVel, 1.0)); break; 
 				}
 	}
 
