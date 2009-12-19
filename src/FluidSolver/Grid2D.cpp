@@ -103,7 +103,7 @@ namespace FluidSolver
 
 	void Grid2D::RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color)
     {
-		int steps = (int)max(abs(p2.x - p1.x), abs(p2.y - p1.y));
+		int steps = (int)max(abs(p2.x - p1.x), abs(p2.y - p1.y)) + 1;
         Point2D dp((p2.x - p1.x) / steps, (p2.y - p1.y) / steps);		// divide a segment into parts
 		Vec2D dv((v2.x - v1.x) / steps, (v2.y - v1.y) / steps);		// divide a segment into parts
 		

@@ -1,11 +1,12 @@
 #include "FluidSolver.h"
+#include "Timer.h"
 
 const double dx = 0.5;
 const double dy = 0.5;
 
-const double dt = 1.0;
+const double dt = 0.5;
 
-const double Re = 10.0;
+const double Re = 15.0;
 const double Pr = 0.82;
 const double lambda = 1.4;
 
@@ -27,7 +28,7 @@ int main(int argc, char **argv)
 {
 	//--------------------------------------- Initializing ---------------------------------------
 	Grid2D grid(dx, dy);
-	if (grid.LoadFromFile("..\\..\\data\\test3.txt") == OK)
+	if (grid.LoadFromFile("..\\..\\data\\test_heart.txt") == OK)
 	{
 		printf("dx,dy,dimx,dimy,dt,Re,Pr,lambda\n");
 		printf("%f,%f,%i,%i,%.3f,%f,%f,%f\n", dx, dy, grid.dimx, grid.dimy, dt, Re, Pr, lambda);
@@ -66,11 +67,19 @@ int main(int argc, char **argv)
 		fprintf(file, "0.035\n");
 		for (int j = 0; j < subframes; j++)
 		{
+			cpu_timer timer;
+			timer.start();
+
 			grid.Prepare(i, (double)j / subframes);
 			solver->UpdateBoundaries();
-
  			solver->TimeStep(dt, num_global, num_local);
-			printf(" frame %i\tsubstep %i\t%i%%\n", i, j, step / percent);
+
+			timer.stop();
+			float time_left_sec = ((frames-i-1) * subframes + subframes-j-1) * timer.elapsed_sec();
+			int time_h = ((int)time_left_sec) / 3600;
+			int time_m = (((int)time_left_sec) / 60) % 60;
+			int time_s = ((int)time_left_sec) % 60;
+			printf(" frame %i\tsubstep %i\t%i%%\t(%i h %i m %i s left)\n", i, j, step / percent, time_h, time_m, time_s);
 			step += 100;
 		}
 		solver->GetResult(outdimx, outdimy, vel, T);

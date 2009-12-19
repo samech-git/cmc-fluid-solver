@@ -94,9 +94,7 @@ namespace FluidSolver
 
 	void ExplicitSolver2D::TimeStep(double dt, int num_global, int num_local)
 	{
-		// copy boundary conditions to temp
-		cur->CopyAllto(grid, temp, BOUND);
-		cur->CopyAllto(grid, temp, VALVE);
+		cur->CopyAllto(grid, temp);
 
 		// do global iterations
 		int it;

@@ -151,7 +151,7 @@ namespace FluidSolver
 					a[p] = - temp_local->U(i+p, j) / (2 * grid->dx) - rcp_RePr_dx2; 
 					b[p] = 1 / dt  +  2 * rcp_RePr_dx2; 
 					c[p] = temp_local->U(i+p, j) / (2 * grid->dx) - rcp_RePr_dx2; 
-					d[p] = cur->T(i+p, j) / dt - ((params.lambda - 1) / (params.lambda * params.Re)) * temp_local->DissFuncX(i+p, j);
+					d[p] = cur->T(i+p, j) / dt + ((params.lambda - 1) / (params.lambda * params.Re)) * temp_local->DissFuncX(i+p, j);
 					break;
 				}
 				break;
@@ -174,7 +174,7 @@ namespace FluidSolver
 					a[p] = - temp_local->V(i, j+p) / (2 * grid->dy) - rcp_RePr_dy2; 
 					b[p] = 1 / dt  +  2 * rcp_RePr_dy2; 
 					c[p] = temp_local->V(i, j+p) / (2 * grid->dy) - rcp_RePr_dy2; 
-					d[p] = cur->T(i, j+p) / dt - ((params.lambda - 1) / (params.lambda * params.Re)) * temp_local->DissFuncY(i, j+p);
+					d[p] = cur->T(i, j+p) / dt + ((params.lambda - 1) / (params.lambda * params.Re)) * temp_local->DissFuncY(i, j+p);
 					break;
 				}
 				break;

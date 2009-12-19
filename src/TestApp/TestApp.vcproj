@@ -181,6 +181,14 @@
 				>
 			</File>
 		</Filter>
+		<Filter
+			Name="Header Files"
+			>
+			<File
+				RelativePath=".\Timer.h"
+				>
+			</File>
+		</Filter>
 	</Files>
 	<Globals>
 	</Globals>
