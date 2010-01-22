@@ -20,13 +20,16 @@ namespace FluidSolver
 	{
 		if (typeData != NULL) delete [] typeData;
 		if (initData != NULL) delete [] initData;
-		if (velocities != NULL) delete[] velocities;
-		if (points != NULL)
-		{
-			for (int i=0; i<num_frames; i++)
-				if (points[i] != NULL) delete[] points[i];
-			delete[] points;
-		}
+
+		for (int i=0; i<num_frames; i++)
+			frames[i].Dispose();
+		delete[] frames;
+		//if (points != NULL)
+		//{
+		//	for (int i=0; i<num_frames; i++)
+		//		if (points[i] != NULL) delete[] points[i];
+		//	delete[] points;
+		//}
 	}
 
 	inline CellType Grid2D::GetType(int x, int y)
@@ -83,12 +86,13 @@ namespace FluidSolver
 		p.y = atof(s2.c_str());
 	}
 
-	void Grid2D::BuildBBox(int num_points, int num_frames, Point2D** points)
+	void Grid2D::BuildBBox(int num_frames, FrameInfo* frames)
 	{
 		bbox.Clear();
 		for (int j = 0; j < num_frames; j++)
-			for (int i = 0; i < num_points; i++)
-				bbox.AddPoint(points[j][i]);
+			for (int i = 0; i < frames[j].NumShapes; i++)
+				for (int k = 0; k < frames[j].Shapes[i].NumPoints; k++)
+					bbox.AddPoint(frames[j].Shapes[i].Points[k]);
 
 		bbox.pMin.x -= BBOX_OFFSET;
 		bbox.pMin.y -= BBOX_OFFSET;
@@ -116,8 +120,9 @@ namespace FluidSolver
             int x = (int)startp.x;
             int y = (int)startp.y;
 
+			
 			SetType(x, y, color);
-			SetData(x, y, CondData2D(NOSLIP, startv, 1.0));
+			SetData(x, y, CondData2D(NOSLIP, Vec2D(startv.x * 0.005, startv.y * 0.005), 1.0));
 
 			startp.x += dp.x;
             startp.y += dp.y;
@@ -171,7 +176,7 @@ namespace FluidSolver
 
 	void Grid2D::Init()
 	{
-		BuildBBox(num_points, num_frames, points);
+		BuildBBox(num_frames, frames);
 	
 		dimx = (int)ceil((bbox.pMax.x - bbox.pMin.x) / dx) + 1;
 		dimy = (int)ceil((bbox.pMax.y - bbox.pMin.y) / dy) + 1;
@@ -183,15 +188,16 @@ namespace FluidSolver
 
 		// convert physical coordinates to the grid coordinates
 		for (int j = 0; j < num_frames; j++)
-			for (int i = 0; i < num_points; i++) 
-			{
-				points[j][i].x = (points[j][i].x - bbox.pMin.x) / dx;
-				points[j][i].y = (points[j][i].y - bbox.pMin.y) / dy;
-			}
+			for (int i = 0; i < frames[j].NumShapes; i++)
+				for (int k = 0; k < frames[j].Shapes[i].NumPoints; k++)
+				{
+					frames[j].Shapes[i].Points[k].x = (frames[j].Shapes[i].Points[k].x - bbox.pMin.x) / dx;
+					frames[j].Shapes[i].Points[k].y = (frames[j].Shapes[i].Points[k].y - bbox.pMin.y) / dy;
+				}
 
 	}
 
-	void Grid2D::Build(int num_points, Point2D *points, Vec2D* vels)
+	void Grid2D::Build(FrameInfo frame)
 	{
 		// mark all cells as inner 
 		for (int i = 0; i < dimx; i++)
@@ -199,21 +205,18 @@ namespace FluidSolver
 				SetType(i, j, IN);
      
 		// rasterize lines
-        for (int i = 0; i < num_points - 1; i++) 
-            RasterLine(points[i], points[i+1], vels[i], vels[i+1], BOUND);
-        RasterLine(points[0], points[num_points-1], vels[0], vels[num_points-1], VALVE);
-
+		for (int j=0; j<frame.NumShapes; j++)
+			for (int i = 0; i < frame.Shapes[j].NumPoints - 1; i++) 
+				RasterLine(frame.Shapes[j].Points[i], frame.Shapes[j].Points[i+1],
+						   frame.Shapes[j].Velocities[i], frame.Shapes[j].Velocities[i+1],
+						   BOUND);
         FloodFill(OUT); 
-	}
 
-	void Grid2D::FillTestInitData(Vec2D startVel)
-	{
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
 				switch (GetType(i, j))
 				{
-				case IN: case OUT: SetData(i, j, CondData2D(NONE, Vec2D(0, 0), 1.0)); break; 
-				case VALVE: SetData(i, j, CondData2D(NOSLIP, startVel, 1.0)); break; 
+					case IN: case OUT: SetData(i, j, CondData2D(NONE, Vec2D(0, 0), 1.0)); break; 
 				}
 	}
 
@@ -227,70 +230,93 @@ namespace FluidSolver
 		}
 
 		fscanf_s(file, "%i", &num_frames);	// currently not used
-		fscanf_s(file, "%i", &num_points);
-
-		points = new Point2D*[num_frames];
-		velocities = new Vec2D[num_frames];
 		Point2D p;
+		int temp;
+		frames = new FrameInfo[num_frames];
 		
 		for (int j=0; j<num_frames; j++)
 		{
-			points[j] = new Point2D[num_points];
-			char str[7];
-			fscanf_s(file, "%s", str, 7);
-			for (int i = 0; i < num_points; i++)
-				ReadPoint2D(file, points[j][i]);
-
-			fscanf_s(file, "%s", str, 7);
-			if (str[0] == 'M')
+			
+			fscanf_s(file, "%f", &(frames[j].Duration));
+			frames[j].Duration = 0.035;
+			fscanf_s(file, "%i", &temp);
+			frames[j].Init(temp);
+			for (int i = 0; i<frames[j].NumShapes; i++)
 			{
-				ReadPoint2D(file, p);
-				velocities[j] = Vec2D(p.x, p.y);
+				fscanf_s(file, "%i", &temp);
+				frames[j].Shapes[i].Init(temp);
+				for (int k=0; k<frames[j].Shapes[i].NumPoints; k++)
+				{
+					ReadPoint2D(file, p);
+					frames[j].Shapes[i].Points[k].x = p.x;
+					frames[j].Shapes[i].Points[k].y = p.y;
+				}
 
-				velocities[j].x /= 1000;
-				velocities[j].y /= 1000;
+				char str[8];
+				fscanf_s(file, "%s", str, 8);
+
+				p.x = p.y = 0;
+				if (str[0] == 'M')
+				{
+					frames[j].Shapes[i].Active = true;
+					ReadPoint2D(file, p);
+				}
+				else
+					frames[j].Shapes[i].Active = false;
+				for (int k=0; k<frames[j].Shapes[i].NumPoints; k++)
+				{
+					frames[j].Shapes[i].Velocities[k].x = p.x;
+					frames[j].Shapes[i].Velocities[k].y = p.y;
+				}
 			}
-			else
-				velocities[j] = Vec2D(0, 0);
 		}
 	
+		for (int j=0; j<num_frames; j++)
+			ComputeBorderVelocities(j);
+		
 		Init();
 		return OK;
 	}
 
-	Vec2D* Grid2D::ComputeBorderVelocities(int frame, double substep)
+
+	void Grid2D::ComputeBorderVelocities(int frame)
 	{
-		Vec2D* res = new Vec2D[num_points];
-		int nextframe = (frame == num_frames - 1) ? frame : frame + 1;
-		int next2frame = (nextframe == num_frames - 1) ? nextframe : nextframe + 1;
-		
-		double vx1, vy1, vx2, vy2;
-
-
-		double m = 0.03;
-		for (int i=0; i<num_points; i++)
-		{
-			vx1 = (points[nextframe][i].x - points[frame][i].x) * m;
-			vy1 = (points[nextframe][i].y - points[frame][i].y) * m;
-
-			vx2 = (points[next2frame][i].x - points[nextframe][i].x) * m;
-			vy2 = (points[next2frame][i].y - points[nextframe][i].y) * m;
-
-			res[i].x = vx2 * substep + vx1 * (1 - substep);
-			res[i].y = vy2 * substep + vy1 * (1 - substep);
-		}
-		return res;
+		int nextframe = (frame + 1) % num_frames;
+		double m = 1 / frames[frame].Duration;
+		for (int i=0; i<frames[frame].NumShapes; i++)
+			if (!frames[frame].Shapes[i].Active)
+				for (int k=0; k<frames[frame].Shapes[i].NumPoints; k++)
+				{
+					frames[nextframe].Shapes[i].Velocities[k].x = 
+						(frames[nextframe].Shapes[i].Points[k].x - frames[frame].Shapes[i].Points[k].x) * m;
+					frames[nextframe].Shapes[i].Velocities[k].y = 
+						(frames[nextframe].Shapes[i].Points[k].y - frames[frame].Shapes[i].Points[k].y) * m;
+				}
 	}
 
-	Point2D* Grid2D::ComputeSubBorder(int frame, double substep)
+	FrameInfo Grid2D::ComputeSubframe(int frame, double substep)
 	{
-		Point2D* res = new Point2D[num_points];
-		int nextframe = (frame == num_frames - 1) ? frame : frame + 1;
+		int framep1 = (frame + 1) % num_frames;
 
-		for (int i=0; i<num_points; i++)
+		FrameInfo res;
+		res.Duration = 0;
+
+		res.Init(frames[frame].NumShapes);
+		for (int i=0; i<res.NumShapes; i++)
 		{
-			res[i].x = points[nextframe][i].x * substep + points[frame][i].x * (1 - substep);
-			res[i].y = points[nextframe][i].y * substep + points[frame][i].y * (1 - substep);
+			res.Shapes[i].Init(frames[frame].Shapes[i].NumPoints);
+			for (int k=0; k<res.Shapes[i].NumPoints; k++)
+			{
+				res.Shapes[i].Points[k].x = frames[frame].Shapes[i].Points[k].x * (1 - substep) + 
+											frames[framep1].Shapes[i].Points[k].x * substep;
+				res.Shapes[i].Points[k].y = frames[frame].Shapes[i].Points[k].y * (1 - substep) + 
+											frames[framep1].Shapes[i].Points[k].y * substep;
+
+				res.Shapes[i].Velocities[k].x = frames[frame].Shapes[i].Velocities[k].x * (1 - substep) + 
+												frames[framep1].Shapes[i].Velocities[k].x * substep;
+				res.Shapes[i].Velocities[k].y = frames[frame].Shapes[i].Velocities[k].y * (1 - substep) + 
+												frames[framep1].Shapes[i].Velocities[k].y * substep;
+			}
 		}
 		return res;
 	}
@@ -298,12 +324,11 @@ namespace FluidSolver
 	void Grid2D::Prepare(int frame, double substep)
 	{
 		if (frame >= num_frames) frame = num_frames-1;
-		Vec2D* tempvec = ComputeBorderVelocities(frame, substep);
-		Point2D* temppoints = ComputeSubBorder(frame, substep);
-		Build(num_points, temppoints, tempvec);
-		FillTestInitData(velocities[frame]);
-		delete[] tempvec;
-		delete[] temppoints;
+		
+		FrameInfo tempframe = ComputeSubframe(frame, substep);
+		Build(tempframe);
+		//FillTestInitData(velocities[frame]);
+		tempframe.Dispose();
 	}
 
 

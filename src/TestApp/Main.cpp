@@ -4,7 +4,7 @@
 const double dx = 0.5;
 const double dy = 0.5;
 
-const double dt = 0.5;
+const double dt = 0.15;
 
 const double Re = 15.0;
 const double Pr = 0.82;
@@ -13,7 +13,7 @@ const double lambda = 1.4;
 const int num_global = 2;
 const int num_local = 1;
 
-const int frames = 22;
+const int frames = 25;
 const int subframes = 150;
 
 const int outdimx = 50;
@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 {
 	//--------------------------------------- Initializing ---------------------------------------
 	Grid2D grid(dx, dy);
-	if (grid.LoadFromFile("..\\..\\data\\test_heart.txt") == OK)
+	if (grid.LoadFromFile("..\\..\\data\\test_ns.txt") == OK)
 	{
 		printf("dx,dy,dimx,dimy,dt,Re,Pr,lambda\n");
 		printf("%f,%f,%i,%i,%.3f,%f,%f,%f\n", dx, dy, grid.dimx, grid.dimy, dt, Re, Pr, lambda);

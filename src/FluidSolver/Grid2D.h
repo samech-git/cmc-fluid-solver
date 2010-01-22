@@ -13,7 +13,6 @@
 #define BBOX_OFFSET		3.0
 
 using namespace std;
-
 namespace FluidSolver
 {
 	enum CellType { IN, OUT, BOUND, VALVE };
@@ -24,6 +23,46 @@ namespace FluidSolver
 
 		Point2D() : x(0.0), y(0.0) { }
 		Point2D(double _x, double _y) : x(_x), y(_y) { }
+	};
+
+	struct Shape
+	{
+		Point2D* Points;
+		Vec2D* Velocities;
+		int NumPoints;
+		bool Active;
+
+		void Init(int num)
+		{
+			NumPoints = num;
+			Points = new Point2D[num];
+			Velocities = new Vec2D[num];
+		}
+
+		void Dispose()
+		{
+			delete[] Points;
+			delete[] Velocities;
+		}
+	};
+
+	struct FrameInfo
+	{
+		Shape* Shapes;
+		int NumShapes;
+		double Duration;
+
+		void Init(int num)
+		{
+			NumShapes = num;
+			Shapes = new Shape[num];
+		}
+		void Dispose()
+		{
+			for (int i=0; i<NumShapes; i++)
+				Shapes[i].Dispose();
+			delete[] Shapes;
+		}
 	};
 
 	enum CondType { NONE, NOSLIP, FREE };
@@ -78,13 +117,15 @@ namespace FluidSolver
 		BBox2D bbox;
 	protected:
 		//---------------------------- Borders ---------------------------------
-
-		Point2D** points;
-		Vec2D* velocities;
-		int num_points;
+		FrameInfo* frames;
+		//Vec2D* velocities;
+		//int num_points;
 		int num_frames;
-		Vec2D* ComputeBorderVelocities(int frame, double substep);
-		Point2D* ComputeSubBorder(int frame, double substep);
+		
+		void ComputeBorderVelocities(int frame);
+		FrameInfo ComputeSubframe(int frame, double substep);
+		//Vec2D* ComputeBorderVelocities(int frame, double substep);
+		//Point2D* ComputeSubBorder(int frame, double substep);
 		//----------------------------------------------------------------------
 
 		int *typeData;
@@ -95,10 +136,11 @@ namespace FluidSolver
 		void RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color);
 		void FloodFill(CellType color);
 
-		void FillTestInitData(Vec2D startVel);
+		//void FillTestInitData(Vec2D startVel);
 		
-		void BuildBBox(int num_points, int num_frames, Point2D** points);
-		void Build(int num_points, Point2D *points, Vec2D* vels);
+		void BuildBBox(int num_frames, FrameInfo* frames);
+		
+		void Build(FrameInfo frame);
 		
 		void SetType(int x, int y, CellType t);
 		void SetData(int x, int y, CondData2D d);
