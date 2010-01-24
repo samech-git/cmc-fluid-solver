@@ -8,7 +8,6 @@
 #include <vector>
 #include <string>
 
-#define INF				1e10
 #define MAX_STR_SIZE	255
 #define BBOX_OFFSET		3.0
 
@@ -16,14 +15,6 @@ using namespace std;
 namespace FluidSolver
 {
 	enum CellType { IN, OUT, BOUND, VALVE };
-
-	struct Point2D 
-	{ 
-		double x, y; 
-
-		Point2D() : x(0.0), y(0.0) { }
-		Point2D(double _x, double _y) : x(_x), y(_y) { }
-	};
 
 	struct Shape
 	{
@@ -75,27 +66,6 @@ namespace FluidSolver
 
 		CondData2D() : type(NONE), vel(Vec2D(0.0, 0.0)), T(0.0) { }
 		CondData2D(CondType _type, Vec2D _vel, double _T) : type(_type), vel(_vel), T(_T) { }
-	};
-
-	struct BBox2D
-	{
-		Point2D pMin, pMax;
-
-		BBox2D() { Clear(); }
-		
-		void AddPoint(Point2D p)
-		{
-			if (p.x < pMin.x) pMin.x = p.x;
-			if (p.y < pMin.y) pMin.y = p.y;
-			if (p.x > pMax.x) pMax.x = p.x;
-			if (p.y > pMax.y) pMax.y = p.y;
-		}
-
-		void Clear()
-		{
-			pMin.x = pMin.y = INF; 
-			pMax.x = pMax.y = -INF;
-		}
 	};
 
 	struct Grid2D

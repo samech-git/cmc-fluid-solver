@@ -1,10 +1,10 @@
 #include "FluidSolver.h"
 #include "Timer.h"
 
-const double dx = 0.25;
-const double dy = 0.25;
+const double dx = 0.5;
+const double dy = 0.5;
 
-const double dt = 0.15;
+const double dt = 0.25;
 
 const double Re = 30.0;
 const double Pr = 0.82;
@@ -18,6 +18,8 @@ const int subframes = 150;
 
 const int outdimx = 50;
 const int outdimy = 50;
+
+const float timeValue = 0.035f;
 
 enum solvers { Explicit, ADI };
 const int solverID = ADI;		
@@ -57,35 +59,34 @@ int main(int argc, char **argv)
 	// loading last-layer if there is one
 	Vec2D *lastVel = NULL;
 	double *lastT = NULL;
-	int curFrame = LoadLastLayer(lastPath, &lastVel, &lastT, grid.dimx, grid.dimy);
-	
-	// result header
-	Vec2D *resVel = new Vec2D[outdimx * outdimy];
-	double *resT = new double[outdimx * outdimy];
+	int startFrame = LoadLastLayer(lastPath, &lastVel, &lastT, grid.dimx, grid.dimy, frames);
 
 	FILE *resFile = NULL;
-	if (curFrame == 0)
+	if (startFrame == 0)
 	{
+		printf("Starting from the beginning\n");
 		fopen_s(&resFile, resPath, "w");
-		fprintf(resFile, "%.2f %.2f %.2f %.2f\n", grid.bbox.pMin.x, grid.bbox.pMin.y, grid.bbox.pMax.x, grid.bbox.pMax.y);
-
-		float ddx = (float)(grid.bbox.pMax.x - grid.bbox.pMin.x) / outdimx;
-		float ddy = (float)(grid.bbox.pMax.y - grid.bbox.pMin.y) / outdimy;
-		fprintf(resFile, "%.2f %.2f %i %i\n", ddx, ddy, outdimx, outdimy);
-		fprintf(resFile, "%i\n", frames);
+		OutputResultHeader(resFile, &grid.bbox, outdimx, outdimy, frames);
+	}
+	else if (startFrame == frames)
+	{
+		printf("All done!\n");
+		return 0;
 	}
 	else
 	{
+		printf("Starting from frame %i\n", startFrame);
 		fopen_s(&resFile, resPath, "a");
+		solver->SetLayer(lastVel, lastT);
 	}
 
-	//------------------------------------------ Solving ------------------------------------------
-	int percent = frames * subframes;
-	int step = 0;
+	Vec2D *resVel = new Vec2D[outdimx * outdimy];
+	double *resT = new double[outdimx * outdimy];
 
-	for (int i = 0; i < frames; i++)
+	//------------------------------------------ Solving ------------------------------------------
+	for (int i = startFrame; i < frames; i++)
 	{	
-		fprintf(resFile, "0.035\n");
+		fprintf(resFile, "%.3f\n", timeValue);
 		for (int j = 0; j < subframes; j++)
 		{
 			cpu_timer timer;
@@ -96,24 +97,14 @@ int main(int argc, char **argv)
  			solver->TimeStep(dt, num_global, num_local);
 
 			timer.stop();
-			float time_left_sec = ((frames-i-1) * subframes + subframes-j-1) * timer.elapsed_sec();
-			int time_h = ((int)time_left_sec) / 3600;
-			int time_m = (((int)time_left_sec) / 60) % 60;
-			int time_s = ((int)time_left_sec) % 60;
-			printf(" frame %i\tsubstep %i\t%i%%\t(%i h %i m %i s left)\n", i, j, step / percent, time_h, time_m, time_s);
-			step += 100;
+			PrintTimeStepInfo(i, j, frames, subframes, timer.elapsed_sec());
 		}
 		
 		solver->GetLayer(resVel, resT, outdimx, outdimy);
-		ShiferTestPrintResult(resFile, resVel, resT, outdimx, outdimy);
+		OutputResult(resFile, resVel, resT, outdimx, outdimy);
 
 		solver->GetLayer(lastVel, lastT);
-		
-		FILE *lastFile = NULL;
-		fopen_s(&lastFile, lastPath, "w");
-		fprintf(lastFile, "%i %i\n", grid.dimx, grid.dimy);
-		PrintLast(lastFile, lastVel, lastT, grid.dimx, grid.dimy);
-		fclose(lastFile);
+		SaveLastLayer(lastPath, i+1, lastVel, lastT, grid.dimx, grid.dimy); 
 	}
 
 	delete solver;
@@ -123,6 +114,5 @@ int main(int argc, char **argv)
 	delete [] lastT;
 
 	fclose(resFile);
-
 	return 0;
 }
