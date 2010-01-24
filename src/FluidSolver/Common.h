@@ -51,12 +51,30 @@ namespace FluidSolver
 	}
 
 
-		static void ShiferTestPrintResult(int dimx, int dimy, Vec2D *v, double *T, FILE* file)
+	static void ShiferTestPrintResult(FILE* file, Vec2D *v, double *T, int dimx, int dimy)
 	{
 		for (int j = 0; j < dimy; j++)
 		{
 			for (int i = 0; i < dimx; i++)
 				fprintf(file, "%.2f %.2f ", v[i * dimy + j].x, v[i * dimy + j].y);
+			fprintf(file, "\n");
+		}
+	}
+
+	static int LoadLastLayer(char *fileName, Vec2D **v, double **T, int dimx, int dimy)
+	{
+		*v = new Vec2D[dimx * dimy];
+		*T = new double[dimx * dimy];
+
+		return 0;
+	}
+
+	static void PrintLast(FILE* file, Vec2D *v, double *T, int dimx, int dimy)
+	{
+		for (int j = 0; j < dimy; j++)
+		{
+			for (int i = 0; i < dimx; i++)
+				fprintf(file, "%f %f %f", v[i * dimy + j].x, v[i * dimy + j].y, T[i * dimy + j]);
 			fprintf(file, "\n");
 		}
 	}

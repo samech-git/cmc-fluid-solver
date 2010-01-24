@@ -1,12 +1,12 @@
 #include "FluidSolver.h"
 #include "Timer.h"
 
-const double dx = 0.5;
-const double dy = 0.5;
+const double dx = 0.25;
+const double dy = 0.25;
 
 const double dt = 0.15;
 
-const double Re = 15.0;
+const double Re = 30.0;
 const double Pr = 0.82;
 const double lambda = 1.4;
 
@@ -26,15 +26,23 @@ using namespace FluidSolver;
 
 int main(int argc, char **argv)
 {
+	char dataPath[MAX_PATH];
+	char resPath[MAX_PATH];
+	char lastPath[MAX_PATH];
+	
+	sprintf_s(dataPath, "..\\..\\data\\%s_ns.txt", argv[1]);
+	sprintf_s(resPath, "..\\..\\data\\%s_res.txt", argv[1]);
+	sprintf_s(lastPath, "..\\..\\data\\%s_layer.txt", argv[1]);
+
 	//--------------------------------------- Initializing ---------------------------------------
 	Grid2D grid(dx, dy);
-	if (grid.LoadFromFile("..\\..\\data\\test_ns.txt") == OK)
+	if (grid.LoadFromFile(dataPath) == OK)
 	{
 		printf("dx,dy,dimx,dimy,dt,Re,Pr,lambda\n");
 		printf("%f,%f,%i,%i,%.3f,%f,%f,%f\n", dx, dy, grid.dimx, grid.dimy, dt, Re, Pr, lambda);
 	}
 	grid.Prepare(0, 0);
-	grid.TestPrint();
+	//grid.TestPrint();
 	
 	FluidParams params(Re, Pr, lambda);
 
@@ -46,25 +54,38 @@ int main(int argc, char **argv)
 	}
 	solver->Init(&grid, params);
 
+	// loading last-layer if there is one
+	Vec2D *lastVel = NULL;
+	double *lastT = NULL;
+	int curFrame = LoadLastLayer(lastPath, &lastVel, &lastT, grid.dimx, grid.dimy);
+	
+	// result header
+	Vec2D *resVel = new Vec2D[outdimx * outdimy];
+	double *resT = new double[outdimx * outdimy];
+
+	FILE *resFile = NULL;
+	if (curFrame == 0)
+	{
+		fopen_s(&resFile, resPath, "w");
+		fprintf(resFile, "%.2f %.2f %.2f %.2f\n", grid.bbox.pMin.x, grid.bbox.pMin.y, grid.bbox.pMax.x, grid.bbox.pMax.y);
+
+		float ddx = (float)(grid.bbox.pMax.x - grid.bbox.pMin.x) / outdimx;
+		float ddy = (float)(grid.bbox.pMax.y - grid.bbox.pMin.y) / outdimy;
+		fprintf(resFile, "%.2f %.2f %i %i\n", ddx, ddy, outdimx, outdimy);
+		fprintf(resFile, "%i\n", frames);
+	}
+	else
+	{
+		fopen_s(&resFile, resPath, "a");
+	}
+
 	//------------------------------------------ Solving ------------------------------------------
-	Vec2D *vel = new Vec2D[outdimx * outdimy];
-	double *T = new double[outdimx * outdimy];
-
-	FILE *file = NULL;
-	fopen_s(&file, "results.txt", "w");
-	fprintf(file, "%.2f %.2f %.2f %.2f\n", grid.bbox.pMin.x, grid.bbox.pMin.y, grid.bbox.pMax.x, grid.bbox.pMax.y);
-
-	float ddx = (float)(grid.bbox.pMax.x - grid.bbox.pMin.x) / outdimx;
-	float ddy = (float)(grid.bbox.pMax.y - grid.bbox.pMin.y) / outdimy;
-	fprintf(file, "%.2f %.2f %i %i\n", ddx, ddy, outdimx, outdimy);
-	fprintf(file, "%i\n", frames);
-
 	int percent = frames * subframes;
 	int step = 0;
 
 	for (int i = 0; i < frames; i++)
 	{	
-		fprintf(file, "0.035\n");
+		fprintf(resFile, "0.035\n");
 		for (int j = 0; j < subframes; j++)
 		{
 			cpu_timer timer;
@@ -82,12 +103,26 @@ int main(int argc, char **argv)
 			printf(" frame %i\tsubstep %i\t%i%%\t(%i h %i m %i s left)\n", i, j, step / percent, time_h, time_m, time_s);
 			step += 100;
 		}
-		solver->GetResult(outdimx, outdimy, vel, T);
-		ShiferTestPrintResult(outdimx, outdimy, vel, T, file);
+		
+		solver->GetLayer(resVel, resT, outdimx, outdimy);
+		ShiferTestPrintResult(resFile, resVel, resT, outdimx, outdimy);
+
+		solver->GetLayer(lastVel, lastT);
+		
+		FILE *lastFile = NULL;
+		fopen_s(&lastFile, lastPath, "w");
+		fprintf(lastFile, "%i %i\n", grid.dimx, grid.dimy);
+		PrintLast(lastFile, lastVel, lastT, grid.dimx, grid.dimy);
+		fclose(lastFile);
 	}
 
 	delete solver;
+	delete [] resVel;
+	delete [] resT;
+	delete [] lastVel;
+	delete [] lastT;
 
-	fclose(file);
+	fclose(resFile);
+
 	return 0;
 }

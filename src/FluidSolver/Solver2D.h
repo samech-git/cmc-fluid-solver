@@ -11,7 +11,9 @@ namespace FluidSolver
 		virtual void Init(Grid2D* grid, FluidParams &params) = 0;
 		virtual void TimeStep(double dt, int num_global, int num_local) = 0;
 		
-		void GetResult(int outdimx, int outdimy, Vec2D *v, double *T);
+		void GetLayer(Vec2D *v, double *T, int outdimx = 0, int outdimy = 0);
+		void SetLayer(Vec2D *v, double *T);
+
 		void UpdateBoundaries();
 
 		Grid2D *grid;

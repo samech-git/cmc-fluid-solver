@@ -2,8 +2,11 @@
 
 namespace FluidSolver
 {
-	void Solver2D::GetResult(int outdimx, int outdimy, Vec2D *v, double *T)
+	void Solver2D::GetLayer(Vec2D *v, double *T, int outdimx, int outdimy)
 	{
+		if (outdimx == 0) outdimx = dimx;
+		if (outdimy == 0) outdimy = dimy;
+
 		for (int i = 0; i < outdimx; i++)
 			for (int j = 0; j < outdimy; j++)
 			{
@@ -13,6 +16,17 @@ namespace FluidSolver
 				v[i * outdimy + j].y = next->V(x, y);
 				T[i * outdimy + j] = next->T(x, y);
 			}
+	}
+
+	void Solver2D::SetLayer(Vec2D *v, double *T)
+	{
+		for (int i = 0; i < dimx; i++)
+			for (int j = 0; j < dimy; j++)
+				{
+					cur->U(i, j) = v[i * dimy + j].x;
+					cur->V(i, j) = v[i * dimy + j].y;
+					cur->T(i, j) = T[i * dimy + j];
+				}		
 	}
 
 	void Solver2D::UpdateBoundaries()
