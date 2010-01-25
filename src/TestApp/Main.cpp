@@ -6,7 +6,7 @@ const double dy = 0.5;
 
 const double dt = 0.25;
 
-const double Re = 30.0;
+const double Re = 15.0;
 const double Pr = 0.82;
 const double lambda = 1.4;
 
@@ -57,9 +57,9 @@ int main(int argc, char **argv)
 	solver->Init(&grid, params);
 
 	// loading last-layer if there is one
-	Vec2D *lastVel = NULL;
-	double *lastT = NULL;
-	int startFrame = LoadLastLayer(lastPath, &lastVel, &lastT, grid.dimx, grid.dimy, frames);
+	Vec2D *lastVel = new Vec2D[grid.dimx * grid.dimy];
+	double *lastT = new double[grid.dimx * grid.dimy];
+	int startFrame = LoadLastLayer(lastPath, lastVel, lastT, grid.dimx, grid.dimy, frames);
 
 	FILE *resFile = NULL;
 	if (startFrame == 0)
@@ -86,7 +86,6 @@ int main(int argc, char **argv)
 	//------------------------------------------ Solving ------------------------------------------
 	for (int i = startFrame; i < frames; i++)
 	{	
-		fprintf(resFile, "%.3f\n", timeValue);
 		for (int j = 0; j < subframes; j++)
 		{
 			cpu_timer timer;
@@ -101,7 +100,7 @@ int main(int argc, char **argv)
 		}
 		
 		solver->GetLayer(resVel, resT, outdimx, outdimy);
-		OutputResult(resFile, resVel, resT, outdimx, outdimy);
+		OutputResult(resFile, resVel, resT, outdimx, outdimy, timeValue);
 
 		solver->GetLayer(lastVel, lastT);
 		SaveLastLayer(lastPath, i+1, lastVel, lastT, grid.dimx, grid.dimy); 

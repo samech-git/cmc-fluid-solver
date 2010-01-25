@@ -14,6 +14,7 @@ namespace FluidSolver
 
 		Vec2D() : x(0.0), y(0.0) { }
 		Vec2D(double _x, double _y) : x(_x), y(_y) { }
+		Vec2D(Vec2D &vec) : x(vec.x), y(vec.y) { }
 	};
 
 	struct Point2D 
@@ -63,8 +64,9 @@ namespace FluidSolver
 		fprintf(file, "%i\n", frames);
 	}
 
-	static void OutputResult(FILE* file, Vec2D *v, double *T, int dimx, int dimy)
+	static void OutputResult(FILE* file, Vec2D *v, double *T, int dimx, int dimy, float timeValue)
 	{
+		fprintf(file, "%.3f\n", timeValue);
 		for (int j = 0; j < dimy; j++)
 		{
 			for (int i = 0; i < dimx; i++)
@@ -73,11 +75,8 @@ namespace FluidSolver
 		}
 	}
 
-	static int LoadLastLayer(char *fileName, Vec2D **v, double **T, int dimx, int dimy, int frames)
+	static int LoadLastLayer(char *fileName, Vec2D *v, double *T, int dimx, int dimy, int frames)
 	{
-		*v = new Vec2D[dimx * dimy];
-		*T = new double[dimx * dimy];
-
 		FILE *file = NULL;
 		if(!fopen_s(&file, fileName, "r"))
 		{
@@ -92,11 +91,11 @@ namespace FluidSolver
 			for (int j = 0; j < dimy; j++)
 				for (int i = 0; i < dimx; i++)
 				{
-					Vec2D curV;
-					double curT;
-					fscanf_s(file, "%f %f %f", &curV.x, &curV.y, &curT);
-					(*v)[i * dimy + j] = curV;
-					(*T)[i * dimy + j] = curT;
+					float vx, vy, t;
+					fscanf_s(file, "%f %f %f", &vx, &vy, &t);
+					v[i * dimy + j].x = (double)vx;
+					v[i * dimy + j].y = (double)vy;
+					T[i * dimy + j] = (double)t;
 				}
 			
 			fclose(file);
