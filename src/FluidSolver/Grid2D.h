@@ -79,7 +79,9 @@ namespace FluidSolver
 
 		CellType GetType(int x, int y);
 		CondData2D GetData(int x, int y);
+		
 		void Prepare(int frame, double substep);
+		void Prepare(double time);
 
 		int LoadFromFile(char *filename);
 		void TestPrint();
@@ -88,14 +90,10 @@ namespace FluidSolver
 	protected:
 		//---------------------------- Borders ---------------------------------
 		FrameInfo* frames;
-		//Vec2D* velocities;
-		//int num_points;
 		int num_frames;
 		
 		void ComputeBorderVelocities(int frame);
 		FrameInfo ComputeSubframe(int frame, double substep);
-		//Vec2D* ComputeBorderVelocities(int frame, double substep);
-		//Point2D* ComputeSubBorder(int frame, double substep);
 		//----------------------------------------------------------------------
 
 		int *typeData;

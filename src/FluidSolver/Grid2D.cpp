@@ -294,6 +294,7 @@ namespace FluidSolver
 				}
 	}
 
+
 	FrameInfo Grid2D::ComputeSubframe(int frame, double substep)
 	{
 		int framep1 = (frame + 1) % num_frames;
@@ -323,12 +324,26 @@ namespace FluidSolver
 
 	void Grid2D::Prepare(int frame, double substep)
 	{
-		if (frame >= num_frames) frame = num_frames-1;
-		
-		FrameInfo tempframe = ComputeSubframe(frame, substep);
+		FrameInfo tempframe = ComputeSubframe(frame % num_frames, substep);
 		Build(tempframe);
-		//FillTestInitData(velocities[frame]);
 		tempframe.Dispose();
+	}
+
+	void Grid2D::Prepare(double time)
+	{
+		double* a = new double[num_frames + 1];
+		a[0] = 0;
+		for (int i=1; i<=num_frames; i++)
+			a[i] = a[i-1] + frames[i-1].Duration;
+
+		double r_time = fmod(time, a[num_frames]);
+		int frame = 0;
+		for (int i=1; i<num_frames; i++)
+			if (a[i] < r_time) frame = i;
+		double substep = (r_time - a[frame]) / (a[frame + 1] - a[frame]);
+		delete[] a;
+
+		Prepare(frame, substep);
 	}
 
 
