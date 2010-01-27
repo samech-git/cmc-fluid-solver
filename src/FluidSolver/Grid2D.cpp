@@ -122,7 +122,7 @@ namespace FluidSolver
 
 			
 			SetType(x, y, color);
-			SetData(x, y, CondData2D(NOSLIP, Vec2D(startv.x * 0.005, startv.y * 0.005), 1.0));
+			SetData(x, y, CondData2D(NOSLIP, Vec2D(startv.x, startv.y), 1.0));
 
 			startp.x += dp.x;
             startp.y += dp.y;
@@ -248,8 +248,8 @@ namespace FluidSolver
 				for (int k=0; k<frames[j].Shapes[i].NumPoints; k++)
 				{
 					ReadPoint2D(file, p);
-					frames[j].Shapes[i].Points[k].x = p.x;
-					frames[j].Shapes[i].Points[k].y = p.y;
+					frames[j].Shapes[i].Points[k].x = p.x / 1000;
+					frames[j].Shapes[i].Points[k].y = p.y / 1000;
 				}
 
 				char str[8];
@@ -265,8 +265,8 @@ namespace FluidSolver
 					frames[j].Shapes[i].Active = false;
 				for (int k=0; k<frames[j].Shapes[i].NumPoints; k++)
 				{
-					frames[j].Shapes[i].Velocities[k].x = p.x;
-					frames[j].Shapes[i].Velocities[k].y = p.y;
+					frames[j].Shapes[i].Velocities[k].x = p.x / 1000;
+					frames[j].Shapes[i].Velocities[k].y = p.y / 1000;
 				}
 			}
 		}
@@ -291,6 +291,14 @@ namespace FluidSolver
 						(frames[nextframe].Shapes[i].Points[k].x - frames[frame].Shapes[i].Points[k].x) * m;
 					frames[nextframe].Shapes[i].Velocities[k].y = 
 						(frames[nextframe].Shapes[i].Points[k].y - frames[frame].Shapes[i].Points[k].y) * m;
+				}
+			else
+				for (int k=0; k<frames[frame].Shapes[i].NumPoints; k++)
+				{
+					frames[nextframe].Shapes[i].Velocities[k].x += 
+						(frames[frame].Shapes[i].Points[k].x - frames[nextframe].Shapes[i].Points[k].x) * m;
+					frames[nextframe].Shapes[i].Velocities[k].y += 
+						(frames[frame].Shapes[i].Points[k].y - frames[nextframe].Shapes[i].Points[k].y) * m;
 				}
 	}
 

@@ -1,12 +1,12 @@
 #include "FluidSolver.h"
 #include "Timer.h"
 
-const double dx = 0.5;
-const double dy = 0.5;
+const double dx = 0.0014;
+const double dy = 0.0014;
 
-const double dt = 0.25;
+const double dt = 0.00001;
 
-const double Re = 15.0;
+const double Re = 10.0;
 const double Pr = 0.82;
 const double lambda = 1.4;
 
@@ -14,7 +14,7 @@ const int num_global = 2;
 const int num_local = 1;
 
 const int frames = 25;
-const int subframes = 150;
+const int subframes = 100;
 
 const int outdimx = 50;
 const int outdimy = 50;

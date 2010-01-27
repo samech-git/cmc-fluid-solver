@@ -56,11 +56,11 @@ namespace FluidSolver
 
 	static void OutputResultHeader(FILE *file, BBox2D *bbox, int outdimx, int outdimy, int frames)
 	{
-		fprintf(file, "%.2f %.2f %.2f %.2f\n", bbox->pMin.x, bbox->pMin.y, bbox->pMax.x, bbox->pMax.y);
+		fprintf(file, "%.2f %.2f %.2f %.2f\n", bbox->pMin.x * 1000, bbox->pMin.y * 1000, bbox->pMax.x * 1000, bbox->pMax.y * 1000);
 
 		float ddx = (float)(bbox->pMax.x - bbox->pMin.x) / outdimx;
 		float ddy = (float)(bbox->pMax.y - bbox->pMin.y) / outdimy;
-		fprintf(file, "%.2f %.2f %i %i\n", ddx, ddy, outdimx, outdimy);
+		fprintf(file, "%.2f %.2f %i %i\n", ddx * 1000, ddy * 1000, outdimx, outdimy);
 		fprintf(file, "%i\n", frames);
 	}
 
@@ -70,7 +70,7 @@ namespace FluidSolver
 		for (int j = 0; j < dimy; j++)
 		{
 			for (int i = 0; i < dimx; i++)
-				fprintf(file, "%.2f %.2f ", v[i * dimy + j].x, v[i * dimy + j].y);
+				fprintf(file, "%.2f %.2f ", v[i * dimy + j].x * 10, v[i * dimy + j].y * 10);
 			fprintf(file, "\n");
 		}
 	}
@@ -82,7 +82,7 @@ namespace FluidSolver
 		{
 			int indimx, indimy, frame;
 			fscanf_s(file, "%i %i %i", &frame, &indimx, &indimy);
-			if (indimx != dimx || indimy != dimy || frame <= 0 || frame >= frames) 
+			if (indimx != dimx || indimy != dimy || frame <= 0 || frame > frames) 
 			{
 				fclose(file);
 				return 0;

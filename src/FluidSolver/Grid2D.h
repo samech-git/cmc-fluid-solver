@@ -9,7 +9,7 @@
 #include <string>
 
 #define MAX_STR_SIZE	255
-#define BBOX_OFFSET		3.0
+#define BBOX_OFFSET		0.03
 
 using namespace std;
 namespace FluidSolver
