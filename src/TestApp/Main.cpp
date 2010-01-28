@@ -15,6 +15,7 @@ const int num_local = 1;
 
 const int frames = 25;
 const int subframes = 100;
+const int subsub = 10;
 
 const int outdimx = 50;
 const int outdimy = 50;
@@ -66,7 +67,7 @@ int main(int argc, char **argv)
 	{
 		printf("Starting from the beginning\n");
 		fopen_s(&resFile, resPath, "w");
-		OutputResultHeader(resFile, &grid.bbox, outdimx, outdimy, frames);
+		OutputResultHeader(resFile, &grid.bbox, outdimx, outdimy);
 	}
 	else if (startFrame == frames)
 	{
@@ -84,8 +85,10 @@ int main(int argc, char **argv)
 	double *resT = new double[outdimx * outdimy];
 
 	//------------------------------------------ Solving ------------------------------------------
-	for (int i = startFrame; i < frames; i++)
+	for (int i = startFrame; i < frames * 3; i++)
 	{	
+		fprintf(resFile, "Frame %i\n", i % frames);
+
 		for (int j = 0; j < subframes; j++)
 		{
 			cpu_timer timer;
@@ -97,10 +100,13 @@ int main(int argc, char **argv)
 
 			timer.stop();
 			PrintTimeStepInfo(i, j, frames, subframes, timer.elapsed_sec());
+
+			if ((j % subsub) == 0)
+			{
+				solver->GetLayer(resVel, resT, outdimx, outdimy);
+				OutputResult(resFile, resVel, resT, outdimx, outdimy, timeValue);
+			}
 		}
-		
-		solver->GetLayer(resVel, resT, outdimx, outdimy);
-		OutputResult(resFile, resVel, resT, outdimx, outdimy, timeValue);
 
 		solver->GetLayer(lastVel, lastT);
 		SaveLastLayer(lastPath, i+1, lastVel, lastT, grid.dimx, grid.dimy); 

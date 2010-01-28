@@ -54,14 +54,13 @@ namespace FluidSolver
 		FluidParams(double _Re, double _Pr, double _lambda) : Re(_Re), Pr(_Pr), lambda(_lambda) { }
 	};
 
-	static void OutputResultHeader(FILE *file, BBox2D *bbox, int outdimx, int outdimy, int frames)
+	static void OutputResultHeader(FILE *file, BBox2D *bbox, int outdimx, int outdimy)
 	{
 		fprintf(file, "%.2f %.2f %.2f %.2f\n", bbox->pMin.x * 1000, bbox->pMin.y * 1000, bbox->pMax.x * 1000, bbox->pMax.y * 1000);
 
 		float ddx = (float)(bbox->pMax.x - bbox->pMin.x) / outdimx;
 		float ddy = (float)(bbox->pMax.y - bbox->pMin.y) / outdimy;
 		fprintf(file, "%.2f %.2f %i %i\n", ddx * 1000, ddy * 1000, outdimx, outdimy);
-		fprintf(file, "%i\n", frames);
 	}
 
 	static void OutputResult(FILE* file, Vec2D *v, double *T, int dimx, int dimy, float timeValue)
