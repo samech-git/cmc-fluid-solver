@@ -13,6 +13,7 @@ const double lambda = 1.4;
 const int num_global = 2;
 const int num_local = 1;
 
+const int cycles = 3;
 const int frames = 25;
 const int subframes = 100;
 const int subsub = 10;
@@ -85,21 +86,20 @@ int main(int argc, char **argv)
 	double *resT = new double[outdimx * outdimy];
 
 	//------------------------------------------ Solving ------------------------------------------
-	for (int i = startFrame; i < frames * 3; i++)
+	cpu_timer timer;
+	timer.start();
+	for (int i = startFrame, end = frames * cycles; i < end; i++)
 	{	
 		fprintf(resFile, "Frame %i\n", i % frames);
 
 		for (int j = 0; j < subframes; j++)
 		{
-			cpu_timer timer;
-			timer.start();
-
 			grid.Prepare(i, (double)j / subframes);
 			solver->UpdateBoundaries();
  			solver->TimeStep(dt, num_global, num_local);
 
 			timer.stop();
-			PrintTimeStepInfo(i, j, frames, subframes, timer.elapsed_sec());
+			PrintTimeStepInfo(i, j, frames, subframes, cycles, timer.elapsed_sec());
 
 			if ((j % subsub) == 0)
 			{
@@ -111,6 +111,7 @@ int main(int argc, char **argv)
 		solver->GetLayer(lastVel, lastT);
 		SaveLastLayer(lastPath, i+1, lastVel, lastT, grid.dimx, grid.dimy); 
 	}
+	printf("\n");
 
 	delete solver;
 	delete [] resVel;

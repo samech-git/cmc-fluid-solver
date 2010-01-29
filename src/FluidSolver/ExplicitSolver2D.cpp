@@ -114,13 +114,13 @@ namespace FluidSolver
 			
 			if (it > MAX_GLOBAL_ITERS) 
 			{
-				printf("Exceeded max number of iterations (%i)\n", MAX_GLOBAL_ITERS); 
+				printf("\nExceeded max number of iterations (%i)\n", MAX_GLOBAL_ITERS); 
 				exit(1); 
 			}
 
 			if (err > ERR_THRESHOLD * 10)
 			{
-				printf("Error is too big!\n", err);
+				printf("\nError is too big!\n", err);
 				exit(1);
 			}
 		}
@@ -136,7 +136,7 @@ namespace FluidSolver
 				}
 
 		// output number of global iterations & error
-		printf("%i,%i,%.4f,", it, num_local, err);
+		printf("\r%i,%i,%.4f,", it, num_local, err);
 
 		// copy result to current layer
 		next->CopyAllto(grid, cur);

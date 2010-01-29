@@ -94,10 +94,13 @@ namespace FluidSolver
 				for (int k = 0; k < frames[j].Shapes[i].NumPoints; k++)
 					bbox.AddPoint(frames[j].Shapes[i].Points[k]);
 
-		bbox.pMin.x -= BBOX_OFFSET;
-		bbox.pMin.y -= BBOX_OFFSET;
-		bbox.pMax.x += BBOX_OFFSET;
-		bbox.pMax.y += BBOX_OFFSET;
+		double wx = bbox.pMax.x - bbox.pMin.x;
+		double wy = bbox.pMax.y - bbox.pMin.y;
+
+		bbox.pMin.x -= wx * 0.02;
+		bbox.pMin.y -= wy * 0.02;
+		bbox.pMax.x += wx * 0.02;
+		bbox.pMax.y += wy * 0.02;
 
 #ifdef _DEBUG
 		printf("bbox x range: [%f, %f]\n", bbox.pMin.x, bbox.pMax.x);
