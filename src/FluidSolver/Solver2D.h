@@ -15,7 +15,7 @@ namespace FluidSolver
 		void SetLayer(Vec2D *v, double *T);
 
 		void UpdateBoundaries();
-		void ReturnBoundaries();
+		void SetGridBoundaries();
 
 		Grid2D *grid;
 

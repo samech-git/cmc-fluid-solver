@@ -98,9 +98,8 @@ namespace FluidSolver
 		FrameInfo ComputeSubframe(int frame, double substep);
 		//----------------------------------------------------------------------
 
-		//int *typeData;
-		CondData2D *initData;
-		CondData2D *lastData;
+		CondData2D *curData;
+		CondData2D *nextData;
 
 		void Init();
 
@@ -108,8 +107,6 @@ namespace FluidSolver
 		Vec2D GetBounfVelocitie(int x, int y);
 		void RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color);
 		void FloodFill(CellType color);
-
-		//void FillTestInitData(Vec2D startVel);
 		
 		void BuildBBox(int num_frames, FrameInfo* frames);
 		

@@ -46,7 +46,7 @@ namespace FluidSolver
 		cur->CopyAllto(grid, next, VALVE);
 	}
 
-	void Solver2D::ReturnBoundaries()
+	void Solver2D::SetGridBoundaries()
 	{
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)

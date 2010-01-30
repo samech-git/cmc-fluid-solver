@@ -6,11 +6,11 @@ const double dy = 0.0014;
 
 const double dt = 0.000001;
 
-const double Re = 10.0;
+const double Re = 50.0;
 const double Pr = 0.82;
 const double lambda = 1.4;
 
-const int num_global = 2;
+const int num_global = 4;
 const int num_local = 1;
 
 const int cycles = 1;
@@ -30,14 +30,11 @@ using namespace FluidSolver;
 
 int main(int argc, char **argv)
 {
-	//return 1;
 	char dataPath[MAX_PATH];
 	char resPath[MAX_PATH];
-	char lastPath[MAX_PATH];
-	
+
 	sprintf_s(dataPath, "..\\..\\data\\%s_ns.txt", argv[1]);
 	sprintf_s(resPath, "..\\..\\data\\%s_res.txt", argv[1]);
-	sprintf_s(lastPath, "..\\..\\data\\%s_layer.txt", argv[1]);
 
 	//--------------------------------------- Initializing ---------------------------------------
 	Grid2D grid(dx, dy);
@@ -59,30 +56,12 @@ int main(int argc, char **argv)
 	}
 	solver->Init(&grid, params);
 
-	// loading last-layer if there is one
-	Vec2D *lastVel = new Vec2D[grid.dimx * grid.dimy];
-	double *lastT = new double[grid.dimx * grid.dimy];
-	int startFrame = LoadLastLayer(lastPath, lastVel, lastT, grid.dimx, grid.dimy, frames);
-
+	printf("Starting from the beginning\n");
+	int startFrame = 0;
 	FILE *resFile = NULL;
-	if (startFrame == 0)
-	{
-		printf("Starting from the beginning\n");
-		fopen_s(&resFile, resPath, "w");
-		OutputResultHeader(resFile, &grid.bbox, outdimx, outdimy);
-	}
-	else if (startFrame == frames)
-	{
-		printf("All done!\n");
-		return 0;
-	}
-	else
-	{
-		printf("Starting from frame %i\n", startFrame);
-		fopen_s(&resFile, resPath, "a");
-		solver->SetLayer(lastVel, lastT);
-	}
-
+	fopen_s(&resFile, resPath, "w");
+	OutputResultHeader(resFile, &grid.bbox, outdimx, outdimy);
+	
 	Vec2D *resVel = new Vec2D[outdimx * outdimy];
 	double *resT = new double[outdimx * outdimy];
 
@@ -98,7 +77,7 @@ int main(int argc, char **argv)
 			grid.Prepare(i, (double)j / subframes);
 			solver->UpdateBoundaries();
  			solver->TimeStep(dt, num_global, num_local);
-			solver->ReturnBoundaries();
+			solver->SetGridBoundaries();
 
 			timer.stop();
 			PrintTimeStepInfo(i, j, frames, subframes, cycles, timer.elapsed_sec());
@@ -109,17 +88,12 @@ int main(int argc, char **argv)
 				OutputResult(resFile, resVel, resT, outdimx, outdimy, timeValue);
 			}
 		}
-
-		solver->GetLayer(lastVel, lastT);
-		SaveLastLayer(lastPath, i+1, lastVel, lastT, grid.dimx, grid.dimy); 
 	}
 	printf("\n");
 
 	delete solver;
 	delete [] resVel;
 	delete [] resT;
-	delete [] lastVel;
-	delete [] lastT;
 
 	fclose(resFile);
 	return 0;

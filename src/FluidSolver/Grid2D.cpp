@@ -2,59 +2,53 @@
 
 namespace FluidSolver
 {
-	Grid2D::Grid2D(double _dx, double _dy) : dx(_dx), dy(_dy), initData(NULL), lastData(NULL) {	}
+	Grid2D::Grid2D(double _dx, double _dy) : dx(_dx), dy(_dy), curData(NULL), nextData(NULL) {	}
 
-	Grid2D::Grid2D(Grid2D &grid) : dx(grid.dx), dy(grid.dy), initData(NULL)
+	Grid2D::Grid2D(Grid2D &grid) : dx(grid.dx), dy(grid.dy), curData(NULL)
 	{
 		dimx = grid.dimx;
 		dimy = grid.dimy;
 
-		initData = new CondData2D[dimx * dimy];
-		memcpy(initData, grid.initData, dimx * dimy * sizeof(CondData2D));
+		curData = new CondData2D[dimx * dimy];
+		memcpy(curData, grid.curData, dimx * dimy * sizeof(CondData2D));
 
-		lastData = new CondData2D[dimx * dimy];
-		memcpy(lastData, grid.lastData, dimx * dimy * sizeof(Vec2D));
+		nextData = new CondData2D[dimx * dimy];
+		memcpy(nextData, grid.nextData, dimx * dimy * sizeof(Vec2D));
 	}
 
 	Grid2D::~Grid2D()
 	{
-		if (initData != NULL) delete [] initData;
-		if (lastData != NULL) delete [] lastData;
+		if (curData != NULL) delete [] curData;
+		if (nextData != NULL) delete [] nextData;
 
 		for (int i=0; i<num_frames; i++)
 			frames[i].Dispose();
 		delete[] frames;
-		//if (points != NULL)
-		//{
-		//	for (int i=0; i<num_frames; i++)
-		//		if (points[i] != NULL) delete[] points[i];
-		//	delete[] points;
-		//}
 	}
 
 	inline CellType Grid2D::GetType(int x, int y)
 	{
-		return initData[x * dimy + y].cell;
+		return curData[x * dimy + y].cell;
 	}
 
 	CondData2D Grid2D::GetData(int x, int y)
 	{
-		return initData[x * dimy + y];
+		return curData[x * dimy + y];
 	}
 
 	inline void Grid2D::SetType(int x, int y, CellType t)
 	{
-		initData[x * dimy + y].cell = t;
+		curData[x * dimy + y].cell = t;
 	}
 
 	inline void Grid2D::SetData(int x, int y, CondData2D d)
 	{
-		initData[x * dimy + y] = d;
+		curData[x * dimy + y] = d;
 	}
 
 	void Grid2D::SetFieldData(int x, int y, CondData2D d)
 	{
-		lastData[x * dimy + y] = d;
+		nextData[x * dimy + y] = d;
 	}
 
 	void ReadPoint2D(FILE *file, Point2D &p)
@@ -121,7 +115,7 @@ namespace FluidSolver
 		return VecTN(t, n);
 	}
 
-#define PROCESS(ij) {if (lastData[ij].cell != OUT) { v.x += lastData[ij].vel.x; v.y += lastData[ij].vel.y; k++; }}
+#define PROCESS(ij) {if (nextData[ij].cell != OUT) { v.x += nextData[ij].vel.x; v.y += nextData[ij].vel.y; k++; }}
 
 	Vec2D Grid2D::GetBounfVelocitie(int x, int y)
 	{
@@ -232,16 +226,16 @@ namespace FluidSolver
 
 		// allocate data
 		int size = dimx * dimy;
-		initData = new CondData2D[size];
-		lastData = new CondData2D[size];
+		curData = new CondData2D[size];
+		nextData = new CondData2D[size];
 
 		for (int i=0; i<size; i++)
 		{
-			lastData[i].T = 0;
-			lastData[i].type = NONE;
-			lastData[i].cell = OUT;
-			lastData[i].vel.x = 0;
-			lastData[i].vel.y = 0;
+			nextData[i].T = 0;
+			nextData[i].type = NONE;
+			nextData[i].cell = OUT;
+			nextData[i].vel.x = 0;
+			nextData[i].vel.y = 0;
 		}
 
 
