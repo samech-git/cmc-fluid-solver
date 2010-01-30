@@ -17,6 +17,16 @@ namespace FluidSolver
 		Vec2D(Vec2D &vec) : x(vec.x), y(vec.y) { }
 	};
 
+	struct VecTN
+	{
+		Vec2D tangent, normal;
+
+		VecTN() : tangent(0,0), normal(0,0) { }
+		VecTN(Vec2D _x, Vec2D _y) : tangent(_x), normal(_y) { }
+		VecTN(VecTN &vec) : tangent(vec.tangent), normal(vec.normal) { }
+		VecTN(double x1, double y1, double x2, double y2) : tangent(x1, y1), normal(x2, y2) { }
+	};
+
 	struct Point2D 
 	{ 
 		double x, y; 

@@ -2,24 +2,24 @@
 
 namespace FluidSolver
 {
-	Grid2D::Grid2D(double _dx, double _dy) : dx(_dx), dy(_dy), typeData(NULL), initData(NULL) {	}
+	Grid2D::Grid2D(double _dx, double _dy) : dx(_dx), dy(_dy), initData(NULL), lastData(NULL) {	}
 
-	Grid2D::Grid2D(Grid2D &grid) : dx(grid.dx), dy(grid.dy), typeData(NULL), initData(NULL)
+	Grid2D::Grid2D(Grid2D &grid) : dx(grid.dx), dy(grid.dy), initData(NULL)
 	{
 		dimx = grid.dimx;
 		dimy = grid.dimy;
 
-		typeData = new int[dimx * dimy];
-		memcpy(typeData, grid.typeData, dimx * dimy * sizeof(int));
-
 		initData = new CondData2D[dimx * dimy];
 		memcpy(initData, grid.initData, dimx * dimy * sizeof(CondData2D));
+
+		lastData = new CondData2D[dimx * dimy];
+		memcpy(lastData, grid.lastData, dimx * dimy * sizeof(Vec2D));
 	}
 
 	Grid2D::~Grid2D()
 	{
-		if (typeData != NULL) delete [] typeData;
 		if (initData != NULL) delete [] initData;
+		if (lastData != NULL) delete [] lastData;
 
 		for (int i=0; i<num_frames; i++)
 			frames[i].Dispose();
@@ -34,7 +34,7 @@ namespace FluidSolver
 
 	inline CellType Grid2D::GetType(int x, int y)
 	{
-		return (CellType)typeData[x * dimy + y];
+		return initData[x * dimy + y].cell;
 	}
 
 	CondData2D Grid2D::GetData(int x, int y)
@@ -44,12 +44,17 @@ namespace FluidSolver
 
 	inline void Grid2D::SetType(int x, int y, CellType t)
 	{
-		typeData[x * dimy + y] = t;
+		initData[x * dimy + y].cell = t;
 	}
 
 	inline void Grid2D::SetData(int x, int y, CondData2D d)
 	{
 		initData[x * dimy + y] = d;
+	}
+
+	void Grid2D::SetFieldData(int x, int y, CondData2D d)
+	{
+		lastData[x * dimy + y] = d;
 	}
 
 	void ReadPoint2D(FILE *file, Point2D &p)
@@ -108,29 +113,70 @@ namespace FluidSolver
 #endif
 	}
 
+	VecTN Grid2D::GetTangentNormal(Vec2D vector, Vec2D orientation)
+	{
+		double l = (vector.x * orientation.x + vector.y * orientation.y) / (orientation.x * orientation.x + orientation.y * orientation.y);
+		Vec2D t(orientation.x * l, orientation.y * l);
+		Vec2D n(vector.x - t.x, vector.y - t.y);
+		return VecTN(t, n);
+	}
+
+#define PROCESS(ij) {if (lastData[ij].cell != OUT) { v.x += lastData[ij].vel.x; v.y += lastData[ij].vel.y; k++; }}
+
+	Vec2D Grid2D::GetBounfVelocitie(int x, int y)
+	{
+		int ij = x * dimy + y;
+		Vec2D v(0, 0);
+		int k = 0;
+
+		PROCESS(ij - dimy-1);
+		PROCESS(ij - dimy);
+		PROCESS(ij - dimy+1);
+		PROCESS(ij - 1);
+		PROCESS(ij);
+		PROCESS(ij + 1);
+		PROCESS(ij + dimy-1);
+		PROCESS(ij + dimy);
+		PROCESS(ij + dimy+1);
+
+		if (k != 0)
+		{
+			v.x /= k;
+			v.y /= k;
+		}
+		return v;
+	}
+
 	void Grid2D::RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color)
     {
-		int steps = (int)max(abs(p2.x - p1.x), abs(p2.y - p1.y)) + 1;
-        Point2D dp((p2.x - p1.x) / steps, (p2.y - p1.y) / steps);		// divide a segment into parts
+		Vec2D orientation(p2.x - p1.x, p2.y - p1.y);
+		int steps = (int)max(abs(orientation.x), abs(orientation.y)) + 1;
+        Point2D dp((orientation.x) / steps, (orientation.y) / steps);		// divide a segment into parts
 		Vec2D dv((v2.x - v1.x) / steps, (v2.y - v1.y) / steps);		// divide a segment into parts
 		
-		Point2D startp = p1;
-		Vec2D startv = v1;
+		Point2D p = p1;
+		Vec2D v = v1;
 
 		// go through the whole segment
         for (int i = 0; i <= steps; i++) 
         {
-            int x = (int)startp.x;
-            int y = (int)startp.y;
-
+            int x = (int)p.x;
+            int y = (int)p.y;
 			
-			SetType(x, y, color);
-			SetData(x, y, CondData2D(NOSLIP, Vec2D(startv.x, startv.y), 1.0));
+			Vec2D bv = GetBounfVelocitie(x, y);
+			VecTN vtn = GetTangentNormal(v, orientation);
+			VecTN btn = GetTangentNormal(bv, orientation);
 
-			startp.x += dp.x;
-            startp.y += dp.y;
-			startv.x += dv.x;
-            startv.y += dv.y;
+#ifndef BC_NOSLIP
+			SetData(x, y, CondData2D(NOSLIP, color, Vec2D(vtn.normal.x + btn.tangent.x, vtn.normal.y + btn.tangent.y), 1.0));
+#else
+			SetData(x, y, CondData2D(NOSLIP, color, Vec2D(v.x, v.y), 1.0));
+#endif
+
+			p.x += dp.x;
+            p.y += dp.y;
+			v.x += dv.x;
+            v.y += dv.y;
         }
     }
 
@@ -185,8 +231,19 @@ namespace FluidSolver
 		dimy = (int)ceil((bbox.pMax.y - bbox.pMin.y) / dy) + 1;
 
 		// allocate data
-		typeData = new int[dimx * dimy];
-		initData = new CondData2D[dimx * dimy];
+		int size = dimx * dimy;
+		initData = new CondData2D[size];
+		lastData = new CondData2D[size];
+
+		for (int i=0; i<size; i++)
+		{
+			lastData[i].T = 0;
+			lastData[i].type = NONE;
+			lastData[i].cell = OUT;
+			lastData[i].vel.x = 0;
+			lastData[i].vel.y = 0;
+		}
+
 
 
 		// convert physical coordinates to the grid coordinates
@@ -217,10 +274,13 @@ namespace FluidSolver
 
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
-				switch (GetType(i, j))
+			{
+				CellType c = GetType(i, j);
+				switch (c)
 				{
-					case IN: case OUT: SetData(i, j, CondData2D(NONE, Vec2D(0, 0), 1.0)); break; 
+					case IN: case OUT: SetData(i, j, CondData2D(NONE, c, Vec2D(0, 0), 1.0)); break; 
 				}
+			}
 	}
 
 	int Grid2D::LoadFromFile(char *filename)

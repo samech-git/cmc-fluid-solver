@@ -4,7 +4,7 @@
 const double dx = 0.0014;
 const double dy = 0.0014;
 
-const double dt = 0.00001;
+const double dt = 0.000001;
 
 const double Re = 10.0;
 const double Pr = 0.82;
@@ -13,7 +13,7 @@ const double lambda = 1.4;
 const int num_global = 2;
 const int num_local = 1;
 
-const int cycles = 3;
+const int cycles = 1;
 const int frames = 25;
 const int subframes = 100;
 const int subsub = 10;
@@ -24,12 +24,13 @@ const int outdimy = 50;
 const float timeValue = 0.035f;
 
 enum solvers { Explicit, ADI };
-const int solverID = ADI;		
+const int solverID = Explicit;		
 
 using namespace FluidSolver;
 
 int main(int argc, char **argv)
 {
+	//return 1;
 	char dataPath[MAX_PATH];
 	char resPath[MAX_PATH];
 	char lastPath[MAX_PATH];
@@ -97,6 +98,7 @@ int main(int argc, char **argv)
 			grid.Prepare(i, (double)j / subframes);
 			solver->UpdateBoundaries();
  			solver->TimeStep(dt, num_global, num_local);
+			solver->ReturnBoundaries();
 
 			timer.stop();
 			PrintTimeStepInfo(i, j, frames, subframes, cycles, timer.elapsed_sec());

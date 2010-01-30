@@ -45,4 +45,14 @@ namespace FluidSolver
 		cur->CopyAllto(grid, next, BOUND);
 		cur->CopyAllto(grid, next, VALVE);
 	}
+
+	void Solver2D::ReturnBoundaries()
+	{
+		for (int i = 0; i < dimx; i++)
+			for (int j = 0; j < dimy; j++)
+			{
+				CondData2D d = grid->GetData(i, j);
+				grid->SetFieldData(i, j, CondData2D(d.type, d.cell, Vec2D(cur->U(i, j), cur->V(i, j)), 0));
+			}
+	}
 }
