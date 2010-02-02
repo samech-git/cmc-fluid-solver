@@ -58,10 +58,28 @@ namespace FluidSolver
 
 	struct FluidParams
 	{
-		double Re, Pr, lambda;
+		double v_T, v_vis;
+		double t_vis, t_phi;
 
 		FluidParams() { }
-		FluidParams(double _Re, double _Pr, double _lambda) : Re(_Re), Pr(_Pr), lambda(_lambda) { }
+		
+		FluidParams(double Re, double Pr, double lambda)  
+		{
+			v_T = 1.0;
+			v_vis = 1.0 / Re;
+
+			t_vis = 1.0 / (Re * Pr);
+			t_phi = (lambda - 1) / (lambda * Re);
+		}
+
+		FluidParams(double vis, double rho, double R, double k, double cv)
+		{
+			v_T = R;
+			v_vis = vis / rho;
+
+			t_vis = k / (rho * cv);
+			t_phi = vis / (rho * cv);
+		}
 	};
 
 	static void OutputResultHeader(FILE *file, BBox2D *bbox, int outdimx, int outdimy)
@@ -80,6 +98,7 @@ namespace FluidSolver
 		{
 			for (int i = 0; i < dimx; i++)
 				fprintf(file, "%.2f %.2f ", v[i * dimy + j].x * 10, v[i * dimy + j].y * 10);
+				//fprintf(file, "%.4f %.4f ", (T[i * dimy + j]-300) * 1000, 0);
 			fprintf(file, "\n");
 		}
 	}

@@ -47,8 +47,8 @@ namespace FluidSolver
 						next_local->U(i, j) = cur->U(i, j) + dt * ( 
 							- temp->U(i, j) * temp->Ux(i, j) 
 							- temp->V(i, j) * temp->Uy(i, j) 
-							- temp->Tx(i, j)
-							+ (1 / params.Re) * (temp->Uxx(i, j) + temp->Uyy(i, j)) );
+							- params.v_T * temp->Tx(i, j)
+							+ params.v_vis * (temp->Uxx(i, j) + temp->Uyy(i, j)) );
 					}
 			next_local->CopyUto(grid, next, IN);
 		}
@@ -66,8 +66,8 @@ namespace FluidSolver
 						next_local->V(i, j) = cur->V(i, j) + dt * ( 
 							- temp->U(i, j) * temp->Vx(i, j) 
 							- temp->V(i, j) * temp->Vy(i, j) 
-							- temp->Ty(i, j)
-							+ (1 / params.Re) * (temp->Vxx(i, j) + temp->Vyy(i, j)) );
+							- params.v_T * temp->Ty(i, j)
+							+ params.v_vis * (temp->Vxx(i, j) + temp->Vyy(i, j)) );
 					}
 			next_local->CopyVto(grid, next, IN);
 		}
@@ -85,8 +85,8 @@ namespace FluidSolver
 						next_local->T(i, j) = cur->T(i, j) + dt * ( 
 							- temp->U(i, j) * temp->Tx(i, j) 
 							- temp->V(i, j) * temp->Ty(i, j) 
-							+ (1 / (params.Re * params.Pr)) * (temp->Txx(i, j) + temp->Tyy(i, j))
-							+ ((params.lambda - 1) / (params.lambda * params.Re)) * temp->DissFunc(i, j));
+							+ params.t_vis * (temp->Txx(i, j) + temp->Tyy(i, j))
+							+ params.t_phi * temp->DissFunc(i, j));
 					}
 			next_local->CopyTto(grid, next, IN);
 		}
@@ -125,15 +125,7 @@ namespace FluidSolver
 			}
 		}
 
-		// clear outter cells
-		for (int i = 0; i < dimx; i++)
-			for (int j = 0; j < dimy; j++)
-				if (grid->GetType(i, j) == OUT)
-				{
-					next->U(i, j) = 0.0;
-					next->V(i, j) = 0.0;
-					next->T(i, j) = 1.0;
-				}
+		ClearOutterCells();
 
 		// output number of global iterations & error
 		printf("\r%i,%i,%.4f,", it, num_local, err);

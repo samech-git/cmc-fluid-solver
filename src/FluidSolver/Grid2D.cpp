@@ -2,9 +2,9 @@
 
 namespace FluidSolver
 {
-	Grid2D::Grid2D(double _dx, double _dy) : dx(_dx), dy(_dy), curData(NULL), nextData(NULL) {	}
+	Grid2D::Grid2D(double _dx, double _dy, double _startT) : dx(_dx), dy(_dy), startT(_startT), curData(NULL), nextData(NULL) {	}
 
-	Grid2D::Grid2D(Grid2D &grid) : dx(grid.dx), dy(grid.dy), curData(NULL)
+	Grid2D::Grid2D(Grid2D &grid) : dx(grid.dx), dy(grid.dy), startT(grid.startT), curData(NULL)
 	{
 		dimx = grid.dimx;
 		dimy = grid.dimy;
@@ -162,9 +162,9 @@ namespace FluidSolver
 			VecTN btn = GetTangentNormal(bv, orientation);
 
 #ifndef BC_NOSLIP
-			SetData(x, y, CondData2D(NOSLIP, color, Vec2D(vtn.normal.x + btn.tangent.x, vtn.normal.y + btn.tangent.y), 1.0));
+			SetData(x, y, CondData2D(NOSLIP, color, Vec2D(vtn.normal.x + btn.tangent.x, vtn.normal.y + btn.tangent.y), startT));
 #else
-			SetData(x, y, CondData2D(NOSLIP, color, Vec2D(v.x, v.y), 1.0));
+			SetData(x, y, CondData2D(NOSLIP, color, Vec2D(v.x, v.y), startT));
 #endif
 
 			p.x += dp.x;
@@ -272,7 +272,7 @@ namespace FluidSolver
 				CellType c = GetType(i, j);
 				switch (c)
 				{
-					case IN: case OUT: SetData(i, j, CondData2D(NONE, c, Vec2D(0, 0), 1.0)); break; 
+					case IN: case OUT: SetData(i, j, CondData2D(NONE, c, Vec2D(0, 0), startT)); break; 
 				}
 			}
 	}

@@ -71,7 +71,7 @@ namespace FluidSolver
 
 	struct Grid2D
 	{
-		Grid2D(double _dx, double _dy);
+		Grid2D(double _dx, double _dy, double _startT);
 		Grid2D(Grid2D &grid);
 		~Grid2D();
 
@@ -88,7 +88,9 @@ namespace FluidSolver
 		int LoadFromFile(char *filename);
 		void TestPrint();
 
-		BBox2D bbox;
+		BBox2D bbox;		// bounding box
+		double startT;		// initial temperature
+
 	protected:
 		//---------------------------- Borders ---------------------------------
 		FrameInfo* frames;

@@ -16,6 +16,7 @@ namespace FluidSolver
 
 		void UpdateBoundaries();
 		void SetGridBoundaries();
+		void ClearOutterCells();
 
 		Grid2D *grid;
 

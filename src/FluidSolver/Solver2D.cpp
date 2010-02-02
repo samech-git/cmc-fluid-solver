@@ -55,4 +55,16 @@ namespace FluidSolver
 				grid->SetFieldData(i, j, CondData2D(d.type, d.cell, Vec2D(cur->U(i, j), cur->V(i, j)), 0));
 			}
 	}
+
+	void Solver2D::ClearOutterCells()
+	{
+		for (int i = 0; i < dimx; i++)
+			for (int j = 0; j < dimy; j++)
+				if (grid->GetType(i, j) == OUT)
+				{
+					next->U(i, j) = 0.0;
+					next->V(i, j) = 0.0;
+					next->T(i, j) = grid->startT;
+				}
+	}
 }

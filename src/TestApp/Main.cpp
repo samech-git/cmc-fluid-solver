@@ -1,28 +1,42 @@
 #include "FluidSolver.h"
 #include "Timer.h"
 
-const double dx = 0.0014;
-const double dy = 0.0014;
+// grid size
+const double dx = 0.001;
+const double dy = 0.001;
 
-const double dt = 0.000001;
+// time step
+const double dt = 0.0005;
 
+// old params
 const double Re = 50.0;
 const double Pr = 0.82;
 const double lambda = 1.4;
 
-const int num_global = 4;
+// new params
+const double viscosity = 0.001002;	// water at 20 C
+const double density = 1000.0;		// water
+const double R_specific = 461.495;	// water,	287.058	for air
+const double k = 0.6;				// water
+const double cv = 4200.0;			// water
+const double startT = 300.0;		// in Kelvin 
+
+// solver params
+const int num_global = 2;
 const int num_local = 1;
 
+// animation params
 const int cycles = 1;
 const int frames = 25;
 const int subframes = 100;
 const int subsub = 10;
 
+// output grid
 const int outdimx = 50;
 const int outdimy = 50;
-
 const float timeValue = 0.035f;
 
+// solver type
 enum solvers { Explicit, ADI };
 const int solverID = Explicit;		
 
@@ -37,7 +51,7 @@ int main(int argc, char **argv)
 	sprintf_s(resPath, "..\\..\\data\\%s_res.txt", argv[1]);
 
 	//--------------------------------------- Initializing ---------------------------------------
-	Grid2D grid(dx, dy);
+	Grid2D grid(dx, dy, startT);
 	if (grid.LoadFromFile(dataPath) == OK)
 	{
 		printf("dx,dy,dimx,dimy,dt,Re,Pr,lambda\n");
@@ -46,7 +60,8 @@ int main(int argc, char **argv)
 	grid.Prepare(0, 0);
 	//grid.TestPrint();
 	
-	FluidParams params(Re, Pr, lambda);
+	//FluidParams params(Re, Pr, lambda);
+	FluidParams params(viscosity, density, R_specific, k, cv);
 
 	Solver2D *solver;
 	switch (solverID)

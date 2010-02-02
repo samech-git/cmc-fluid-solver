@@ -122,11 +122,11 @@ namespace FluidSolver
 
 	void AdiSolver2D::BuildMatrix(double dt, int i, int j, VarType var, DirType dir, double *a, double *b, double *c, double *d, int n, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *temp_local)
 	{
-		double rcp_Re_dx2 = 1 / (params.Re * grid->dx * grid->dx);
-		double rcp_RePr_dx2 = 1 / (params.Re * params.Pr * grid->dx * grid->dx);
+		double v_vis_dx2 = params.v_vis / (grid->dx * grid->dx);
+		double t_vis_dx2 = params.t_vis / (grid->dx * grid->dx);
 
-		double rcp_Re_dy2 = 1 / (params.Re * grid->dy * grid->dy);
-		double rcp_RePr_dy2 = 1 / (params.Re * params.Pr * grid->dy * grid->dy);
+		double v_vis_dy2 = params.v_vis / (grid->dy * grid->dy);
+		double t_vis_dy2 = params.t_vis / (grid->dy * grid->dy);
 
 		for (int p = 1; p < n-1; p++)
 		{
@@ -136,22 +136,22 @@ namespace FluidSolver
 				switch (var)	
 				{
 				case type_U:
-					a[p] = - temp_local->U(i+p, j) / (2 * grid->dx) - rcp_Re_dx2; 
-					b[p] = 1 / dt  +  2 * rcp_Re_dx2; 
-					c[p] = temp_local->U(i+p, j) / (2 * grid->dx) - rcp_Re_dx2; 
-					d[p] = cur->U(i+p, j) / dt - temp_local->Tx(i+p, j);
+					a[p] = - temp_local->U(i+p, j) / (2 * grid->dx) - v_vis_dx2; 
+					b[p] = 1 / dt  +  2 * v_vis_dx2; 
+					c[p] = temp_local->U(i+p, j) / (2 * grid->dx) - v_vis_dx2; 
+					d[p] = cur->U(i+p, j) / dt - params.v_T * temp_local->Tx(i+p, j);
 					break;
 				case type_V:
-					a[p] = - temp_local->U(i+p, j) / (2 * grid->dx) - rcp_Re_dx2; 
-					b[p] = 1 / dt  +  2 * rcp_Re_dx2; 
-					c[p] = temp_local->U(i+p, j) / (2 * grid->dx) - rcp_Re_dx2; 
+					a[p] = - temp_local->U(i+p, j) / (2 * grid->dx) - v_vis_dx2; 
+					b[p] = 1 / dt  +  2 * v_vis_dx2; 
+					c[p] = temp_local->U(i+p, j) / (2 * grid->dx) - v_vis_dx2; 
 					d[p] = cur->V(i+p, j) / dt;
 					break;
 				case type_T:
-					a[p] = - temp_local->U(i+p, j) / (2 * grid->dx) - rcp_RePr_dx2; 
-					b[p] = 1 / dt  +  2 * rcp_RePr_dx2; 
-					c[p] = temp_local->U(i+p, j) / (2 * grid->dx) - rcp_RePr_dx2; 
-					d[p] = cur->T(i+p, j) / dt + ((params.lambda - 1) / (params.lambda * params.Re)) * temp_local->DissFuncX(i+p, j);
+					a[p] = - temp_local->U(i+p, j) / (2 * grid->dx) - t_vis_dx2; 
+					b[p] = 1 / dt  +  2 * t_vis_dx2; 
+					c[p] = temp_local->U(i+p, j) / (2 * grid->dx) - t_vis_dx2; 
+					d[p] = cur->T(i+p, j) / dt + params.t_phi * temp_local->DissFuncX(i+p, j);
 					break;
 				}
 				break;
@@ -159,22 +159,22 @@ namespace FluidSolver
 				switch (var)	
 				{
 				case type_U:
-					a[p] = - temp_local->V(i, j+p) / (2 * grid->dy) - rcp_Re_dy2; 
-					b[p] = 1 / dt  +  2 * rcp_Re_dy2; 
-					c[p] = temp_local->V(i, j+p) / (2 * grid->dy) - rcp_Re_dy2; 
+					a[p] = - temp_local->V(i, j+p) / (2 * grid->dy) - v_vis_dy2; 
+					b[p] = 1 / dt  +  2 * v_vis_dy2; 
+					c[p] = temp_local->V(i, j+p) / (2 * grid->dy) - v_vis_dy2; 
 					d[p] = cur->U(i, j+p) / dt;
 					break;
 				case type_V:
-					a[p] = - temp_local->V(i, j+p) / (2 * grid->dy) - rcp_Re_dy2; 
-					b[p] = 1 / dt  +  2 * rcp_Re_dy2; 
-					c[p] = temp_local->V(i, j+p) / (2 * grid->dy) - rcp_Re_dy2; 
-					d[p] = cur->V(i, j+p) / dt - temp_local->Ty(i, j+p);
+					a[p] = - temp_local->V(i, j+p) / (2 * grid->dy) - v_vis_dy2; 
+					b[p] = 1 / dt  +  2 * v_vis_dy2; 
+					c[p] = temp_local->V(i, j+p) / (2 * grid->dy) - v_vis_dy2; 
+					d[p] = cur->V(i, j+p) / dt - params.v_T * temp_local->Ty(i, j+p);
 					break;
 				case type_T:
-					a[p] = - temp_local->V(i, j+p) / (2 * grid->dy) - rcp_RePr_dy2; 
-					b[p] = 1 / dt  +  2 * rcp_RePr_dy2; 
-					c[p] = temp_local->V(i, j+p) / (2 * grid->dy) - rcp_RePr_dy2; 
-					d[p] = cur->T(i, j+p) / dt + ((params.lambda - 1) / (params.lambda * params.Re)) * temp_local->DissFuncY(i, j+p);
+					a[p] = - temp_local->V(i, j+p) / (2 * grid->dy) - t_vis_dy2; 
+					b[p] = 1 / dt  +  2 * t_vis_dy2; 
+					c[p] = temp_local->V(i, j+p) / (2 * grid->dy) - t_vis_dy2; 
+					d[p] = cur->T(i, j+p) / dt + params.t_phi * temp_local->DissFuncY(i, j+p);
 					break;
 				}
 				break;
@@ -318,15 +318,7 @@ namespace FluidSolver
 			}
 		}
 
-		// clear outter cells
-		for (int i = 0; i < dimx; i++)
-			for (int j = 0; j < dimy; j++)
-				if (grid->GetType(i, j) == OUT)
-				{
-					next->U(i, j) = 0.0;
-					next->V(i, j) = 0.0;
-					next->T(i, j) = 1.0;
-				}
+		ClearOutterCells();
 
 		// output number of global iterations & error
 		printf("\r%i,%i,%.4f,", it, num_local, err);
