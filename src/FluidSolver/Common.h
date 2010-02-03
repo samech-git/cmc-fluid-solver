@@ -150,6 +150,7 @@ namespace FluidSolver
 
 	static void PrintTimeStepInfo(int i, int j, int frames, int subframes, int cycles, float elapsed_time)
 	{
+		//printf("elapsed sec: %.4f\n", elapsed_time);
 		const int percent = frames * subframes * cycles;
 		int step = (j + i * subframes) * 100;
 		int perres = step / percent;

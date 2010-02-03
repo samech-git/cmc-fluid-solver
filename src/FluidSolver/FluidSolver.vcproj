@@ -108,6 +108,7 @@
 				PreprocessorDefinitions="WIN32;NDEBUG;_LIB"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
+				OpenMP="true"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="3"
@@ -165,6 +166,10 @@
 				RelativePath=".\Solver2D.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\StableSolver2D.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -192,7 +197,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ScalarField2D.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Solver2D.h"
+				>
+			</File>
+			<File
+				RelativePath=".\StableSolver2D.h"
 				>
 			</File>
 			<File
