@@ -92,38 +92,23 @@ namespace FluidSolver
 		double rcp_dxdy2 = 0.5 / (dx2 + dy2);
 
 		double err;
-		int prev = 0, cur = 1;	// previous/current
-		q[prev]->ClearZero();
+		int cur = 0;	
 		q[cur]->ClearZero();
-
 		do
 		{
-			#pragma omp parallel default(none) firstprivate(dx2, dy2, cur, prev, w, rcp_dxdy2)
-			{
-				#pragma omp for
-				for (int i = 0; i < dimx; i++)
-					for (int j = 0; j < dimy; j++)
+			err = 0.0;
+			for (int i = 0; i < dimx; i++)
+				for (int j = 0; j < dimy; j++)
+				{
+					if (grid->GetType(i, j) == IN)
 					{
-						if (grid->GetType(i, j) == IN)
-						{
-							double f = w->Ux(i, j) + w->Vy(i, j);
-							q[cur]->U(i, j) = rcp_dxdy2 * ((q[cur]->U(i-1, j) + q[prev]->U(i+1, j)) * dy2 + (q[prev]->U(i, j+1) + q[cur]->U(i, j-1)) * dx2 - div->U(i, j) * dx2 * dy2);
-						}
+						double q_new = rcp_dxdy2 * ((q[cur]->U(i-1, j) + q[cur]->U(i+1, j)) * dy2 + (q[cur]->U(i, j+1) + q[cur]->U(i, j-1)) * dx2 - div->U(i, j) * dx2 * dy2);
+						double cur_err = abs((q_new - q[cur]->U(i, j)) / q_new);
+						err = max(cur_err, err);
+						q[cur]->U(i, j) = q_new;
 					}
-			}
-				// check precision
-				err = 0.0;
-				for (int i = 0; i < dimx; i++)
-					for (int j = 0; j < dimy; j++)
-						if (grid->GetType(i, j) == IN)
-						{
-							err += abs(q[cur]->Uxx(i, j) + q[cur]->Uyy(i, j) - div->U(i, j));
-						}
-				//printf("err = %.4f\n", thread_err);
-
-			int tmp = prev; prev = cur; cur = tmp;
+				}
 		} while (err >= POISSON_ERR_THRESHOLD);	// exit only when the error is small enough
-		cur = prev;
 		
 		// force divergence free field: 
 		//		proj = w - grad(q)

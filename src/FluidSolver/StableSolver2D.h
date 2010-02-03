@@ -5,7 +5,7 @@
 #include <omp.h>
 
 #define DIV_ERR_THRESHOLD		0.1
-#define POISSON_ERR_THRESHOLD	0.1
+#define POISSON_ERR_THRESHOLD	1e-2
 #define MAX_GLOBAL_ITERS		100
 
 namespace FluidSolver

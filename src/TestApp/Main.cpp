@@ -83,11 +83,6 @@ int main(int argc, char **argv)
 	Vec2D *resVel = new Vec2D[outdimx * outdimy];
 	double *resT = new double[outdimx * outdimy];
 
-	// output omp info
-#ifdef _OPENMP
-	printf("Using %i CPUs for the Poisson solver\n", omp_get_num_procs());
-#endif
-
 	//------------------------------------------ Solving ------------------------------------------
 	cpu_timer timer;
 	timer.start();
