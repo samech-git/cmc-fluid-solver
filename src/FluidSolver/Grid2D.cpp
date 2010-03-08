@@ -293,9 +293,9 @@ namespace FluidSolver
 		
 		for (int j=0; j<num_frames; j++)
 		{
-			
-			fscanf_s(file, "%f", &(frames[j].Duration));
-			frames[j].Duration = 0.035;
+			float dur;
+			fscanf_s(file, "%f", &dur);
+			frames[j].Duration = dur;
 			fscanf_s(file, "%i", &temp);
 			frames[j].Init(temp);
 			for (int i = 0; i<frames[j].NumShapes; i++)
@@ -409,6 +409,34 @@ namespace FluidSolver
 		delete[] a;
 
 		Prepare(frame, substep);
+	}
+
+	double Grid2D::GetCycleLenght()
+	{
+		double res = 0;
+		for (int i=0; i<num_frames; i++)
+			res += frames[i].Duration;
+		return res;
+	}
+
+	int Grid2D::GetFramesNum()
+	{
+		return num_frames;
+	}
+
+	int Grid2D::GetFrame(double time)
+	{
+		double* a = new double[num_frames + 1];
+		a[0] = 0;
+		for (int i=1; i<=num_frames; i++)
+			a[i] = a[i-1] + frames[i-1].Duration;
+
+		double r_time = fmod(time, a[num_frames]);
+		int frame = 0;
+		for (int i=1; i<num_frames; i++)
+			if (a[i] < r_time) frame = i;
+
+		return frame;
 	}
 
 

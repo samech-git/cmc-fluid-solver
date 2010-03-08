@@ -148,17 +148,17 @@ namespace FluidSolver
 		fclose(file);
 	}
 
-	static void PrintTimeStepInfo(int i, int j, int frames, int subframes, int cycles, float elapsed_time)
+	static void PrintTimeStepInfo(int frame, int subframe, double cur_time, double max_time, float elapsed_time)
 	{
 		//printf("elapsed sec: %.4f\n", elapsed_time);
-		const int percent = frames * subframes * cycles;
-		int step = (j + i * subframes) * 100;
-		int perres = step / percent;
-		float perresf = (float)step / percent;
+		//const int percent = frames * subframes * cycles;
+		//int step = (j + i * subframes) * 100;
+		//int perres = step / percent;
+		float perresf = (float)cur_time * 100 / (float)max_time;
 
-		if (perres < 2)
+		if (perresf < 2)
 		{
-			printf(" frame %i\tsubstep %i\t%i%%\t(----- left)", i, j, step / percent);
+			printf(" frame %i\tsubstep %i\t%i%%\t(----- left)", frame, subframe, (int)perresf);
 		}
 		else
 		{
@@ -168,7 +168,7 @@ namespace FluidSolver
 			int time_m = (((int)time_left_sec) / 60) % 60;
 			int time_s = ((int)time_left_sec) % 60;
 
-			printf(" frame %i\tsubstep %i\t%i%%\t(%i h %i m %i s left)", i, j, step / percent, time_h, time_m, time_s);
+			printf(" frame %i\tsubstep %i\t%i%%\t(%i h %i m %i s left)", frame, subframe, (int)perresf, time_h, time_m, time_s);
 		}
 	}
 }

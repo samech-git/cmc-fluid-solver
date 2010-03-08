@@ -84,6 +84,9 @@ namespace FluidSolver
 		
 		void Prepare(int frame, double substep);
 		void Prepare(double time);
+		double GetCycleLenght();
+		int GetFramesNum();
+		int GetFrame(double time);
 
 		int LoadFromFile(char *filename);
 		void TestPrint();

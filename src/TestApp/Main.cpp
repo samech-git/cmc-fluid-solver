@@ -5,16 +5,13 @@
 const double dx = 0.001;
 const double dy = 0.001;
 
-// time step
-const double dt = 0.0005;
-
 // old params
 const double Re = 50.0;
 const double Pr = 0.82;
 const double lambda = 1.4;
 
 // new params
-const double viscosity = 0.1;		// temporary high, 0.001002 for water at 20 C
+const double viscosity = 0.05;		// temporary high, 0.001002 for water at 20 C
 const double density = 1000.0;		// water
 
 // thermodynamic params
@@ -24,19 +21,17 @@ const double cv = 4200.0;			// water (specific heat capacity at constant volume)
 const double startT = 300.0;		// in Kelvin 
 
 // solver params
-const int num_global = 4;
+const int num_global = 2;
 const int num_local = 1;
 
 // animation params
 const int cycles = 1;
-const int frames = 25;
-const int subframes = 100;
-const int subsub = 10;
+const int subframes = 5;
+const int out_subframes = 5;
 
 // output grid
 const int outdimx = 50;
 const int outdimy = 50;
-const float timeValue = 0.035f;
 
 // solver type
 enum solvers { Explicit, ADI, Stable };
@@ -57,7 +52,7 @@ int main(int argc, char **argv)
 	if (grid.LoadFromFile(dataPath) == OK)
 	{
 		printf("dx,dy,dimx,dimy,dt\n");
-		printf("%f,%f,%i,%i,%.3f\n", dx, dy, grid.dimx, grid.dimy, dt);
+		printf("%f,%f,%i,%i\n", dx, dy, grid.dimx, grid.dimy);
 	}
 	grid.Prepare(0, 0);
 	//grid.TestPrint();
@@ -86,25 +81,37 @@ int main(int argc, char **argv)
 	//------------------------------------------ Solving ------------------------------------------
 	cpu_timer timer;
 	timer.start();
-	for (int i = startFrame, end = frames * cycles; i < end; i++)
-	{	
-		fprintf(resFile, "Frame %i\n", i % frames);
 
-		for (int j = 0; j < subframes; j++)
+	int frames = grid.GetFramesNum();
+	double length = grid.GetCycleLenght();
+	double dt = length / (frames * subframes);
+	double finaltime = length * cycles;
+
+	printf("dt = %f\n", dt);
+	int lastframe = -1;
+	double t = dt;
+	for (int i=0; t < finaltime; t+=dt, i++)
+	{
+		int curentframe = grid.GetFrame(t);
+		if (curentframe != lastframe)
 		{
-			grid.Prepare(i, (double)j / subframes);
-			solver->UpdateBoundaries();
- 			solver->TimeStep(dt, num_global, num_local);
-			solver->SetGridBoundaries();
+			fprintf(resFile, "Frame %i\n", curentframe);
+			lastframe = curentframe;
+			i = 0;
+		}
 
-			timer.stop();
-			PrintTimeStepInfo(i, j, frames, subframes, cycles, timer.elapsed_sec());
+		grid.Prepare(t);
+		solver->UpdateBoundaries();
+		solver->TimeStep(dt, num_global, num_local);
+		solver->SetGridBoundaries();
 
-			if ((j % subsub) == 0)
-			{
-				solver->GetLayer(resVel, resT, outdimx, outdimy);
-				OutputResult(resFile, resVel, resT, outdimx, outdimy, timeValue);
-			}
+		timer.stop();
+		PrintTimeStepInfo(curentframe, i, t, finaltime, timer.elapsed_sec());
+
+		if ((i % out_subframes) == 0)
+		{
+			solver->GetLayer(resVel, resT, outdimx, outdimy);
+			OutputResult(resFile, resVel, resT, outdimx, outdimy, 0);
 		}
 	}
 	printf("\n");
