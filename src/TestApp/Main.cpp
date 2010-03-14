@@ -2,8 +2,8 @@
 #include "Timer.h"
 
 // grid size
-const double dx = 0.001;
-const double dy = 0.001;
+const double dx = 0.0007;
+const double dy = 0.0007;
 
 // old params
 const double Re = 50.0;
@@ -26,7 +26,7 @@ const int num_local = 1;
 
 // animation params
 const int cycles = 1;
-const int subframes = 5;
+const int subframes = 50;
 const int out_subframes = 5;
 
 // output grid

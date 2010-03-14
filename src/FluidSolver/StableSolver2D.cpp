@@ -76,9 +76,9 @@ namespace FluidSolver
 				for (int j = 0; j < dimy; j++)
 				{
 					if (grid->GetType(i, j) == IN)
-					{
 						div->U(i, j) = w->Ux(i, j) + w->Vy(i, j);
-					}
+					else
+						div->U(i, j) = 0.0;
 				}
 		}
 
@@ -100,9 +100,28 @@ namespace FluidSolver
 			for (int i = 0; i < dimx; i++)
 				for (int j = 0; j < dimy; j++)
 				{
-					if (grid->GetType(i, j) == IN)
+					if (grid->GetType(i, j) != OUT)
 					{
-						double q_new = rcp_dxdy2 * ((q[cur]->U(i-1, j) + q[cur]->U(i+1, j)) * dy2 + (q[cur]->U(i, j+1) + q[cur]->U(i, j-1)) * dx2 - div->U(i, j) * dx2 * dy2);
+						double i0, i1, j0, j1;
+
+						if (grid->GetType(i, j) == IN)
+						{
+							// inner cell
+							i0 = q[cur]->U(i-1, j); 
+							i1 = q[cur]->U(i+1, j); 
+							j0 = q[cur]->U(i, j-1); 
+							j1 = q[cur]->U(i, j+1); 
+						}
+						else
+						{
+							// boundary cell - newman conditions
+							if (grid->GetType(i-1, j) == IN) i0 = q[cur]->U(i-1, j); else i0 = q[cur]->U(i+1, j);
+							if (grid->GetType(i+1, j) == IN) i1 = q[cur]->U(i+1, j); else i1 = q[cur]->U(i-1, j);
+							if (grid->GetType(i, j-1) == IN) j0 = q[cur]->U(i, j-1); else j0 = q[cur]->U(i, j+1);
+							if (grid->GetType(i, j+1) == IN) j1 = q[cur]->U(i, j+1); else j1 = q[cur]->U(i, j-1);
+						}
+
+						double q_new = rcp_dxdy2 * ((i0 + i1) * dy2 + (j0 + j1) * dx2 - div->U(i, j) * dx2 * dy2);
 						double cur_err = abs((q_new - q[cur]->U(i, j)) / q_new);
 						err = max(cur_err, err);
 						q[cur]->U(i, j) = q_new;
