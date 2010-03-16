@@ -1,6 +1,5 @@
 #include "FluidSolver.h"
 #include "Timer.h"
-#define BC_NOSLIP 1
 
 // grid size
 const double dx = 0.0007;
@@ -12,7 +11,7 @@ const double Pr = 0.82;
 const double lambda = 1.4;
 
 // new params
-const double viscosity = 0.01;		// temporary high, 0.001002 for water at 20 C
+const double viscosity = 0.05;		// temporary high, 0.001002 for water at 20 C
 const double density = 1000.0;		// water
 
 // thermodynamic params
@@ -26,9 +25,9 @@ const int num_global = 2;
 const int num_local = 1;
 
 // animation params
-const int cycles = 1;
+const int cycles = 2;
 const int subframes = 50;
-const int out_subframes = 5;
+const int out_subframes = 10;
 
 // output grid
 const int outdimx = 50;

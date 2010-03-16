@@ -141,9 +141,6 @@ namespace FluidSolver
 		return v;
 	}
 
-
-
-#define BC_NOSLIP 1
 	void Grid2D::RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color)
     {
 		Vec2D orientation(p2.x - p1.x, p2.y - p1.y);
@@ -468,12 +465,12 @@ namespace FluidSolver
 		for (int i=1; i<=num_frames; i++)
 			a[i] = a[i-1] + frames[i-1].Duration;
 
-		double r_time = fmod(time, a[num_frames]);
+		double r_time = fmod(t, a[num_frames]);
 		int frame = 0;
 		for (int i=1; i<num_frames; i++)
 			if (a[i] < r_time) frame = i;
 
-		return a[frame+1] - t;
+		return (float)(a[frame+1] - t);
 	}
 
 

@@ -93,12 +93,11 @@ namespace FluidSolver
 
 	static void OutputResult(FILE* file, Vec2D *v, double *T, int dimx, int dimy, float timeValue)
 	{
-		fprintf(file, "%.3f\n", timeValue);
+		fprintf(file, "%.5f\n", timeValue);
 		for (int j = 0; j < dimy; j++)
 		{
 			for (int i = 0; i < dimx; i++)
 				fprintf(file, "%.2f %.2f ", v[i * dimy + j].x * 10, v[i * dimy + j].y * 10);
-				//fprintf(file, "%.4f %.4f ", (T[i * dimy + j]-300) * 1000, 0);
 			fprintf(file, "\n");
 		}
 	}
