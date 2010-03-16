@@ -117,7 +117,7 @@ namespace FluidSolver
 
 #define PROCESS(ij) {if (nextData[ij].cell != OUT) { v.x += nextData[ij].vel.x; v.y += nextData[ij].vel.y; k++; }}
 
-	Vec2D Grid2D::GetBounfVelocitie(int x, int y)
+	Vec2D Grid2D::GetBounfVelocity(int x, int y)
 	{
 		int ij = x * dimy + y;
 		Vec2D v(0, 0);
@@ -141,6 +141,9 @@ namespace FluidSolver
 		return v;
 	}
 
+
+
+#define BC_NOSLIP 1
 	void Grid2D::RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color)
     {
 		Vec2D orientation(p2.x - p1.x, p2.y - p1.y);
@@ -157,9 +160,15 @@ namespace FluidSolver
             int x = (int)p.x;
             int y = (int)p.y;
 			
-			Vec2D bv = GetBounfVelocitie(x, y);
+			Vec2D bv = GetBounfVelocity(x, y);
 			VecTN vtn = GetTangentNormal(v, orientation);
 			VecTN btn = GetTangentNormal(bv, orientation);
+
+			double l = sqrt(v.x*v.x + v.y*v.y);
+			if (l > 0.5)
+			{
+				l = l;
+			}
 
 #ifndef BC_NOSLIP
 			SetData(x, y, CondData2D(NOSLIP, color, Vec2D(vtn.normal.x + btn.tangent.x, vtn.normal.y + btn.tangent.y), startT));
@@ -340,6 +349,9 @@ namespace FluidSolver
 	{
 		int nextframe = (frame + 1) % num_frames;
 		double m = 1 / frames[frame].Duration;
+		
+		//double maxl = 0;//!!!!!!
+
 		for (int i=0; i<frames[frame].NumShapes; i++)
 			if (!frames[frame].Shapes[i].Active)
 				for (int k=0; k<frames[frame].Shapes[i].NumPoints; k++)
@@ -348,6 +360,11 @@ namespace FluidSolver
 						(frames[nextframe].Shapes[i].Points[k].x - frames[frame].Shapes[i].Points[k].x) * m;
 					frames[nextframe].Shapes[i].Velocities[k].y = 
 						(frames[nextframe].Shapes[i].Points[k].y - frames[frame].Shapes[i].Points[k].y) * m;
+
+					//double x = frames[nextframe].Shapes[i].Velocities[k].x;
+					//double y = frames[nextframe].Shapes[i].Velocities[k].y;
+					//double l = sqrt(x*x + y*y);
+					//if (l > maxl) maxl = l;//!!!!!!
 				}
 			else
 				for (int k=0; k<frames[frame].Shapes[i].NumPoints; k++)
@@ -356,6 +373,11 @@ namespace FluidSolver
 						(frames[frame].Shapes[i].Points[k].x - frames[nextframe].Shapes[i].Points[k].x) * m;
 					frames[nextframe].Shapes[i].Velocities[k].y += 
 						(frames[frame].Shapes[i].Points[k].y - frames[nextframe].Shapes[i].Points[k].y) * m;
+
+					//double x = frames[nextframe].Shapes[i].Velocities[k].x;
+					//double y = frames[nextframe].Shapes[i].Velocities[k].y;
+					//double l = sqrt(x*x + y*y);
+					//if (l > maxl) maxl = l;//!!!!!!
 				}
 	}
 
@@ -437,6 +459,21 @@ namespace FluidSolver
 			if (a[i] < r_time) frame = i;
 
 		return frame;
+	}
+
+	float Grid2D::GetLayerTime(double t)
+	{
+		double* a = new double[num_frames + 1];
+		a[0] = 0;
+		for (int i=1; i<=num_frames; i++)
+			a[i] = a[i-1] + frames[i-1].Duration;
+
+		double r_time = fmod(time, a[num_frames]);
+		int frame = 0;
+		for (int i=1; i<num_frames; i++)
+			if (a[i] < r_time) frame = i;
+
+		return a[frame+1] - t;
 	}
 
 

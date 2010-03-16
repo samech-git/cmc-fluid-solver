@@ -87,6 +87,7 @@ namespace FluidSolver
 		double GetCycleLenght();
 		int GetFramesNum();
 		int GetFrame(double time);
+		float GetLayerTime(double t);
 
 		int LoadFromFile(char *filename);
 		void TestPrint();
@@ -109,7 +110,7 @@ namespace FluidSolver
 		void Init();
 
 		VecTN GetTangentNormal(Vec2D vector, Vec2D orientation);
-		Vec2D GetBounfVelocitie(int x, int y);
+		Vec2D GetBounfVelocity(int x, int y);
 		void RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color);
 		void FloodFill(CellType color);
 		

@@ -1,5 +1,6 @@
 #include "FluidSolver.h"
 #include "Timer.h"
+#define BC_NOSLIP 1
 
 // grid size
 const double dx = 0.0007;
@@ -11,7 +12,7 @@ const double Pr = 0.82;
 const double lambda = 1.4;
 
 // new params
-const double viscosity = 0.05;		// temporary high, 0.001002 for water at 20 C
+const double viscosity = 0.01;		// temporary high, 0.001002 for water at 20 C
 const double density = 1000.0;		// water
 
 // thermodynamic params
@@ -93,6 +94,8 @@ int main(int argc, char **argv)
 	for (int i=0; t < finaltime; t+=dt, i++)
 	{
 		int curentframe = grid.GetFrame(t);
+		float layer_time = grid.GetLayerTime(t);
+
 		if (curentframe != lastframe)
 		{
 			fprintf(resFile, "Frame %i\n", curentframe);
@@ -110,8 +113,11 @@ int main(int argc, char **argv)
 
 		if ((i % out_subframes) == 0)
 		{
+			float dur = dt * out_subframes;
+			if (dur > layer_time) dur = layer_time;
+
 			solver->GetLayer(resVel, resT, outdimx, outdimy);
-			OutputResult(resFile, resVel, resT, outdimx, outdimy, 0);
+			OutputResult(resFile, resVel, resT, outdimx, outdimy, dur);
 		}
 	}
 	printf("\n");
