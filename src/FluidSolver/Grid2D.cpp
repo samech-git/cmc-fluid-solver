@@ -470,7 +470,7 @@ namespace FluidSolver
 		for (int i=1; i<num_frames; i++)
 			if (a[i] < r_time) frame = i;
 
-		return (float)(a[frame+1] - t);
+		return (float)(a[frame+1] - r_time);
 	}
 
 
