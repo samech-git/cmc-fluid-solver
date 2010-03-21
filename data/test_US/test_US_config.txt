@@ -1,0 +1,17 @@
+viscosity 	0.05
+density 	1000.0
+
+grid_dx		0.0007
+grid_dy		0.0007
+
+cycles 		2
+calc_subframes 	50
+
+out_subframes 	10
+out_gridx	50
+out_gridy 	50
+
+solver		Stable
+num_global 	2
+num_local 	1
+
