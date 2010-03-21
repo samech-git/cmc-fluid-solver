@@ -1,6 +1,8 @@
 viscosity 	0.05
 density 	1000.0
 
+bc_type		NoSlip
+
 grid_dx		0.0007
 grid_dy		0.0007
 

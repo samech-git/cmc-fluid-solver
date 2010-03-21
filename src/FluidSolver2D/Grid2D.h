@@ -12,6 +12,7 @@
 #define BBOX_OFFSET		0.03
 
 using namespace std;
+
 namespace FluidSolver
 {
 	enum CellType { IN, OUT, BOUND, VALVE };
@@ -71,7 +72,7 @@ namespace FluidSolver
 
 	struct Grid2D
 	{
-		Grid2D(double _dx, double _dy, double _startT);
+		Grid2D(double _dx, double _dy, double _startT, bool _bc_slip);
 		Grid2D(Grid2D &grid);
 		~Grid2D();
 
@@ -99,6 +100,8 @@ namespace FluidSolver
 		//---------------------------- Borders ---------------------------------
 		FrameInfo* frames;
 		int num_frames;
+
+		bool bc_noslip;
 		
 		void ComputeBorderVelocities(int frame);
 		FrameInfo ComputeSubframe(int frame, double substep);

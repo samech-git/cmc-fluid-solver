@@ -2,24 +2,42 @@
 
 using namespace FluidSolver;
 
+void FindFile(char *path, char *filename)
+{
+	FILE *file = NULL;
+
+	sprintf_s(path, MAX_PATH, "%s", filename);
+	fopen_s(&file, path, "r");
+	if (!file) 
+	{
+		sprintf_s(path, MAX_PATH, "..\\..\\data\\%s", filename);
+		fopen_s(&file, path, "r");
+		if (!file) { printf("cannot find the file: \"%s\"\n", filename); exit(0); }
+			else fclose(file);	
+	}
+	else
+		fclose(file);
+}
+
 int main(int argc, char **argv)
 {
 	char inputPath[MAX_PATH];
 	char outputPath[MAX_PATH];
 	char configPath[MAX_PATH];
 
-	sprintf_s(inputPath, "..\\..\\data\\%s", argv[1]);
-	sprintf_s(outputPath, "..\\..\\data\\%s", argv[2]);
-	sprintf_s(configPath, "..\\..\\data\\%s", argv[3]);
-
+	FindFile(inputPath, argv[1]);
+	FindFile(outputPath, argv[2]);
+	FindFile(configPath, argv[3]);
+	
+	Config::Config();
 	Config::LoadFromFile(configPath);
 
 	//--------------------------------------- Initializing ---------------------------------------
-	Grid2D grid(Config::dx, Config::dy, Config::startT);
+	Grid2D grid(Config::dx, Config::dy, Config::startT, Config::bc_noslip);
 	if (grid.LoadFromFile(inputPath) == OK)
 	{
-		printf("dx,dy,dimx,dimy\n");
-		printf("%f,%f,%i,%i\n", Config::dx, Config::dy, grid.dimx, grid.dimy);
+		printf("dx,dy,dimx,dimy,bc_noslip\n");
+		printf("%f,%f,%i,%i,%i\n", Config::dx, Config::dy, grid.dimx, grid.dimy, Config::bc_noslip);
 	}
 	grid.Prepare(0, 0);
 	
