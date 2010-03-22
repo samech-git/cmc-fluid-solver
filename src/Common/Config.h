@@ -4,16 +4,19 @@
 
 #define MAX_STR_SIZE	255
 
-enum solvers { Explicit, ADI, Stable };
-
 namespace Common
 {
+	enum solver { Explicit, ADI, Stable };
+	enum dimension { _2D, _3D, unknown };
+	
 	class Config
 	{
 	public:
 
+		static dimension problem_dim;
+
 		// grid size
-		static double dx, dy;
+		static double dx, dy, dz;
 
 		// fluid parameters
 		static double viscosity, density;
@@ -32,7 +35,7 @@ namespace Common
 		static int outdimx, outdimy;
 
 		// solver params
-		static int solverID;		
+		static solver solverID;		
 		static int num_global, num_local;
 
 		Config()
@@ -58,8 +61,10 @@ namespace Common
 			num_local = 1;
 
 			// must specify 
+			problem_dim = unknown;
 			dx = -1;
 			dy = -1;
+			dz = -1;
 		}
 
 		static void ReadDouble(FILE *file, double &value)
@@ -91,6 +96,14 @@ namespace Common
 				else bc_noslip = false;
 		}
 
+		static void ReadDim(FILE *file)
+		{
+			char dimStr[MAX_STR_SIZE];
+			fscanf_s(file, "%s", dimStr, MAX_STR_SIZE);
+			if (!strcmp(dimStr, "2D")) problem_dim = _2D;
+				else problem_dim = _3D;
+		}
+
 		static void LoadFromFile(char *filename)
 		{
 			FILE *file = NULL;
@@ -102,6 +115,8 @@ namespace Common
 			while (!feof(file))
 			{
 				fscanf_s(file, "%s", str, MAX_STR_SIZE);
+
+				if (!strcmp(str, "dimension")) ReadDim(file);
 
 				if (!strcmp(str, "viscosity")) ReadDouble(file, viscosity);
 				if (!strcmp(str, "density")) ReadDouble(file, density);
@@ -126,12 +141,16 @@ namespace Common
 			fclose(file);
 
 			// checking		
-			if (dx < 0) { printf("cannot find dx!"); exit(0); }
-			if (dy < 0) { printf("cannot find dy!"); exit(0); }
+			if (problem_dim == unknown) { printf("must specify problem dimension!\n"); exit(0); }
+			if (dx < 0) { printf("cannot find dx!\n"); exit(0); }
+			if (dy < 0) { printf("cannot find dy!\n"); exit(0); }
+			if (problem_dim == _3D && dz < 0) { printf("cannot find dz!\n"); exit(0); }
 		}
 	};
 
-	double Config::dx, Config::dy;
+	dimension Config::problem_dim;
+
+	double Config::dx, Config::dy, Config::dz;
 
 	double Config::viscosity, Config::density;
 	double Config::Re, Config::Pr, Config::lambda;		// not used currently
@@ -144,6 +163,6 @@ namespace Common
 
 	int Config::outdimx, Config::outdimy;
 
-	int Config::solverID;		
+	solver Config::solverID;		
 	int Config::num_global, Config::num_local;
 }

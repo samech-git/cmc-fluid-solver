@@ -2,13 +2,13 @@
 
 using namespace FluidSolver2D;
 
-void FindFile(char *path, char *filename)
+void FindFile(char *path, char *filename, bool checkExist = true)
 {
 	FILE *file = NULL;
 
 	sprintf_s(path, MAX_PATH, "%s", filename);
 	fopen_s(&file, path, "r");
-	if (!file) 
+	if (!file && checkExist) 
 	{
 		sprintf_s(path, MAX_PATH, "..\\..\\data\\%s", filename);
 		fopen_s(&file, path, "r");
@@ -16,7 +16,7 @@ void FindFile(char *path, char *filename)
 			else fclose(file);	
 	}
 	else
-		fclose(file);
+		if (checkExist) fclose(file);
 }
 
 int main(int argc, char **argv)
@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 	char configPath[MAX_PATH];
 
 	FindFile(inputPath, argv[1]);
-	FindFile(outputPath, argv[2]);
+	FindFile(outputPath, argv[2], false);
 	FindFile(configPath, argv[3]);
 	
 	Config::Config();
