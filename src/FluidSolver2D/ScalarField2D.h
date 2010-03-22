@@ -2,7 +2,7 @@
 
 #include "Grid2D.h"
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	struct ScalarField2D
 	{

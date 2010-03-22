@@ -4,7 +4,7 @@
 
 #define INF				1e10
 
-namespace FluidSolver
+namespace Common
 {	
 	enum RetStatus { OK, ERR };
 

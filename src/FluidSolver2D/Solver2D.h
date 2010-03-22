@@ -3,7 +3,7 @@
 #include "Grid2D.h"
 #include "TimeLayer2D.h"
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	class Solver2D
 	{

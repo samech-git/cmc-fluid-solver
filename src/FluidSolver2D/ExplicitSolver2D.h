@@ -5,7 +5,7 @@
 #define ERR_THRESHOLD		0.1
 #define MAX_GLOBAL_ITERS	100
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	class ExplicitSolver2D : public Solver2D
 	{

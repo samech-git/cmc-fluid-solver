@@ -8,7 +8,7 @@
 #define POISSON_ERR_THRESHOLD	1e-2
 #define MAX_GLOBAL_ITERS		100
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	class StableSolver2D : public Solver2D
 	{

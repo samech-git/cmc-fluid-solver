@@ -5,7 +5,7 @@
 #define ERR_THRESHOLD		0.1
 #define MAX_GLOBAL_ITERS	100
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	enum VarType { type_U, type_V, type_T };
 	enum DirType { X, Y };

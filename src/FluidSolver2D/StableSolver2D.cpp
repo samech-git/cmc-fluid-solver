@@ -1,6 +1,6 @@
 #include "StableSolver2D.h"
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	void StableSolver2D::Init(Grid2D* _grid, FluidParams &_params)
 	{

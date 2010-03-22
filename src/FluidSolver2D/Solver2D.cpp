@@ -1,6 +1,6 @@
 #include "Solver2D.h"
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	void Solver2D::GetLayer(Vec2D *v, double *T, int outdimx, int outdimy)
 	{

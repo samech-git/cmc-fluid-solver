@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common.h"
+#include "../Common/Common.h"
 
 #include <stdlib.h>
 #include <math.h>
@@ -12,8 +12,9 @@
 #define BBOX_OFFSET		0.03
 
 using namespace std;
+using namespace Common;
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	enum CellType { IN, OUT, BOUND, VALVE };
 

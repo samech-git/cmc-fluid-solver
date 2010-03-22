@@ -9,5 +9,5 @@
 #include "StableSolver2D.h"
 
 
-#include "Timer.h"
-#include "Config.h"
+#include "../Common/Timer.h"
+#include "../Common/Config.h"

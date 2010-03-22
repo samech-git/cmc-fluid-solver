@@ -6,7 +6,7 @@
 
 enum solvers { Explicit, ADI, Stable };
 
-namespace FluidSolver
+namespace Common
 {
 	class Config
 	{

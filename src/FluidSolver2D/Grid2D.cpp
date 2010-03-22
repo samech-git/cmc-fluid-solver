@@ -1,6 +1,6 @@
 #include "Grid2D.h"
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	Grid2D::Grid2D(double _dx, double _dy, double _startT, bool _bc_noslip) : dx(_dx), dy(_dy), startT(_startT), bc_noslip(_bc_noslip), curData(NULL), nextData(NULL) {	}
 

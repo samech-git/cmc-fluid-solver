@@ -1,6 +1,6 @@
 #include "AdiSolver2D.h"
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	void AdiSolver2D::Init(Grid2D* _grid, FluidParams &_params)
 	{

@@ -200,14 +200,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\Common.h"
-				>
-			</File>
-			<File
-				RelativePath=".\Config.h"
-				>
-			</File>
-			<File
 				RelativePath=".\ExplicitSolver2D.h"
 				>
 			</File>

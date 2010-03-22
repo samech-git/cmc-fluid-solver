@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FluidSolver", "FluidSolver2D.vcproj", "{50DFBBBD-4259-4AC2-B7C7-20957C72659A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FluidSolver2D", "FluidSolver2D\FluidSolver2D.vcproj", "{50DFBBBD-4259-4AC2-B7C7-20957C72659A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

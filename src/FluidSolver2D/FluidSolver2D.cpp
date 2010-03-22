@@ -1,6 +1,6 @@
 #include "FluidSolver2D.h"
 
-using namespace FluidSolver;
+using namespace FluidSolver2D;
 
 void FindFile(char *path, char *filename)
 {

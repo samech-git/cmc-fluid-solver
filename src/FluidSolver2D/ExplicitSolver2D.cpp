@@ -1,6 +1,6 @@
 #include "ExplicitSolver2D.h"
 
-namespace FluidSolver
+namespace FluidSolver2D
 {
 	void ExplicitSolver2D::Init(Grid2D* _grid, FluidParams &_params)
 	{
