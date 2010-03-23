@@ -25,6 +25,9 @@ namespace Common
 		// boundary conditions
 		static bool bc_noslip;
 
+		// depth of our 3D object (along Z direction)
+		static double depth;				
+
 		// thermodynamic params
 		static double R_specific, k, cv, startT;		 
 
@@ -32,7 +35,7 @@ namespace Common
 		static int cycles, calc_subframes, out_subframes;
 
 		// output grid
-		static int outdimx, outdimy;
+		static int outdimx, outdimy, outdimz;
 
 		// solver params
 		static solver solverID;		
@@ -54,7 +57,7 @@ namespace Common
 			cycles = 1;
 			calc_subframes = 50;
 			out_subframes = 10;
-			outdimx = outdimy = 50;
+			outdimx = outdimy = outdimz = 50;
 
 			solverID = Stable;
 			num_global = 2;
@@ -65,6 +68,7 @@ namespace Common
 			dx = -1;
 			dy = -1;
 			dz = -1;
+			depth = -1;
 		}
 
 		static void ReadDouble(FILE *file, double &value)
@@ -114,7 +118,8 @@ namespace Common
 			char str[MAX_STR_SIZE];
 			while (!feof(file))
 			{
-				fscanf_s(file, "%s", str, MAX_STR_SIZE);
+				int ret = fscanf_s(file, "%s", str, MAX_STR_SIZE);
+				if (ret <= 0) break;
 
 				if (!strcmp(str, "dimension")) ReadDim(file);
 
@@ -125,6 +130,7 @@ namespace Common
 
 				if (!strcmp(str, "grid_dx")) ReadDouble(file, dx);
 				if (!strcmp(str, "grid_dy")) ReadDouble(file, dy);
+				if (!strcmp(str, "grid_dz")) ReadDouble(file, dz);
 
 				if (!strcmp(str, "cycles")) ReadInt(file, cycles);
 				if (!strcmp(str, "calc_subframes")) ReadInt(file, calc_subframes);
@@ -132,6 +138,9 @@ namespace Common
 				if (!strcmp(str, "out_subframes")) ReadInt(file, out_subframes);
 				if (!strcmp(str, "out_gridx")) ReadInt(file, outdimx);
 				if (!strcmp(str, "out_gridy")) ReadInt(file, outdimy);
+				if (!strcmp(str, "out_gridz")) ReadInt(file, outdimz);
+
+				if (!strcmp(str, "depth")) ReadDouble(file, depth);		
 
 				if (!strcmp(str, "solver")) ReadSolver(file);
 				if (!strcmp(str, "num_global")) ReadInt(file, num_global);
@@ -144,7 +153,11 @@ namespace Common
 			if (problem_dim == unknown) { printf("must specify problem dimension!\n"); exit(0); }
 			if (dx < 0) { printf("cannot find dx!\n"); exit(0); }
 			if (dy < 0) { printf("cannot find dy!\n"); exit(0); }
-			if (problem_dim == _3D && dz < 0) { printf("cannot find dz!\n"); exit(0); }
+			if (problem_dim == _3D)
+			{
+				if (dz < 0) { printf("cannot find dz!\n"); exit(0); }
+				if (depth < 0) { printf("cannot find depth!\n"); exit(0); }
+			}
 		}
 	};
 
@@ -157,11 +170,13 @@ namespace Common
 
 	bool Config::bc_noslip;
 
+	double Config::depth;
+
 	double Config::R_specific, Config::k, Config::cv, Config::startT;		 
 
 	int Config::cycles, Config::calc_subframes, Config::out_subframes;
 
-	int Config::outdimx, Config::outdimy;
+	int Config::outdimx, Config::outdimy, Config::outdimz;
 
 	solver Config::solverID;		
 	int Config::num_global, Config::num_local;

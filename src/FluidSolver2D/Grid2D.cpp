@@ -85,28 +85,6 @@ namespace FluidSolver2D
 		p.y = atof(s2.c_str());
 	}
 
-	void Grid2D::BuildBBox(int num_frames, FrameInfo* frames)
-	{
-		bbox.Clear();
-		for (int j = 0; j < num_frames; j++)
-			for (int i = 0; i < frames[j].NumShapes; i++)
-				for (int k = 0; k < frames[j].Shapes[i].NumPoints; k++)
-					bbox.AddPoint(frames[j].Shapes[i].Points[k]);
-
-		double wx = bbox.pMax.x - bbox.pMin.x;
-		double wy = bbox.pMax.y - bbox.pMin.y;
-
-		bbox.pMin.x -= wx * 0.02;
-		bbox.pMin.y -= wy * 0.02;
-		bbox.pMax.x += wx * 0.02;
-		bbox.pMax.y += wy * 0.02;
-
-#ifdef _DEBUG
-		printf("bbox x range: [%f, %f]\n", bbox.pMin.x, bbox.pMax.x);
-		printf("bbox y range: [%f, %f]\n", bbox.pMin.y, bbox.pMax.y);
-#endif
-	}
-
 	VecTN Grid2D::GetTangentNormal(Vec2D vector, Vec2D orientation)
 	{
 		double l = (vector.x * orientation.x + vector.y * orientation.y) / (orientation.x * orientation.x + orientation.y * orientation.y);
@@ -224,7 +202,7 @@ namespace FluidSolver2D
 
 	void Grid2D::Init()
 	{
-		BuildBBox(num_frames, frames);
+		bbox.Build(num_frames, frames);
 	
 		dimx = (int)ceil((bbox.pMax.x - bbox.pMin.x) / dx) + 1;
 		dimy = (int)ceil((bbox.pMax.y - bbox.pMin.y) / dy) + 1;
@@ -256,7 +234,7 @@ namespace FluidSolver2D
 
 	}
 
-	void Grid2D::Build(FrameInfo frame)
+	void Grid2D::Build(FrameInfo2D frame)
 	{
 		// mark all cells as inner 
 		for (int i = 0; i < dimx; i++)
@@ -282,19 +260,19 @@ namespace FluidSolver2D
 			}
 	}
 
-	int Grid2D::LoadFromFile(char *filename)
+	bool Grid2D::LoadFromFile(char *filename)
 	{
 		FILE *file = NULL;
 		if (fopen_s(&file, filename, "r") != 0)
 		{
 			printf("Error: cannot open file \"%s\" \n", filename);
-			return ERR;
+			return false;
 		}
 
 		fscanf_s(file, "%i", &num_frames);	// currently not used
 		Point2D p;
 		int temp;
-		frames = new FrameInfo[num_frames];
+		frames = new FrameInfo2D[num_frames];
 		
 		for (int j=0; j<num_frames; j++)
 		{
@@ -337,7 +315,7 @@ namespace FluidSolver2D
 			ComputeBorderVelocities(j);
 		
 		Init();
-		return OK;
+		return true;
 	}
 
 
@@ -378,11 +356,11 @@ namespace FluidSolver2D
 	}
 
 
-	FrameInfo Grid2D::ComputeSubframe(int frame, double substep)
+	FrameInfo2D Grid2D::ComputeSubframe(int frame, double substep)
 	{
 		int framep1 = (frame + 1) % num_frames;
 
-		FrameInfo res;
+		FrameInfo2D res;
 		res.Duration = 0;
 
 		res.Init(frames[frame].NumShapes);
@@ -407,7 +385,7 @@ namespace FluidSolver2D
 
 	void Grid2D::Prepare(int frame, double substep)
 	{
-		FrameInfo tempframe = ComputeSubframe(frame % num_frames, substep);
+		FrameInfo2D tempframe = ComputeSubframe(frame % num_frames, substep);
 		Build(tempframe);
 		tempframe.Dispose();
 	}

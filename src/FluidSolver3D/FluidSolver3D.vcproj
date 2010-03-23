@@ -18,7 +18,7 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			OutputDirectory="$(SolutionDir)..\bin\$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
 			CharacterSet="1"
@@ -89,7 +89,7 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			OutputDirectory="$(SolutionDir)..\bin\$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
 			CharacterSet="1"
@@ -133,7 +133,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkIncremental="1"
-				GenerateDebugInformation="true"
+				GenerateDebugInformation="false"
 				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
@@ -171,11 +171,23 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\AdiSolver3D.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\FluidSolver3D.cpp"
 				>
 			</File>
 			<File
+				RelativePath="..\FluidSolver2D\Grid2D.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\Grid3D.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Solver3D.cpp"
 				>
 			</File>
 		</Filter>
@@ -185,6 +197,14 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\AdiSolver3D.h"
+				>
+			</File>
+			<File
+				RelativePath="..\Common\Common.h"
+				>
+			</File>
+			<File
 				RelativePath="..\Common\Config.h"
 				>
 			</File>
@@ -193,7 +213,19 @@
 				>
 			</File>
 			<File
+				RelativePath="..\FluidSolver2D\Grid2D.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Grid3D.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Solver3D.h"
+				>
+			</File>
+			<File
+				RelativePath=".\TimeLayer3D.h"
 				>
 			</File>
 		</Filter>

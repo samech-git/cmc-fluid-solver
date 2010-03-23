@@ -2,23 +2,6 @@
 
 using namespace FluidSolver2D;
 
-void FindFile(char *path, char *filename, bool checkExist = true)
-{
-	FILE *file = NULL;
-
-	sprintf_s(path, MAX_PATH, "%s", filename);
-	fopen_s(&file, path, "r");
-	if (!file && checkExist) 
-	{
-		sprintf_s(path, MAX_PATH, "..\\..\\data\\%s", filename);
-		fopen_s(&file, path, "r");
-		if (!file) { printf("cannot find the file: \"%s\"\n", filename); exit(0); }
-			else fclose(file);	
-	}
-	else
-		if (checkExist) fclose(file);
-}
-
 int main(int argc, char **argv)
 {
 	char inputPath[MAX_PATH];
@@ -34,7 +17,7 @@ int main(int argc, char **argv)
 
 	//--------------------------------------- Initializing ---------------------------------------
 	Grid2D grid(Config::dx, Config::dy, Config::startT, Config::bc_noslip);
-	if (grid.LoadFromFile(inputPath) == OK)
+	if (grid.LoadFromFile(inputPath))
 	{
 		printf("dx,dy,dimx,dimy,bc_noslip\n");
 		printf("%f,%f,%i,%i,%i\n", Config::dx, Config::dy, grid.dimx, grid.dimy, Config::bc_noslip);

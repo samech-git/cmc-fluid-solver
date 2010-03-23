@@ -17,47 +17,6 @@ using namespace Common;
 namespace FluidSolver2D
 {
 	enum CellType { IN, OUT, BOUND, VALVE };
-
-	struct Shape
-	{
-		Point2D* Points;
-		Vec2D* Velocities;
-		int NumPoints;
-		bool Active;
-
-		void Init(int num)
-		{
-			NumPoints = num;
-			Points = new Point2D[num];
-			Velocities = new Vec2D[num];
-		}
-
-		void Dispose()
-		{
-			delete[] Points;
-			delete[] Velocities;
-		}
-	};
-
-	struct FrameInfo
-	{
-		Shape* Shapes;
-		int NumShapes;
-		double Duration;
-
-		void Init(int num)
-		{
-			NumShapes = num;
-			Shapes = new Shape[num];
-		}
-		void Dispose()
-		{
-			for (int i=0; i<NumShapes; i++)
-				Shapes[i].Dispose();
-			delete[] Shapes;
-		}
-	};
-
 	enum CondType { NONE, NOSLIP, FREE };
 
 	struct CondData2D
@@ -91,7 +50,7 @@ namespace FluidSolver2D
 		int GetFrame(double time);
 		float GetLayerTime(double t);
 
-		int LoadFromFile(char *filename);
+		bool LoadFromFile(char *filename);
 		void TestPrint();
 
 		BBox2D bbox;		// bounding box
@@ -99,13 +58,13 @@ namespace FluidSolver2D
 
 	protected:
 		//---------------------------- Borders ---------------------------------
-		FrameInfo* frames;
+		FrameInfo2D* frames;
 		int num_frames;
 
 		bool bc_noslip;
 		
 		void ComputeBorderVelocities(int frame);
-		FrameInfo ComputeSubframe(int frame, double substep);
+		FrameInfo2D ComputeSubframe(int frame, double substep);
 		//----------------------------------------------------------------------
 
 		CondData2D *curData;
@@ -118,9 +77,7 @@ namespace FluidSolver2D
 		void RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color);
 		void FloodFill(CellType color);
 		
-		void BuildBBox(int num_frames, FrameInfo* frames);
-		
-		void Build(FrameInfo frame);
+		void Build(FrameInfo2D frame);
 		
 		void SetType(int x, int y, CellType t);
 		void SetData(int x, int y, CondData2D d);
