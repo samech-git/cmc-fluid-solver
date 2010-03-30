@@ -1,5 +1,6 @@
 #pragma once
 
 #include "Structures.h"
-#include "Functions.h"
+#include "IO.h"
+#include "Algorithms.h"
 

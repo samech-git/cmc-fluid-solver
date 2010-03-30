@@ -15,10 +15,11 @@ namespace FluidSolver3D
 					int x = (i * dimx / outdimx);
 					int y = (j * dimy / outdimy);
 					int z = (k * dimz / outdimz);
-					v[i * outdimy * outdimz + j * outdimz + k].x = next->U->elem(x, y, z); 
-					v[i * outdimy * outdimz + j * outdimz + k].y = next->V->elem(x, y, z);
-					v[i * outdimy * outdimz + j * outdimz + k].z = next->W->elem(x, y, z);
-					T[i * outdimy * outdimz + j * outdimz + k] = next->T->elem(x, y, z);
+					int ind = i * outdimy * outdimz + j * outdimz + k;
+					v[ind].x = next->U->elem(x, y, z); 
+					v[ind].y = next->V->elem(x, y, z);
+					v[ind].z = next->W->elem(x, y, z);
+					T[ind] = next->T->elem(x, y, z);
 				}
 	}
 
@@ -28,22 +29,49 @@ namespace FluidSolver3D
 			for (int j = 0; j < dimy; j++)
 				for (int k = 0; k < dimz; k++)
 				{
-					cur->U->elem(i, j, k) = v[i * dimy * dimz + j * dimz + k].x;
-					cur->V->elem(i, j, k) = v[i * dimy * dimz + j * dimz + k].y;
-					cur->W->elem(i, j, k) = v[i * dimy * dimz + j * dimz + k].z;
-					cur->T->elem(i, j, k) = T[i * dimy * dimz + j * dimz + k];
+					int ind = i * dimy * dimz + j * dimz + k;
+					cur->U->elem(i, j, k) = v[ind].x;
+					cur->V->elem(i, j, k) = v[ind].y;
+					cur->W->elem(i, j, k) = v[ind].z;
+					cur->T->elem(i, j, k) = T[ind];
 				}		
 	}
 
 	void Solver3D::UpdateBoundaries()
 	{
+		for (int i = 0; i < dimx; i++)
+			for (int j = 0; j < dimy; j++)
+				for (int k = 0; k < dimz; k++)
+					if (grid->GetType(i, j, k) == BOUND)
+					{
+						Vec3D velocity = grid->GetVel(i, j, k);
+						cur->U->elem(i, j, k) = velocity.x;
+						cur->V->elem(i, j, k) = velocity.y;
+						cur->W->elem(i, j, k) = velocity.z;
+						cur->T->elem(i, j, k) = grid->GetT(i, j, k);
+					}
+		cur->CopyLayerTo(grid, next, BOUND);
 	}
 
 	void Solver3D::SetGridBoundaries()
 	{
+		for (int i = 0; i < dimx; i++)
+			for (int j = 0; j < dimy; j++)
+				for (int k = 0; k < dimz; k++)
+					grid->SetNodeVel(i, j, k, Vec3D(cur->U->elem(i, j, k), cur->V->elem(i, j, k), cur->W->elem(i, j , k)));
 	}
 
 	void Solver3D::ClearOutterCells()
 	{
+		for (int i = 0; i < dimx; i++)
+			for (int j = 0; j < dimy; j++)
+				for (int k = 0; k < dimz; k++)
+					if (grid->GetType(i, j, k) == OUT)
+					{
+						next->U->elem(i, j, k) = 0.0;
+						next->V->elem(i, j, k) = 0.0;
+						next->W->elem(i, j, k) = 0.0;
+						next->T->elem(i, j, k) = grid->baseT;
+					}
 	}
 }

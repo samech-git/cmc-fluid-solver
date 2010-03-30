@@ -1,6 +1,6 @@
-dimension	2D
+dimension	3D
 
-viscosity 	0.01
+viscosity 	0.05
 density 	1000.0
 
 bc_type		NoSlip
@@ -15,6 +15,10 @@ out_subframes 	100
 out_gridx	100
 out_gridy 	80
 
-solver		Stable
+solver		ADI
 num_global 	2
 num_local 	1
+
+out_gridz	5
+grid_dz		0.002
+depth		0.01

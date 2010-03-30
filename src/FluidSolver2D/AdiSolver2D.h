@@ -33,8 +33,6 @@ namespace FluidSolver2D
 		TimeLayer2D *temp, *half, *next_local;
 		double *a, *b, *c, *d, *x;
 
-		void SolveTridiagonal(double *a, double *b, double *c, double *d, double *x, int num);
-
 		void BuildMatrix(double dt, int i, int j, VarType var, DirType dir, double *a, double *b, double *c, double *d, int n, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *temp_local);
 		void ApplyBC0(int i, int j, VarType var, double &b0, double &c0, double &d0);
 		void ApplyBC1(int i, int j, VarType var, double &a1, double &b1, double &d1);

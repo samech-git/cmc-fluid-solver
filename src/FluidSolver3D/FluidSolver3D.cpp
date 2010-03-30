@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 	Config::LoadFromFile(configPath);
 
 	//--------------------------------------- Initializing ---------------------------------------
-	Grid3D grid(Config::dx, Config::dy, Config::dz, Config::depth);
+	Grid3D grid(Config::dx, Config::dy, Config::dz, Config::depth, Config::startT);
 	if (grid.LoadFromFile(inputPath))
 	{
 		printf("dx,dy,dz,dimx,dimy,dimz,bc_noslip\n");
@@ -36,6 +36,14 @@ int main(int argc, char **argv)
 	}
 	solver->Init(&grid, params);
 
+	double t = 1.0;
+	double dt = grid.GetFrameTime() / Config::calc_subframes;
+
+	// do only 1 timestep by now
+	grid.Prepare(t);
+	solver->UpdateBoundaries();	
+	solver->TimeStep(dt, Config::num_global, Config::num_local); // TODO
+	solver->SetGridBoundaries(); 
 
 	return 0;
 }
