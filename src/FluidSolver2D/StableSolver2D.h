@@ -24,6 +24,11 @@ namespace FluidSolver2D
 		ScalarField2D *q[2];
 		ScalarField2D *div;
 
+		int numInner, numBound;
+		int *innerIndices;
+		int *boundIndices;
+
+		void PrepareIndices();
 		void SolveU(double dt, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
 		void SolveV(double dt, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
 		void Project(double dt, TimeLayer2D *w, TimeLayer2D *proj);

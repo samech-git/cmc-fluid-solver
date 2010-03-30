@@ -157,48 +157,47 @@ namespace FluidSolver2D
         }
     }
 
+
 	void Grid2D::FloodFill(CellType color)
     {
-		// go through all the rows
-        for (int j = 0; j < dimy; j++) 
-        {
-			// left to right
-            int i = 0;
-            while (i < dimx && GetType(i, j) == IN) 
-            {
-                SetType(i, j, color);
-                i++;
-            }
+		int *queue = new int[dimx * dimy * 2];
+		int cur = -1;
 
-			// right to left
-            i = dimx - 1;
-            while (GetType(i, j) == IN && i >= 0) 
-            {
-                SetType(i, j, color);
-                i--;
-            }
-        }
+		const int neighborPos[4][2] = { {-1, 0}, {1, 0}, {0, -1}, {0, 1} };
 
-		// go through all the column
-		for (int i = 0; i < dimx; i++) 
+		// we know that this cell is of our color type
+		int last = 0;
+		queue[0] = 0;
+		queue[1] = 0;
+		SetType(0, 0, color);
+
+		// run wave
+		while (cur < last)
 		{
-			// up to down
-			int j = 0;
-			while (j < dimy && GetType(i, j) == IN) 
-			{
-				SetType(i, j, color);
-				j++;
-			}
+			// get next index
+			cur++;
+			int i = queue[cur * 2 + 0];
+			int j = queue[cur * 2 + 1];
 
-			// down to up
-			j = dimy - 1;
-			while (GetType(i, j) == IN && j >= 0) 
+			// add neighbours
+			for (int k = 0; k < 4; k++)
 			{
-				SetType(i, j, color);
-				j--;
+				int next_i = i + neighborPos[k][0];
+				int next_j = j + neighborPos[k][1];
+
+				if ((next_i >= 0) && (next_i < dimx) && (next_j >= 0) && (next_j < dimy))
+					if (GetType(next_i, next_j) == IN) 
+					{
+						last++;
+						queue[last * 2 + 0] = next_i;
+						queue[last * 2 + 1] = next_j;
+						SetType(next_i, next_j, color);
+					}
 			}
 		}
-    }
+
+		delete [] queue;
+	}
 
 	void Grid2D::Init()
 	{
