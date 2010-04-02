@@ -66,20 +66,38 @@ namespace FluidSolver3D
 		
 		double DissFuncX(int i, int j, int k)
 		{
-			// TODO: eval dissipative function
-			return 0.0;
+			double u_x = U->d_x(i, j, k);
+			double v_x = V->d_x(i, j, k);
+			double w_x = W->d_x(i, j, k);
+
+			double u_y = U->d_y(i, j, k);
+			double u_z = U->d_z(i, j, k);
+
+			return 2 * u_x * u_x + v_x * v_x + w_x * w_x + v_x * u_y + w_x * u_z;
 		}
 
 		double DissFuncY(int i, int j, int k)
 		{
-			// TODO: eval dissipative function
-			return 0.0;
+			double u_y = U->d_y(i, j, k);
+			double v_y = V->d_y(i, j, k);
+			double w_y = W->d_y(i, j, k);
+
+			double v_x = V->d_x(i, j, k);
+			double v_z = V->d_z(i, j, k);
+
+			return u_y * u_y + 2 * v_y * v_y + w_y * w_y + u_y * v_x + w_y * v_z;
 		}
 
 		double DissFuncZ(int i, int j, int k)
 		{
-			// TODO: eval dissipative function
-			return 0.0;
+			double u_z = U->d_z(i, j, k);
+			double v_z = V->d_z(i, j, k);
+			double w_z = W->d_z(i, j, k);
+
+			double w_x = W->d_x(i, j, k);
+			double w_y = W->d_y(i, j, k);
+
+			return u_z * u_z + v_z * v_z + 2 * w_z * w_z + u_z * w_x + v_z * w_y;
 		}
 
 		double DissFunc(int i, int j, int k)
@@ -96,7 +114,16 @@ namespace FluidSolver3D
 					for (int k = 0; k < dimz-1; k++)
 						if (grid->GetType(i, j, k) == IN)
 						{
-							// TODO: eval error
+							double err_x = (U->elem(i, j, k) + U->elem(i, j-1, k) + U->elem(i, j-1, k-1) + U->elem(i, j, k-1) -
+								U->elem(i-1, j, k) - U->elem(i-1, j-1, k) - U->elem(i-1, j-1, k-1) - U->elem(i-1, j, k-1)) * dz * dy / 4.0;
+
+							double err_y = (V->elem(i, j, k) + V->elem(i-1, j, k) + V->elem(i-1, j, k-1) + V->elem(i, j, k-1) -
+								V->elem(i, j-1, k) - V->elem(i-1, j-1, k) - V->elem(i-1, j-1, k-1) - V->elem(i, j-1, k-1)) * dx * dz / 4.0;
+
+							double err_z = (W->elem(i, j, k) + W->elem(i, j-1, k) + W->elem(i-1, j-1, k) + W->elem(i-1, j, k) -
+								W->elem(i, j, k-1) - W->elem(i, j-1, k-1) - W->elem(i-1, j-1, k-1) - W->elem(i-1, j, k-1)) * dx * dy / 4.0;
+
+							err += abs(err_x + err_y + err_z);
 							count++;
 						}
 			return err / count;
