@@ -2,9 +2,9 @@
 
 namespace FluidSolver2D
 {
-	Grid2D::Grid2D(double _dx, double _dy, double _startT, bool _bc_noslip) : dx(_dx), dy(_dy), startT(_startT), bc_noslip(_bc_noslip), curData(NULL), nextData(NULL) {	}
+	Grid2D::Grid2D(double _dx, double _dy, double _startT, bool _bc_noslip, double _bc_strength) : dx(_dx), dy(_dy), startT(_startT), bc_noslip(_bc_noslip), bc_strength(_bc_strength), curData(NULL), nextData(NULL) {	}
 
-	Grid2D::Grid2D(Grid2D &grid) : dx(grid.dx), dy(grid.dy), startT(grid.startT), bc_noslip(grid.bc_noslip), curData(NULL)
+	Grid2D::Grid2D(Grid2D &grid) : dx(grid.dx), dy(grid.dy), startT(grid.startT), bc_noslip(grid.bc_noslip), bc_strength(grid.bc_strength), curData(NULL)
 	{
 		dimx = grid.dimx;
 		dimy = grid.dimy;
@@ -140,15 +140,15 @@ namespace FluidSolver2D
 			VecTN btn = GetTangentNormal(bv, orientation);
 
 			double l = sqrt(v.x*v.x + v.y*v.y);
-			if (l > 0.5)
-			{
-				l = l;
-			}
 
+			//bc_strength;
 			if (bc_noslip)
 				SetData(x, y, CondData2D(NOSLIP, color, Vec2D(v.x, v.y), startT));
 			else
-				SetData(x, y, CondData2D(NOSLIP, color, Vec2D(vtn.normal.x + btn.tangent.x, vtn.normal.y + btn.tangent.y), startT));
+				SetData(x, y, CondData2D(NOSLIP, color, 
+						Vec2D(vtn.normal.x + (btn.tangent.x*bc_strength + vtn.tangent.x*(1-bc_strength)), 
+							  vtn.normal.y + (btn.tangent.y*bc_strength + vtn.tangent.y*(1-bc_strength))), 
+						startT));
 
 			p.x += dp.x;
             p.y += dp.y;

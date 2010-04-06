@@ -32,7 +32,7 @@ namespace FluidSolver2D
 
 	struct Grid2D
 	{
-		Grid2D(double _dx, double _dy, double _startT, bool _bc_slip);
+		Grid2D(double _dx, double _dy, double _startT, bool _bc_slip, double _bc_strength);
 		Grid2D(Grid2D &grid);
 		~Grid2D();
 
@@ -62,6 +62,7 @@ namespace FluidSolver2D
 		int num_frames;
 
 		bool bc_noslip;
+		double bc_strength;
 		
 		void ComputeBorderVelocities(int frame);
 		FrameInfo2D ComputeSubframe(int frame, double substep);

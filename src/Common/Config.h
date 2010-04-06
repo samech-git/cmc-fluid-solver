@@ -24,6 +24,7 @@ namespace Common
 
 		// boundary conditions
 		static bool bc_noslip;
+		static double bc_strength;			// [0..1] if 0 - noslip, if 1 - slip
 
 		// depth of our 3D object (along Z direction)
 		static double depth;				
@@ -49,7 +50,8 @@ namespace Common
 			cv = 4200.0;				// water (specific heat capacity at constant volume)
 			startT = 300.0;				// in Kelvin
 
-			bc_noslip = true;		
+			bc_noslip = true;	
+			bc_strength = 0.5;
 
 			viscosity = 0.05;
 			density = 1000.0;
@@ -127,6 +129,7 @@ namespace Common
 				if (!strcmp(str, "density")) ReadDouble(file, density);
 
 				if (!strcmp(str, "bc_type")) ReadBC(file);
+				if (!strcmp(str, "bc_strenght")) ReadDouble(file, bc_strength);
 
 				if (!strcmp(str, "grid_dx")) ReadDouble(file, dx);
 				if (!strcmp(str, "grid_dy")) ReadDouble(file, dy);
@@ -169,6 +172,8 @@ namespace Common
 	double Config::Re, Config::Pr, Config::lambda;		// not used currently
 
 	bool Config::bc_noslip;
+
+	double Config::bc_strength;
 
 	double Config::depth;
 
