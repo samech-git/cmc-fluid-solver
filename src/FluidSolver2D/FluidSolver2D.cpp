@@ -7,17 +7,33 @@ int main(int argc, char **argv)
 	char inputPath[MAX_PATH];
 	char outputPath[MAX_PATH];
 	char configPath[MAX_PATH];
+	char fieldPath[MAX_PATH];
 
-	FindFile(inputPath, argv[1]);
-	FindFile(outputPath, argv[2], false);
-	FindFile(configPath, argv[3]);
+	//FindFile(inputPath, argv[1]);
+	//FindFile(outputPath, argv[2], false);
+	//FindFile(configPath, argv[3]);
 	
+	if (argc > 4)
+	{
+		FindFile(inputPath, argv[1]);
+		FindFile(fieldPath, argv[2]);
+		FindFile(outputPath, argv[3], false);
+		FindFile(configPath, argv[4]);
+	}
+	else
+	{
+		FindFile(inputPath, argv[1]);
+		FindFile(outputPath, argv[2], false);
+		FindFile(configPath, argv[3]);
+		sprintf_s(fieldPath, MAX_STR_SIZE, "");
+	}
+
 	Config::Config();
 	Config::LoadFromFile(configPath);
 
 	//--------------------------------------- Initializing ---------------------------------------
 	Grid2D grid(Config::dx, Config::dy, Config::startT, Config::bc_noslip, Config::bc_strength);
-	if (grid.LoadFromFile(inputPath))
+	if (grid.LoadFromFile(inputPath, fieldPath))
 	{
 		printf("dx,dy,dimx,dimy,bc_noslip\n");
 		printf("%f,%f,%i,%i,%i\n", Config::dx, Config::dy, grid.dimx, grid.dimy, Config::bc_noslip);
@@ -39,9 +55,11 @@ int main(int argc, char **argv)
 	printf("Starting from the beginning\n");
 	int startFrame = 0;
 	FILE *resFile = NULL;
-	fopen_s(&resFile, outputPath, "w");
+	resFile = fopen(outputPath, "w");
+	//fopen_s(&resFile, outputPath, "w");
 	OutputResultHeader(resFile, &grid.bbox, Config::outdimx, Config::outdimy);
-	
+	fclose(resFile);
+
 	Vec2D *resVel = new Vec2D[Config::outdimx * Config::outdimy];
 	double *resT = new double[Config::outdimx * Config::outdimy];
 
@@ -64,7 +82,9 @@ int main(int argc, char **argv)
 
 		if (curentframe != lastframe)
 		{
+			resFile = fopen(outputPath, "a");
 			fprintf(resFile, "Frame %i\n", curentframe);
+			fclose(resFile);
 			lastframe = curentframe;
 			i = 0;
 		}
@@ -83,7 +103,9 @@ int main(int argc, char **argv)
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy);
+			resFile = fopen(outputPath, "a");
 			OutputResult(resFile, resVel, resT, Config::outdimx, Config::outdimy, dur);
+			fclose(resFile);
 		}
 	}
 	printf("\n");

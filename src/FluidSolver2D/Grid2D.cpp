@@ -85,6 +85,35 @@ namespace FluidSolver2D
 		p.y = atof(s2.c_str());
 	}
 
+	void ReadLine(FILE *file, char* str, int maxlength)
+	{
+		char c;
+		int i = 0;
+		for (i=0; i<maxlength-1; i++)
+		{
+			fread(&c, 1, 1, file);
+			if (c != '\n')
+				str[i] = c;
+			else
+				break;
+		}
+		str[i] = 0;
+	}
+
+	int ExtractInt(char* str)
+	{
+		int result = 0;
+		for(int i=0; i>=0; i++)
+		{
+			char c = str[i];
+			if (c >= '0' && c<= '9')
+				result = result*10 + c - '0';
+			if (c == 0)
+				return result;
+		}
+		return result;
+	}
+
 	VecTN Grid2D::GetTangentNormal(Vec2D vector, Vec2D orientation)
 	{
 		double l = (vector.x * orientation.x + vector.y * orientation.y) / (orientation.x * orientation.x + orientation.y * orientation.y);
@@ -157,6 +186,18 @@ namespace FluidSolver2D
         }
     }
 
+	void Grid2D::RasterField(Field2D field)
+	{
+		for (int j=1; j<dimy-1; j++)
+			for (int i=1; i<dimx-1; i++)
+			{
+				double x = bbox.pMin.x + i*dx;
+				double y = bbox.pMin.y + j*dy;
+				Vec2D v = field.GetVelocity(x, y);
+				if (v.x != 0 || v.y != 0)
+					SetData(i, j, CondData2D(NOSLIP, BOUND, v, startT));
+			};
+	}
 
 	void Grid2D::FloodFill(CellType color)
     {
@@ -199,6 +240,7 @@ namespace FluidSolver2D
 		delete [] queue;
 	}
 
+
 	void Grid2D::Init()
 	{
 		bbox.Build(num_frames, frames);
@@ -219,8 +261,6 @@ namespace FluidSolver2D
 			nextData[i].vel.x = 0;
 			nextData[i].vel.y = 0;
 		}
-
-
 
 		// convert physical coordinates to the grid coordinates
 		for (int j = 0; j < num_frames; j++)
@@ -247,6 +287,7 @@ namespace FluidSolver2D
 						   frame.Shapes[j].Velocities[i], frame.Shapes[j].Velocities[i+1],
 						   BOUND);
         FloodFill(OUT); 
+		RasterField(frame.Field);
 
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
@@ -259,7 +300,7 @@ namespace FluidSolver2D
 			}
 	}
 
-	bool Grid2D::LoadFromFile(char *filename)
+	bool Grid2D::LoadFromFile(char *filename, char *fieldname)
 	{
 		FILE *file = NULL;
 		if (fopen_s(&file, filename, "r") != 0)
@@ -308,6 +349,53 @@ namespace FluidSolver2D
 					frames[j].Shapes[i].Velocities[k].y = p.y / 1000;
 				}
 			}
+		}
+		fclose(file);
+
+		if (strcmp(fieldname, "") != 0)
+		{
+			if (fopen_s(&file, fieldname, "r") != 0)
+			{
+				printf("Error: cannot open file \"%s\" \n", filename);
+				return false;
+			}
+
+			float minx, miny;
+			float maxx, maxy;
+			float dx, dy;
+			int nx, ny;
+			
+			fscanf_s(file, "%f %f %f %f\n", &minx, &miny, &maxx, &maxy);
+			fscanf_s(file, "%f %f %i %i\n", &dx, &dy, &nx, &ny);
+
+			minx /= 1000;
+			miny /= 1000;
+			maxx /= 1000;
+			maxy /= 1000;
+
+			dx /= 1000;
+			dy /= 1000;
+				
+			for(;;)
+			{
+				char str[255];
+				ReadLine(file, str, 255);
+				if (str[0] != 'F') break;
+
+				int frame = ExtractInt(str);
+				frames[frame].Field.Init(minx, miny, dx, dy, nx, ny);
+				ReadLine(file, str, 255);
+
+				float x, y;
+				for (int j=0; j<ny; j++)
+					for (int i=0; i<nx; i++)
+					{
+						fscanf_s(file, "%f %f", &x, &y);
+						frames[frame].Field.Data[j*nx + i] = Vec2D(x, y);
+					}
+				ReadLine(file, str, 255);
+			}
+			fclose(file);
 		}
 	
 		for (int j=0; j<num_frames; j++)
@@ -362,23 +450,54 @@ namespace FluidSolver2D
 		FrameInfo2D res;
 		res.Duration = 0;
 
+		double isubstep = 1 - substep;
+
 		res.Init(frames[frame].NumShapes);
 		for (int i=0; i<res.NumShapes; i++)
 		{
 			res.Shapes[i].Init(frames[frame].Shapes[i].NumPoints);
 			for (int k=0; k<res.Shapes[i].NumPoints; k++)
 			{
-				res.Shapes[i].Points[k].x = frames[frame].Shapes[i].Points[k].x * (1 - substep) + 
+				res.Shapes[i].Points[k].x = frames[frame].Shapes[i].Points[k].x * isubstep + 
 											frames[framep1].Shapes[i].Points[k].x * substep;
-				res.Shapes[i].Points[k].y = frames[frame].Shapes[i].Points[k].y * (1 - substep) + 
+				res.Shapes[i].Points[k].y = frames[frame].Shapes[i].Points[k].y * isubstep + 
 											frames[framep1].Shapes[i].Points[k].y * substep;
 
-				res.Shapes[i].Velocities[k].x = frames[frame].Shapes[i].Velocities[k].x * (1 - substep) + 
+				res.Shapes[i].Velocities[k].x = frames[frame].Shapes[i].Velocities[k].x * isubstep + 
 												frames[framep1].Shapes[i].Velocities[k].x * substep;
-				res.Shapes[i].Velocities[k].y = frames[frame].Shapes[i].Velocities[k].y * (1 - substep) + 
+				res.Shapes[i].Velocities[k].y = frames[frame].Shapes[i].Velocities[k].y * isubstep + 
 												frames[framep1].Shapes[i].Velocities[k].y * substep;
 			}
 		}
+
+		if (frames[frame].Field.Correlate(frames[framep1].Field))
+		{
+			res.Field.Init(frames[frame].Field);
+			int nx = res.Field.Nx;
+			int ny = res.Field.Ny;
+
+			for (int j=0; j<ny; j++)
+				for (int i=0; i<nx; i++)
+				{
+					int t = j*nx + i;
+
+					double x1 = frames[frame].Field.Data[t].x;
+					double y1 = frames[frame].Field.Data[t].y;
+					double x2 = frames[framep1].Field.Data[t].x;
+					double y2 = frames[framep1].Field.Data[t].y;
+					double x = 0;
+					double y = 0;
+
+					if ( (x1 != 0 || y1 != 0) && (x2 != 0 || y2 != 0) )
+					{
+						x = x1 * isubstep + x2 * substep;
+						y = y1 * isubstep + y2 * substep;
+					}
+
+					res.Field.Data[t] = Vec2D(x, y);
+				};
+		}
+
 		return res;
 	}
 

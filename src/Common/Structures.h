@@ -61,24 +61,104 @@ namespace Common
 		}
 	};
 
+
+	struct Field2D
+	{
+		double MinX;
+		double MinY;
+		double Dx;
+		double Dy;
+		int Nx;
+		int Ny;
+		Vec2D* Data;
+
+		void Init()
+		{
+			MinX = 0;
+			MinY = 0;
+			Dx = 0;
+			Dy = 0;
+			Nx = 0;
+			Ny = 0;
+			Data = 0;
+		}
+
+		void Init(double minx, double miny, double dx, double dy, int nx, int ny)
+		{
+			MinX = minx;
+			MinY = miny;
+			Dx = dx;
+			Dy = dy;
+			Nx = nx;
+			Ny = ny;
+			Data = new Vec2D[nx*ny];
+		}
+
+		void Init(Field2D src)
+		{
+			Init(src.MinX, src.MinY, src.Dx, src.Dy, src.Nx, src.Ny);
+		}
+
+		void Dispose()
+		{
+			if (Data != 0) delete[] Data;
+		}
+
+		bool Correlate(Field2D dest)
+		{
+			return (MinX == dest.MinX && MinY == dest.MinY && Dx == dest.Dx && Dy == dest.Dy && Nx == dest.Nx && Ny == dest.Ny);
+		}
+
+		Vec2D GetVelocity(double x, double y)
+		{
+			double tx = (x - MinX) / Dx;
+			double ty = (y - MinY) / Dy;
+			
+			if (tx<0 || ty<0 || tx>=Nx-1 || ty>=Ny-1)
+				return Vec2D(0, 0);
+
+			int itx = (int)tx;
+			int ity = (int)ty;
+			double dtx = tx - itx;
+			double dty = ty - ity;
+
+			float f1 = (1 - dtx) * (1 - dty);
+			float f2 = dtx * (1 - dty);
+			float f3 = (1 - dtx) * dty;
+			float f4 = dtx * dty;
+
+			int t = itx + ity*Nx;
+			
+			double rx = Data[t].x;
+			double ry = Data[t].y;
+
+			return Vec2D(rx, ry);
+		}
+	};
+
 	struct FrameInfo2D
 	{
 		Shape2D* Shapes;
 		int NumShapes;
 		double Duration;
+		
+		Field2D Field;
 
 		void Init(int num)
 		{
 			NumShapes = num;
 			Shapes = new Shape2D[num];
+			Field.Init();
 		}
 		void Dispose()
 		{
 			for (int i=0; i<NumShapes; i++)
 				Shapes[i].Dispose();
 			delete[] Shapes;
+			Field.Dispose();
 		}
 	};
+
 
 	struct BBox2D
 	{

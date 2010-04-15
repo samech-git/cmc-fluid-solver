@@ -50,7 +50,7 @@ namespace FluidSolver2D
 		int GetFrame(double time);
 		float GetLayerTime(double t);
 
-		bool LoadFromFile(char *filename);
+		bool LoadFromFile(char *filename, char *fieldname);
 		void TestPrint();
 
 		BBox2D bbox;		// bounding box
@@ -76,6 +76,7 @@ namespace FluidSolver2D
 		VecTN GetTangentNormal(Vec2D vector, Vec2D orientation);
 		Vec2D GetBounfVelocity(int x, int y);
 		void RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color);
+		void RasterField(Field2D field);
 		void FloodFill(CellType color);
 		
 		void Build(FrameInfo2D frame);
