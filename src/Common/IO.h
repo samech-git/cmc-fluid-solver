@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdio.h>
-#include <memory.h>
+#include <string.h>
 
 #define MAX_STR_SIZE	255
 
@@ -161,5 +161,21 @@ namespace Common
 		}
 
 		fclose(prj);
+	}
+
+	static void ExtendFileName(char* src, char* dest, char* add)
+	{
+		int l = strlen(src);
+		char temp[MAX_STR_SIZE];
+
+		strcpy(temp, src);
+		strrev(temp);
+		char* name = strchr(temp, '.') + 1;
+		strrev(name);
+		int ln = strlen(name);
+		temp[l-ln-1] = 0;
+		strrev(temp);
+
+		sprintf_s(dest, MAX_STR_SIZE, "%s%s.%s", name, add, temp);
 	}
 }

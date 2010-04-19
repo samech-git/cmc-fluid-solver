@@ -1,11 +1,14 @@
 #include "FluidSolver2D.h"
+#include <string.>
 
 using namespace FluidSolver2D;
 
 int main(int argc, char **argv)
 {
+	printf("%s\n", argv[0]);
 	char inputPath[MAX_PATH];
 	char outputPath[MAX_PATH];
+	char curOutFile[MAX_PATH];
 	char configPath[MAX_PATH];
 	char fieldPath[MAX_PATH];
 
@@ -56,11 +59,6 @@ int main(int argc, char **argv)
 
 	printf("Starting from the beginning\n");
 	int startFrame = 0;
-	FILE *resFile = NULL;
-	resFile = fopen(outputPath, "w");
-	//fopen_s(&resFile, outputPath, "w");
-	OutputResultHeader(resFile, &grid.bbox, Config::outdimx, Config::outdimy);
-	fclose(resFile);
 
 	Vec2D *resVel = new Vec2D[Config::outdimx * Config::outdimy];
 	double *resT = new double[Config::outdimx * Config::outdimy];
@@ -74,8 +72,10 @@ int main(int argc, char **argv)
 	double dt = length / (frames * Config::calc_subframes);
 	double finaltime = length * Config::cycles;
 
+	strcpy(curOutFile, outputPath);
 	printf("dt = %f\n", dt);
 	int lastframe = -1;
+	int currentcycle = 0;
 	double t = dt;
 	for (int i=0; t < finaltime; t+=dt, i++)
 	{
@@ -84,7 +84,24 @@ int main(int argc, char **argv)
 
 		if (curentframe != lastframe)
 		{
-			resFile = fopen(outputPath, "a");
+			if (curentframe == 0) //new cicle
+			{
+				currentcycle++;
+
+				if (currentcycle > 0)
+				{
+					char add[MAX_PATH];
+					sprintf_s(add, MAX_STR_SIZE, "_%i", currentcycle);
+					ExtendFileName(outputPath, curOutFile, add);
+				}
+
+				FILE *resFile = NULL;
+				resFile = fopen(curOutFile, "w");
+				OutputResultHeader(resFile, &grid.bbox, Config::outdimx, Config::outdimy);
+				fclose(resFile);
+			}
+
+			FILE *resFile = fopen(curOutFile, "a");
 			fprintf(resFile, "Frame %i\n", curentframe);
 			fclose(resFile);
 			lastframe = curentframe;
@@ -105,7 +122,7 @@ int main(int argc, char **argv)
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy);
-			resFile = fopen(outputPath, "a");
+			FILE *resFile = fopen(curOutFile, "a");
 			OutputResult(resFile, resVel, resT, Config::outdimx, Config::outdimy, dur);
 			fclose(resFile);
 		}
@@ -115,7 +132,6 @@ int main(int argc, char **argv)
 	delete solver;
 	delete [] resVel;
 	delete [] resT;
-
-	fclose(resFile);
+	
 	return 0;
 }
