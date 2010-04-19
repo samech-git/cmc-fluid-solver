@@ -1,4 +1,5 @@
 #include "Grid2D.h"
+#include "IO.h"
 
 namespace FluidSolver2D
 {
@@ -83,21 +84,6 @@ namespace FluidSolver2D
 		// convert to doubles
 		p.x = atof(s1.c_str());
 		p.y = atof(s2.c_str());
-	}
-
-	void ReadLine(FILE *file, char* str, int maxlength)
-	{
-		char c;
-		int i = 0;
-		for (i=0; i<maxlength-1; i++)
-		{
-			fread(&c, 1, 1, file);
-			if (c != '\n')
-				str[i] = c;
-			else
-				break;
-		}
-		str[i] = 0;
 	}
 
 	int ExtractInt(char* str)

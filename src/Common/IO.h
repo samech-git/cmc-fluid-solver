@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdio.h>
+#include <memory.h>
 
 #define MAX_STR_SIZE	255
 
@@ -110,5 +111,55 @@ namespace Common
 		}
 		else
 			if (checkExist) fclose(file);
+	}
+
+	static void ReadLine(FILE *file, char* str, int maxlength)
+	{
+		char c;
+		int i = 0;
+		memset(str, 0, maxlength);
+		for (i=0; i<maxlength-1; i++)
+		{
+			int s = fread(&c, 1, 1, file);
+			if (c!='\n' && s>0)
+				str[i] = c;
+			else
+				break;
+		}
+	}
+
+	static void LoadProject(char *proj, char* inputPath, char* fieldPath, char* outputPath, char* configPath, int MAX_PATH)
+	{
+		char projectPath[MAX_STR_SIZE];
+
+		char t1[MAX_STR_SIZE];
+		char t2[MAX_STR_SIZE];
+		char t3[MAX_STR_SIZE];
+		char t4[MAX_STR_SIZE];
+
+		FindFile(projectPath, proj);
+		FILE* prj = fopen(projectPath, "r");
+
+		ReadLine(prj, t1, MAX_STR_SIZE);
+		ReadLine(prj, t2, MAX_STR_SIZE);
+		ReadLine(prj, t3, MAX_STR_SIZE);
+		ReadLine(prj, t4, MAX_STR_SIZE);
+
+		if (t4[0] != 0)
+		{
+			FindFile(inputPath, t1);
+			FindFile(fieldPath, t2);
+			FindFile(outputPath, t3, false);
+			FindFile(configPath, t4);
+		}
+		else
+		{
+			FindFile(inputPath, t1);
+			FindFile(outputPath, t2, false);
+			FindFile(configPath, t3);
+			sprintf_s(fieldPath, MAX_STR_SIZE, "");
+		}
+
+		fclose(prj);
 	}
 }

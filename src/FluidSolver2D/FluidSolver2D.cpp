@@ -12,21 +12,23 @@ int main(int argc, char **argv)
 	//FindFile(inputPath, argv[1]);
 	//FindFile(outputPath, argv[2], false);
 	//FindFile(configPath, argv[3]);
-	
-	if (argc > 4)
-	{
-		FindFile(inputPath, argv[1]);
-		FindFile(fieldPath, argv[2]);
-		FindFile(outputPath, argv[3], false);
-		FindFile(configPath, argv[4]);
-	}
+	if (argc == 2)
+		LoadProject(argv[1], inputPath, fieldPath, outputPath, configPath, MAX_PATH);
 	else
-	{
-		FindFile(inputPath, argv[1]);
-		FindFile(outputPath, argv[2], false);
-		FindFile(configPath, argv[3]);
-		sprintf_s(fieldPath, MAX_STR_SIZE, "");
-	}
+		if (argc > 4)
+		{
+			FindFile(inputPath, argv[1]);
+			FindFile(fieldPath, argv[2]);
+			FindFile(outputPath, argv[3], false);
+			FindFile(configPath, argv[4]);
+		}
+		else
+		{
+			FindFile(inputPath, argv[1]);
+			FindFile(outputPath, argv[2], false);
+			FindFile(configPath, argv[3]);
+			sprintf_s(fieldPath, MAX_STR_SIZE, "");
+		}
 
 	Config::Config();
 	Config::LoadFromFile(configPath);
