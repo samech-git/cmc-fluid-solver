@@ -20,5 +20,5 @@ num_global 	2
 num_local 	1
 
 out_gridz	5
-grid_dz		0.002
+grid_dz		0.001
 depth		0.01

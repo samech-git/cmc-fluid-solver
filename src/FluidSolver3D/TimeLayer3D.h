@@ -53,6 +53,23 @@ namespace FluidSolver3D
 							dest->elem(i, j, k) = (dest->elem(i, j, k) + elem(i, j, k)) / 2;
 		}
 
+		void Print(char *filename)
+		{
+			FILE *file = NULL;
+			fopen_s(&file, filename, "w");
+			for (int k = 0; k < dimz-1; k++)
+			{
+				for (int i = 0; i < dimx-1; i++)
+				{
+					for (int j = 0; j < dimy-1; j++)
+						fprintf(file, "%.2f ", elem(i, j, k));
+					fprintf(file, "\n");
+				}
+				fprintf(file, "\n");
+			}
+			fclose(file);
+		}
+
 	private:
 		double *u;
 	};

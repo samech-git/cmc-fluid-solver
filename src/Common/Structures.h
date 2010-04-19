@@ -122,10 +122,10 @@ namespace Common
 			double dtx = tx - itx;
 			double dty = ty - ity;
 
-			float f1 = (1 - dtx) * (1 - dty);
-			float f2 = dtx * (1 - dty);
-			float f3 = (1 - dtx) * dty;
-			float f4 = dtx * dty;
+			double f1 = (1 - dtx) * (1 - dty);
+			double f2 = dtx * (1 - dty);
+			double f3 = (1 - dtx) * dty;
+			double f4 = dtx * dty;
 
 			int t = itx + ity*Nx;
 			

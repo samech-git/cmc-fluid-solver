@@ -5,7 +5,7 @@ namespace FluidSolver3D
 	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT) : 
 		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL)
 	{
-		grid2D = new FluidSolver2D::Grid2D(dx, dy, 0, true);
+		grid2D = new FluidSolver2D::Grid2D(dx, dy, 0, true, 0.0);
 	}
 
 	Grid3D::~Grid3D()
@@ -17,6 +17,11 @@ namespace FluidSolver3D
 	NodeType Grid3D::GetType(int i, int j, int k)
 	{
 		return nodes[i * dimy * dimz + j * dimz + k].type;
+	}
+
+	BCtype Grid3D::GetBC(int i, int j, int k)
+	{
+		return nodes[i * dimy * dimz + j * dimz + k].bc;
 	}
 
 	Vec3D Grid3D::GetVel(int i, int j, int k)
@@ -36,6 +41,11 @@ namespace FluidSolver3D
 		return (length / frames);
 	}
 
+	FluidSolver2D::Grid2D *Grid3D::GetGrid2D()
+	{
+		return grid2D;
+	}
+
 	void Grid3D::SetNodeVel(int i, int j, int k, Vec3D new_v)
 	{
 		nodes[i * dimy * dimz + j * dimz + k].v = new_v;
@@ -43,7 +53,7 @@ namespace FluidSolver3D
 
 	bool Grid3D::LoadFromFile(char *filename)
 	{
-		if (grid2D->LoadFromFile(filename))
+		if (grid2D->LoadFromFile(filename, ""))
 		{
 			dimx = grid2D->dimx;
 			dimy = grid2D->dimy;
@@ -97,5 +107,32 @@ namespace FluidSolver3D
 					}
 				}
 			}
+	}
+
+	void Grid3D::TestPrint(char *filename)
+	{
+		FILE *file = NULL;
+		fopen_s(&file, filename, "w");
+		fprintf(file, "grid (z-slices):\n");
+		fprintf(file, "%i %i %i\n", dimx, dimy, dimz);
+		for (int k = 0; k < dimz; k++)
+		{
+			for (int i = 0; i < dimx; i++)
+			{
+				for (int j = 0; j < dimy; j++)
+				{
+					NodeType t = GetType(i, j, k);
+					switch (t)
+					{
+					case IN: fprintf(file, " "); break;
+					case OUT: fprintf(file, "."); break;
+					case BOUND: fprintf(file, "#"); break;		
+					}
+				}
+				fprintf(file, "\n");
+			}
+			fprintf(file, "\n");
+		}
+		fclose(file);
 	}
 }

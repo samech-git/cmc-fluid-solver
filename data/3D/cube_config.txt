@@ -5,8 +5,8 @@ density 	1000.0
 
 bc_type		NoSlip
 
-grid_dx		0.0007
-grid_dy		0.0007
+grid_dx		0.0005
+grid_dy		0.0005
 
 cycles 		1
 calc_subframes 	50
@@ -20,5 +20,5 @@ num_global 	2
 num_local 	1
 
 out_gridz	5
-grid_dz		0.0007
+grid_dz		0.0005
 depth		0.005

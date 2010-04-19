@@ -30,7 +30,7 @@ namespace FluidSolver3D
 	private:
 		vector<Segment3D> listX, listY, listZ;
 
-		TimeLayer3D *temp, *half1, *half2, *next_local;
+		TimeLayer3D *temp, *half1, *half2, *temp_local, *next_local;
 		double *a, *b, *c, *d, *x;
 
 		void BuildMatrix(double dt, int i, int j, int k, VarType var, DirType dir, double *a, double *b, double *c, double *d, int n, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *temp_local);

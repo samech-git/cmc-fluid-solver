@@ -72,7 +72,7 @@ int main(int argc, char **argv)
 	double dt = length / (frames * Config::calc_subframes);
 	double finaltime = length * Config::cycles;
 
-	strcpy(curOutFile, outputPath);
+	strcpy_s(curOutFile, outputPath);
 	printf("dt = %f\n", dt);
 	int lastframe = -1;
 	int currentcycle = 0;
@@ -95,13 +95,11 @@ int main(int argc, char **argv)
 					ExtendFileName(outputPath, curOutFile, add);
 				}
 
-				FILE *resFile = NULL;
-				resFile = fopen(curOutFile, "w");
-				OutputResultHeader(resFile, &grid.bbox, Config::outdimx, Config::outdimy);
-				fclose(resFile);
+				OutputResultHeader(curOutFile, &grid.bbox, Config::outdimx, Config::outdimy);
 			}
 
-			FILE *resFile = fopen(curOutFile, "a");
+			FILE *resFile = NULL;
+			fopen_s(&resFile, curOutFile, "a");
 			fprintf(resFile, "Frame %i\n", curentframe);
 			fclose(resFile);
 			lastframe = curentframe;
@@ -122,9 +120,7 @@ int main(int argc, char **argv)
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy);
-			FILE *resFile = fopen(curOutFile, "a");
-			OutputResult(resFile, resVel, resT, Config::outdimx, Config::outdimy, dur);
-			fclose(resFile);
+			OutputResult(curOutFile, resVel, resT, Config::outdimx, Config::outdimy, dur);
 		}
 	}
 	printf("\n");

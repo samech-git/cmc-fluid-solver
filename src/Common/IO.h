@@ -7,17 +7,25 @@
 
 namespace Common
 {	
-	static void OutputResultHeader(FILE *file, BBox2D *bbox, int outdimx, int outdimy)
+	static void OutputResultHeader(const char *outputPath, BBox2D *bbox, int outdimx, int outdimy)
 	{
+		FILE *file = NULL;
+		fopen_s(&file, outputPath, "w");
+
 		fprintf(file, "%.2f %.2f %.2f %.2f\n", bbox->pMin.x * 1000, bbox->pMin.y * 1000, bbox->pMax.x * 1000, bbox->pMax.y * 1000);
 
 		float ddx = (float)(bbox->pMax.x - bbox->pMin.x) / outdimx;
 		float ddy = (float)(bbox->pMax.y - bbox->pMin.y) / outdimy;
 		fprintf(file, "%.2f %.2f %i %i\n", ddx * 1000, ddy * 1000, outdimx, outdimy);
+		
+		fclose(file);
 	}
 
-	static void OutputResult(FILE* file, Vec2D *v, double *T, int dimx, int dimy, float timeValue)
+	static void OutputResult(const char *outputPath, Vec2D *v, double *T, int dimx, int dimy, float timeValue)
 	{
+		FILE* file = NULL;
+		fopen_s(&file, outputPath, "a");
+		
 		fprintf(file, "%.5f\n", timeValue);
 		for (int j = 0; j < dimy; j++)
 		{
@@ -25,6 +33,25 @@ namespace Common
 				fprintf(file, "%.2f %.2f ", v[i * dimy + j].x * 10, v[i * dimy + j].y * 10);
 			fprintf(file, "\n");
 		}
+
+		fclose(file);
+	}
+
+	// output Z-slice, velocity projected onto XY
+	static void OutputSliceResult(const char *outputPath, int z, Vec3D *v, double *T, int dimx, int dimy, int dimz, float timeValue)
+	{
+		FILE *file = NULL;
+		fopen_s(&file, outputPath, "a");
+			
+		fprintf(file, "%.5f\n", timeValue);
+		for (int j = 0; j < dimy; j++)
+		{
+			for (int i = 0; i < dimx; i++)
+				fprintf(file, "%.2f %.2f ", v[i * dimy * dimz + j * dimz + z].x * 10, v[i * dimy * dimz + j * dimz + z].y * 10);
+			fprintf(file, "\n");
+		}
+
+		fclose(file);
 	}
 
 	static int LoadLastLayer(char *fileName, Vec2D *v, double *T, int dimx, int dimy, int frames)
@@ -109,8 +136,7 @@ namespace Common
 			if (!file) { printf("cannot find the file: \"%s\"\n", filename); }
 				else fclose(file);	
 		}
-		else
-			if (checkExist) fclose(file);
+		if (file) fclose(file);
 	}
 
 	static void ReadLine(FILE *file, char* str, int maxlength)
@@ -138,7 +164,8 @@ namespace Common
 		char t4[MAX_STR_SIZE];
 
 		FindFile(projectPath, proj);
-		FILE* prj = fopen(projectPath, "r");
+		FILE* prj = NULL;
+		fopen_s(&prj, projectPath, "r");
 
 		ReadLine(prj, t1, MAX_STR_SIZE);
 		ReadLine(prj, t2, MAX_STR_SIZE);
@@ -168,13 +195,13 @@ namespace Common
 		int l = strlen(src);
 		char temp[MAX_STR_SIZE];
 
-		strcpy(temp, src);
-		strrev(temp);
+		strcpy_s(temp, src);
+		_strrev(temp);
 		char* name = strchr(temp, '.') + 1;
-		strrev(name);
+		_strrev(name);
 		int ln = strlen(name);
 		temp[l-ln-1] = 0;
-		strrev(temp);
+		_strrev(temp);
 
 		sprintf_s(dest, MAX_STR_SIZE, "%s%s.%s", name, add, temp);
 	}

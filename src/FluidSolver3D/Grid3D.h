@@ -38,14 +38,19 @@ namespace FluidSolver3D
 		~Grid3D();
 
 		NodeType GetType(int i, int j, int k);
+		BCtype GetBC(int i, int j, int k);
 		Vec3D GetVel(int i, int j, int k);
 		double GetT(int i, int j, int k);
-		double GetFrameTime();
-		
+
 		void SetNodeVel(int i, int j, int k, Vec3D new_v);
+
+		double GetFrameTime();
+		FluidSolver2D::Grid2D *GetGrid2D();
 		
 		bool LoadFromFile(char *filename);
 		void Prepare(double time);
+
+		void Grid3D::TestPrint(char *filename);
 
 	protected:
 		Node*	nodes;		// all grid nodes
