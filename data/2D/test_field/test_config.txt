@@ -1,0 +1,22 @@
+dimension	2D
+
+viscosity 	0.05
+density 	1000.0
+
+bc_type		NoSlip
+bc_strenght	0.5
+
+grid_dx		0.0007
+grid_dy		0.0007
+
+cycles 		1
+calc_subframes 	30
+
+out_subframes 	10
+out_gridx	50
+out_gridy 	50
+
+solver		Stable
+num_global 	2
+num_local 	1
+
