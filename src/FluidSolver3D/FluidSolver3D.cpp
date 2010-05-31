@@ -37,7 +37,10 @@ int main(int argc, char **argv)
 
 	grid.TestPrint("grid.txt");
 
-	FluidParams params(Config::viscosity, Config::density, Config::R_specific, Config::k, Config::cv);
+	FluidParams *params;
+	if (Config::useNormalizedParams) params = new FluidParams(Config::Re, Config::Pr, Config::lambda);
+		else params = new FluidParams(Config::viscosity, Config::density, Config::R_specific, Config::k, Config::cv);
+
 	Solver3D *solver;
 	switch (Config::solverID)
 	{
@@ -45,7 +48,7 @@ int main(int argc, char **argv)
 		case ADI: solver = new AdiSolver3D(); break;
 		case Stable: printf("Stable solver is not implemented yet!\n"); break;
 	}
-	solver->Init(&grid, params);
+	solver->Init(&grid, *params);
 
 	printf("Starting from the beginning\n");
 	int startFrame = 0;

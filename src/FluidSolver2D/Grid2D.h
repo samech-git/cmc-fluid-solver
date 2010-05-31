@@ -8,8 +8,9 @@
 #include <vector>
 #include <string>
 
-#define MAX_STR_SIZE	255
-#define BBOX_OFFSET		0.03
+#define BBOX_OFFSET			0.03
+#define GRID_SCALE_FACTOR	0.001f
+#define MAX_STR_SIZE		255
 
 using namespace std;
 using namespace Common;

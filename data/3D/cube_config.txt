@@ -1,15 +1,16 @@
 dimension	3D
 
-viscosity 	0.05
-density 	1000.0
+Re		500.0
+Pr		0.72
+lambda		1.4
 
 bc_type		NoSlip
 
-grid_dx		0.0005
-grid_dy		0.0005
+grid_dx		0.02
+grid_dy		0.02
 
 cycles 		1
-calc_subframes 	50
+calc_subframes 	1000
 
 out_subframes 	10
 out_gridx	50
@@ -19,6 +20,6 @@ solver		ADI
 num_global 	2
 num_local 	1
 
-out_gridz	5
-grid_dz		0.0005
-depth		0.005
+out_gridz	10
+grid_dz		0.02
+depth		1.0

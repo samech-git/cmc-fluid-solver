@@ -19,8 +19,9 @@ namespace Common
 		static double dx, dy, dz;
 
 		// fluid parameters
+		static bool useNormalizedParams;
 		static double viscosity, density;
-		static double Re, Pr, lambda;		// not used currently
+		static double Re, Pr, lambda;		
 
 		// boundary conditions
 		static bool bc_noslip;
@@ -53,8 +54,10 @@ namespace Common
 			bc_noslip = true;	
 			bc_strength = 0.5;
 
+			useNormalizedParams = false;
 			viscosity = 0.05;
 			density = 1000.0;
+			Re = Pr = lambda = -1;
 
 			cycles = 1;
 			calc_subframes = 50;
@@ -128,6 +131,10 @@ namespace Common
 				if (!strcmp(str, "viscosity")) ReadDouble(file, viscosity);
 				if (!strcmp(str, "density")) ReadDouble(file, density);
 
+				if (!strcmp(str, "Re")) { useNormalizedParams = true; ReadDouble(file, Re); }
+				if (!strcmp(str, "Pr")) { useNormalizedParams = true; ReadDouble(file, Pr); }
+				if (!strcmp(str, "lambda")) { useNormalizedParams = true; ReadDouble(file, lambda); }
+
 				if (!strcmp(str, "bc_type")) ReadBC(file);
 				if (!strcmp(str, "bc_strenght")) ReadDouble(file, bc_strength);
 
@@ -161,6 +168,7 @@ namespace Common
 				if (dz < 0) { printf("cannot find dz!\n"); exit(0); }
 				if (depth < 0) { printf("cannot find depth!\n"); exit(0); }
 			}
+			if (useNormalizedParams && (Re < 0 || Pr < 0 || lambda < 0)) { printf("must specify Re, Pr and lambda!\n"); exit(0); }
 		}
 	};
 
@@ -168,8 +176,9 @@ namespace Common
 
 	double Config::dx, Config::dy, Config::dz;
 
+	bool Config::useNormalizedParams;
 	double Config::viscosity, Config::density;
-	double Config::Re, Config::Pr, Config::lambda;		// not used currently
+	double Config::Re, Config::Pr, Config::lambda;	
 
 	bool Config::bc_noslip;
 

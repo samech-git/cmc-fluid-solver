@@ -314,8 +314,8 @@ namespace FluidSolver2D
 				for (int k=0; k<frames[j].Shapes[i].NumPoints; k++)
 				{
 					ReadPoint2D(file, p);
-					frames[j].Shapes[i].Points[k].x = p.x / 1000;
-					frames[j].Shapes[i].Points[k].y = p.y / 1000;
+					frames[j].Shapes[i].Points[k].x = p.x * GRID_SCALE_FACTOR;
+					frames[j].Shapes[i].Points[k].y = p.y * GRID_SCALE_FACTOR;
 				}
 
 				char str[8];
@@ -331,8 +331,8 @@ namespace FluidSolver2D
 					frames[j].Shapes[i].Active = false;
 				for (int k=0; k<frames[j].Shapes[i].NumPoints; k++)
 				{
-					frames[j].Shapes[i].Velocities[k].x = p.x / 1000;
-					frames[j].Shapes[i].Velocities[k].y = p.y / 1000;
+					frames[j].Shapes[i].Velocities[k].x = p.x * GRID_SCALE_FACTOR;
+					frames[j].Shapes[i].Velocities[k].y = p.y * GRID_SCALE_FACTOR;
 				}
 			}
 		}
@@ -354,13 +354,13 @@ namespace FluidSolver2D
 			fscanf_s(file, "%f %f %f %f\n", &minx, &miny, &maxx, &maxy);
 			fscanf_s(file, "%f %f %i %i\n", &dx, &dy, &nx, &ny);
 
-			minx /= 1000;
-			miny /= 1000;
-			maxx /= 1000;
-			maxy /= 1000;
+			minx *= GRID_SCALE_FACTOR;
+			miny *= GRID_SCALE_FACTOR;
+			maxx *= GRID_SCALE_FACTOR;
+			maxy *= GRID_SCALE_FACTOR;
 
-			dx /= 1000;
-			dy /= 1000;
+			dx *= GRID_SCALE_FACTOR;
+			dy *= GRID_SCALE_FACTOR;
 				
 			for(;;)
 			{
