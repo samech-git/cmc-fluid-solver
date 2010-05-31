@@ -3,22 +3,12 @@
 using namespace FluidSolver3D;
 using namespace Common;
 
-void WriteNewFrame(vector<string> &outputPath, int currentframe)
-{
-	for (int z = 0; z < Config::outdimz; z++)
-	{
-		FILE *resFile = NULL;
-		fopen_s(&resFile, outputPath[z].c_str(), "a");
-		fprintf(resFile, "Frame %i\n", currentframe);
-		fclose(resFile);
-	}
-}
-
 int main(int argc, char **argv)
 {
 	char inputPath[MAX_STR_SIZE];
 	char configPath[MAX_STR_SIZE];
-	vector<string> outputPath;
+	char outputPath[MAX_STR_SIZE];
+	char gridPath[MAX_STR_SIZE];
 
 	FindFile(inputPath, argv[1]);
 	FindFile(configPath, argv[3]);
@@ -35,7 +25,8 @@ int main(int argc, char **argv)
 	}
 	grid.Prepare(0.0);
 
-	grid.TestPrint("grid.txt");
+	sprintf_s(gridPath, "%s_grid.txt", argv[2]);
+	grid.TestPrint(gridPath);
 
 	FluidParams *params;
 	if (Config::useNormalizedParams) params = new FluidParams(Config::Re, Config::Pr, Config::lambda);
@@ -53,14 +44,14 @@ int main(int argc, char **argv)
 	printf("Starting from the beginning\n");
 	int startFrame = 0;
 	
-	for (int z = 0; z < Config::outdimz; z++)
-	{
-		char buf[MAX_STR_SIZE];
-		sprintf_s(buf, MAX_STR_SIZE, "%s_%i.txt", argv[2], z);
-		outputPath.push_back(buf);
-		OutputResultHeader(outputPath[z].c_str(), &grid.GetGrid2D()->bbox, Config::outdimx, Config::outdimy);
-	}
+	int frames = grid.GetGrid2D()->GetFramesNum();
+	double length = grid.GetGrid2D()->GetCycleLenght();
+	double dt = length / (frames * Config::calc_subframes);
+	double finaltime = length * Config::cycles;
 
+	sprintf_s(outputPath, MAX_STR_SIZE, "%s_res.txt", argv[2]);
+	OutputNetCDFHeader(outputPath, &grid.GetGrid2D()->bbox, Config::depth, dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+	
 	// allocate result arrays
 	Vec3D *resVel = new Vec3D[Config::outdimx * Config::outdimy * Config::outdimz];
 	double *resT = new double[Config::outdimx * Config::outdimy * Config::outdimz];
@@ -68,11 +59,6 @@ int main(int argc, char **argv)
 	//------------------------------------------ Solving ------------------------------------------
 	cpu_timer timer;
 	timer.start();
-
-	int frames = grid.GetGrid2D()->GetFramesNum();
-	double length = grid.GetGrid2D()->GetCycleLenght();
-	double dt = length / (frames * Config::calc_subframes);
-	double finaltime = length * Config::cycles;
 
 	printf("dt = %f\n", dt);
 	int lastframe = -1;
@@ -84,7 +70,6 @@ int main(int argc, char **argv)
 
 		if (currentframe != lastframe)
 		{
-			WriteNewFrame(outputPath, currentframe);
 			lastframe = currentframe;
 			i = 0;
 		}
@@ -103,8 +88,8 @@ int main(int argc, char **argv)
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz);
-			for (int z = 0; z < Config::outdimz; z++)
-				OutputSliceResult(outputPath[z].c_str(), z, resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, dur);
+			OutputNetCDF_U(outputPath, resVel, Config::outdimx, Config::outdimy, Config::outdimz, 
+							(i + Config::out_subframes >= Config::calc_subframes) && (currentframe == frames-1));
 		}
 	}
 	printf("\n");
