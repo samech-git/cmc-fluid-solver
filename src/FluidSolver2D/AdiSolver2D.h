@@ -1,5 +1,7 @@
 #pragma once
 
+#include "..\Common\Algorithms.h"
+
 #include "Solver2D.h"
 
 #define ERR_THRESHOLD		0.1

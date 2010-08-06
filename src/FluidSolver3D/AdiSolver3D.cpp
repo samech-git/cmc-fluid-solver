@@ -36,6 +36,8 @@ namespace FluidSolver3D
 
 	AdiSolver3D::~AdiSolver3D()
 	{
+		prof.PrintTimings();
+
 		FreeMemory();
 	}
 
@@ -50,11 +52,11 @@ namespace FluidSolver3D
 		params = _params;
 
 		int n = max(dimx, max(dimy, dimz));
-		a = new double[n];
-		b = new double[n];
-		c = new double[n];
-		d = new double[n];
-		x = new double[n];
+		a = new double[n * n * n];
+		b = new double[n * n * n];
+		c = new double[n * n * n];
+		d = new double[n * n * n];
+		x = new double[n * n * n];
 
 		cur = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
 		half1 = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
@@ -67,10 +69,10 @@ namespace FluidSolver3D
 				for (int k = 0; k < dimz; k++)
 					switch(grid->GetType(i, j, k))
 					{
-					case IN:
-					case BOUND:
-					case VALVE:
-					case OUT:
+					case NODE_IN:
+					case NODE_BOUND:
+					case NODE_VALVE:
+					case NODE_OUT:
 						Vec3D velocity = grid->GetVel(i, j, k);
 						cur->U->elem(i, j, k) = velocity.x;
 						cur->V->elem(i, j, k) = velocity.y;
@@ -84,28 +86,35 @@ namespace FluidSolver3D
 	{
 		CreateSegments();
 
-		cur->CopyLayerTo(grid, next);
-		cur->CopyLayerTo(grid, half1);
-		cur->CopyLayerTo(grid, half2);
-		cur->CopyLayerTo(grid, temp);
+		prof.StartEvent();
+
+		cur->CopyLayerTo(temp);
+
+		prof.StopEvent("CopyLayer");
 
 		// do global iterations
-		int it;
-		double err = next->EvalDivError(grid);
-
-		for (it = 0; it < num_global; it++)
+		for (int it = 0; it < num_global; it++)
 		{
 			// alternating directions
 			SolveDirection(dt, num_local, listZ, cur, temp, half1);		
 			SolveDirection(dt, num_local, listY, half1, temp, half2);
 			SolveDirection(dt, num_local, listX, half2, temp, next);
 
+			prof.StartEvent();
+				
 			// update non-linear parameters
-			next->MergeLayerTo(grid, temp, IN);
+			next->MergeLayerTo(grid, temp, NODE_IN);
+
+			prof.StopEvent("MergeLayer");
 		}
 
+		prof.StartEvent();
+
 		// output error
-		err = next->EvalDivError(grid);
+		double err = next->EvalDivError(grid);
+
+		prof.StopEvent("EvalDivError");
+
 		if (err > ERR_THRESHOLD) {
 			printf("\nError is too big!\n", err);
 			exit(1);
@@ -113,14 +122,22 @@ namespace FluidSolver3D
 		else
 			printf("\rerr = %.4f,", err);
 
+		prof.StartEvent();
+
 		ClearOutterCells();
-		
-		// copy result to current layer
-		next->CopyLayerTo(grid, cur);
+
+		prof.StopEvent("ClearLayer");
+
+		// swap current/next pointers 
+		TimeLayer3D *tmp = next;
+		next = cur;
+		cur = tmp;
 	}
 
 	void AdiSolver3D::CreateSegments()
 	{
+		prof.StartEvent();
+
 		for (int dir = X; dir <= Z; dir++)
 		{
 			vector<Segment3D> *list;
@@ -157,7 +174,7 @@ namespace FluidSolver3D
 
 					while ((seg.posx + incx < dimx) && (seg.posy + incy < dimy) && (seg.posz + incz < dimz))
 					{
-						if (grid->GetType(seg.posx + incx, seg.posy + incy, seg.posz + incz) == IN)
+						if (grid->GetType(seg.posx + incx, seg.posy + incy, seg.posz + incz) == NODE_IN)
 						{
 							if (state == 0) 
 								new_seg = seg;
@@ -184,6 +201,8 @@ namespace FluidSolver3D
 					}
 				}
 		}
+
+		prof.StopEvent("CreateSegments");
 	}
 
 	void AdiSolver3D::SolveDirection(double dt, int num_local, vector<Segment3D> &list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
@@ -191,26 +210,53 @@ namespace FluidSolver3D
 		DirType dir = list[0].dir;
 		for (int it = 0; it < num_local; it++)
 		{
-			for (size_t s = 0; s < list.size(); s++)
-			{		
-				SolveSegment(dt, list[s], type_U, dir, cur, temp, next);
-				SolveSegment(dt, list[s], type_V, dir, cur, temp, next);
-				SolveSegment(dt, list[s], type_W, dir, cur, temp, next);
-				SolveSegment(dt, list[s], type_T, dir, cur, temp, next);			
+			prof.StartEvent();
+
+			#pragma omp parallel default(none) firstprivate(dt, dir) shared(list, cur, temp, next)
+			{
+				#pragma omp for
+				for (int s = 0; s < (int)list.size(); s++)
+				{		
+					SolveSegment(dt, s, list[s], type_U, dir, cur, temp, next);
+					SolveSegment(dt, s, list[s], type_V, dir, cur, temp, next);
+					SolveSegment(dt, s, list[s], type_W, dir, cur, temp, next);
+					SolveSegment(dt, s, list[s], type_T, dir, cur, temp, next);			
+				}
 			}
 
+			switch( dir )
+			{
+			case X: prof.StopEvent("SolveSegments_X"); break;
+			case Y: prof.StopEvent("SolveSegments_Y"); break;
+			case Z: prof.StopEvent("SolveSegments_Z"); break;
+			}
+
+			prof.StartEvent();
+
 			// update non-linear
-			next->MergeLayerTo(grid, temp, IN);
+			next->MergeLayerTo(grid, temp, NODE_IN);
+
+			prof.StopEvent("MergeLayer");
 		}
 	}
 
-	void AdiSolver3D::SolveSegment(double dt, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
+	void AdiSolver3D::SolveSegment(double dt, int id, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
 	{
 		int n = seg.size;
+
+		int max_n = max(dimx, max(dimy, dimz));
+		double *a = this->a + id * max_n;
+		double *b = this->b + id * max_n;
+		double *c = this->c + id * max_n;
+		double *d = this->d + id * max_n;
+		double *x = this->x + id * max_n;
+
 		ApplyBC0(seg.posx, seg.posy, seg.posz, var, b[0], c[0], d[0]);
-		BuildMatrix(dt, seg.posx, seg.posy, seg.posz, var, dir, a, b, c, d, n, cur, temp);
 		ApplyBC1(seg.endx, seg.endy, seg.endz, var, a[n-1], b[n-1], d[n-1]);
+		BuildMatrix(dt, seg.posx, seg.posy, seg.posz, var, dir, a, b, c, d, n, cur, temp);
+		
 		SolveTridiagonal(a, b, c, d, x, n);
+		
 		UpdateSegment(x, seg, var, next);
 	}
 
@@ -310,8 +356,8 @@ namespace FluidSolver3D
 
 	void AdiSolver3D::ApplyBC0(int i, int j, int k, VarType var, double &b0, double &c0, double &d0)
 	{
-		if ((var == type_T && grid->GetBC_temp(i, j, k) == FREE) ||
-			(var != type_T && grid->GetBC_vel(i, j, k) == FREE))
+		if ((var == type_T && grid->GetBC_temp(i, j, k) == BC_FREE) ||
+			(var != type_T && grid->GetBC_vel(i, j, k) == BC_FREE))
 		{
 			// free
 			b0 = 1.0; 
@@ -331,13 +377,12 @@ namespace FluidSolver3D
 			case type_T: d0 = grid->GetT(i, j, k); break;
 			}
 		}
-		
 	}
 
 	void AdiSolver3D::ApplyBC1(int i, int j, int k, VarType var, double &a1, double &b1, double &d1)
 	{
-		if ((var == type_T && grid->GetBC_temp(i, j, k) == FREE) ||
-			(var != type_T && grid->GetBC_vel(i, j, k) == FREE))
+		if ((var == type_T && grid->GetBC_temp(i, j, k) == BC_FREE) ||
+			(var != type_T && grid->GetBC_vel(i, j, k) == BC_FREE))
 		{
 			// free
 			a1 = 1.0; 

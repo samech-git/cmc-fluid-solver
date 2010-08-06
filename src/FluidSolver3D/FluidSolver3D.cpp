@@ -5,6 +5,10 @@ using namespace Common;
 
 int main(int argc, char **argv)
 {
+#ifdef _OPENMP
+	printf("Using OpenMP: num_proc = %i\n", omp_get_num_procs());
+#endif
+
 	char inputPath[MAX_STR_SIZE];
 	char configPath[MAX_STR_SIZE];
 	char outputPath[MAX_STR_SIZE];
@@ -95,7 +99,8 @@ int main(int argc, char **argv)
 							(i + Config::out_subframes >= Config::calc_subframes) && (currentframe == frames-1));
 		}
 	}
-	printf("\n");
+	timer.stop();
+	printf("\nTotal time: %.2f sec\n", timer.elapsed_sec());
 
 	delete solver;
 	delete [] resVel;

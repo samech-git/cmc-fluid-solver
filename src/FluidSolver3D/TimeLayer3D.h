@@ -46,11 +46,15 @@ namespace FluidSolver3D
 
 		void MergeFieldTo(Grid3D *grid, ScalarField3D *dest, NodeType type)
 		{
-			for (int i = 0; i < dimx-1; i++)
-				for (int j = 0; j < dimy-1; j++)
-					for (int k = 0; k < dimz-1; k++)
-						if (grid->GetType(i, j, k) == type)
-							dest->elem(i, j, k) = (dest->elem(i, j, k) + elem(i, j, k)) / 2;
+			#pragma omp parallel default(none) firstprivate(type) shared(grid, dest)
+			{
+				#pragma omp for
+				for (int i = 0; i < dimx-1; i++)
+					for (int j = 0; j < dimy-1; j++)
+						for (int k = 0; k < dimz-1; k++)
+							if (grid->GetType(i, j, k) == type)
+								dest->elem(i, j, k) = (dest->elem(i, j, k) + elem(i, j, k)) / 2;
+			}
 		}
 
 		void Print(char *filename)
@@ -129,7 +133,7 @@ namespace FluidSolver3D
 			for (int i = 0; i < dimx-1; i++)
 				for (int j = 0; j < dimy-1; j++)
 					for (int k = 0; k < dimz-1; k++)
-						if (grid->GetType(i, j, k) == IN)
+						if (grid->GetType(i, j, k) == NODE_IN)
 						{
 							double err_x = (U->elem(i, j, k) + U->elem(i, j-1, k) + U->elem(i, j-1, k-1) + U->elem(i, j, k-1) -
 								U->elem(i-1, j, k) - U->elem(i-1, j-1, k) - U->elem(i-1, j-1, k-1) - U->elem(i-1, j, k-1)) * dz * dy / 4.0;
@@ -154,12 +158,17 @@ namespace FluidSolver3D
 			T->MergeFieldTo(grid, dest->T, type);
 		}
 
-		void CopyLayerTo(Grid3D *grid, TimeLayer3D *dest)
+		void CopyLayerTo(TimeLayer3D *dest)
 		{
-			CopyLayerTo(grid, dest, IN);
-			CopyLayerTo(grid, dest, OUT);
-			CopyLayerTo(grid, dest, BOUND);
-			CopyLayerTo(grid, dest, VALVE);
+			for (int i = 0; i < dimx-1; i++)
+				for (int j = 0; j < dimy-1; j++)
+					for (int k = 0; k < dimz-1; k++)
+					{
+						dest->U->elem(i, j, k) = U->elem(i, j, k);
+						dest->V->elem(i, j, k) = V->elem(i, j, k);
+						dest->W->elem(i, j, k) = W->elem(i, j, k);
+						dest->T->elem(i, j, k) = T->elem(i, j, k);
+					}
 		}
 
 		void CopyLayerTo(Grid3D *grid, TimeLayer3D *dest, NodeType type)

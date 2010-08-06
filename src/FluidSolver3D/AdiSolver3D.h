@@ -1,9 +1,15 @@
 #pragma once
 
+#define PROFILE_ENABLE		1
+
+#include "..\Common\Profiler.h"
+
 #include "Solver3D.h"
 
 #define ERR_THRESHOLD		0.1
 #define	MAX_GLOBAL_ITERS	10
+
+using namespace Common;
 
 namespace FluidSolver3D
 {
@@ -28,6 +34,8 @@ namespace FluidSolver3D
 		void TimeStep(double dt, int num_global, int num_local);
 
 	private:
+		Profiler prof;
+
 		vector<Segment3D> listX, listY, listZ;
 
 		TimeLayer3D *temp, *half1, *half2;
@@ -38,7 +46,7 @@ namespace FluidSolver3D
 		void ApplyBC1(int i, int j, int k, VarType var, double &a1, double &b1, double &d1);
 		
 		void CreateSegments();
-		void SolveSegment(double dt, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
+		void SolveSegment(double dt, int id, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
 		void UpdateSegment(double *x, Segment3D seg, VarType var, TimeLayer3D *layer);
 		
 		void SolveDirection(double dt, int num_local, vector<Segment3D> &list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);

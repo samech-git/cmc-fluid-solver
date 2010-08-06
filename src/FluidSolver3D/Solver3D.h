@@ -20,6 +20,8 @@ namespace FluidSolver3D
 
 		Grid3D *grid;
 
+		virtual ~Solver3D() {};
+
 	protected:
 		int dimx, dimy, dimz;
 		FluidParams params;

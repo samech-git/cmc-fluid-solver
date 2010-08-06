@@ -108,7 +108,7 @@ namespace FluidSolver2D
 		return VecTN(t, n);
 	}
 
-#define PROCESS(ij) {if (nextData[ij].cell != OUT) { v.x += nextData[ij].vel.x; v.y += nextData[ij].vel.y; k++; }}
+#define PROCESS(ij) {if (nextData[ij].cell != CELL_OUT) { v.x += nextData[ij].vel.x; v.y += nextData[ij].vel.y; k++; }}
 
 	Vec2D Grid2D::GetBounfVelocity(int x, int y)
 	{
@@ -158,9 +158,9 @@ namespace FluidSolver2D
 
 			//bc_strength;
 			if (bc_noslip)
-				SetData(x, y, CondData2D(NOSLIP, color, Vec2D(v.x, v.y), startT));
+				SetData(x, y, CondData2D(COND_NOSLIP, color, Vec2D(v.x, v.y), startT));
 			else
-				SetData(x, y, CondData2D(NOSLIP, color, 
+				SetData(x, y, CondData2D(COND_NOSLIP, color, 
 						Vec2D(vtn.normal.x + (btn.tangent.x*bc_strength + vtn.tangent.x*(1-bc_strength)), 
 							  vtn.normal.y + (btn.tangent.y*bc_strength + vtn.tangent.y*(1-bc_strength))), 
 						startT));
@@ -181,7 +181,7 @@ namespace FluidSolver2D
 				double y = bbox.pMin.y + j*dy;
 				Vec2D v = field.GetVelocity(x, y);
 				if (v.x != 0 || v.y != 0)
-					SetData(i, j, CondData2D(NOSLIP, BOUND, v, startT));
+					SetData(i, j, CondData2D(COND_NOSLIP, CELL_BOUND, v, startT));
 			};
 	}
 
@@ -213,7 +213,7 @@ namespace FluidSolver2D
 				int next_j = j + neighborPos[k][1];
 
 				if ((next_i >= 0) && (next_i < dimx) && (next_j >= 0) && (next_j < dimy))
-					if (GetType(next_i, next_j) == IN) 
+					if (GetType(next_i, next_j) == CELL_IN) 
 					{
 						last++;
 						queue[last * 2 + 0] = next_i;
@@ -242,8 +242,8 @@ namespace FluidSolver2D
 		for (int i=0; i<size; i++)
 		{
 			nextData[i].T = 0;
-			nextData[i].type = NONE;
-			nextData[i].cell = OUT;
+			nextData[i].type = COND_NONE;
+			nextData[i].cell = CELL_OUT;
 			nextData[i].vel.x = 0;
 			nextData[i].vel.y = 0;
 		}
@@ -264,7 +264,7 @@ namespace FluidSolver2D
 		// mark all cells as inner 
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
-				SetType(i, j, IN);
+				SetType(i, j, CELL_IN);
      
 		// rasterize lines (VALVE)
 		for (int j=0; j<frame.NumShapes; j++)
@@ -272,7 +272,7 @@ namespace FluidSolver2D
 				if( frame.Shapes[j].Active )
 					RasterLine(frame.Shapes[j].Points[i], frame.Shapes[j].Points[i+1],
 							   frame.Shapes[j].Velocities[i], frame.Shapes[j].Velocities[i+1],
-							   VALVE);
+							   CELL_VALVE);
 		
 		// rasterize lines (BOUND)
 		for (int j=0; j<frame.NumShapes; j++)
@@ -280,9 +280,9 @@ namespace FluidSolver2D
 				if( !frame.Shapes[j].Active )
 					RasterLine(frame.Shapes[j].Points[i], frame.Shapes[j].Points[i+1],
 							   frame.Shapes[j].Velocities[i], frame.Shapes[j].Velocities[i+1],
-							   BOUND);
+							   CELL_BOUND);
 			
-        FloodFill(OUT); 
+        FloodFill(CELL_OUT); 
 		RasterField(frame.Field);
 
 		for (int i = 0; i < dimx; i++)
@@ -291,7 +291,7 @@ namespace FluidSolver2D
 				CellType c = GetType(i, j);
 				switch (c)
 				{
-					case IN: case OUT: SetData(i, j, CondData2D(NONE, c, Vec2D(0, 0), startT)); break; 
+					case CELL_IN: case CELL_OUT: SetData(i, j, CondData2D(COND_NONE, c, Vec2D(0, 0), startT)); break; 
 				}
 			}
 	}
@@ -580,10 +580,10 @@ namespace FluidSolver2D
 				CellType t = GetType(i, j);
 				switch (t)
 				{
-				case IN: fprintf(file, " "); break;
-				case OUT: fprintf(file, "."); break;
-				case BOUND: fprintf(file, "#"); break;
-				case VALVE: fprintf(file, "+"); break;
+				case CELL_IN: fprintf(file, " "); break;
+				case CELL_OUT: fprintf(file, "."); break;
+				case CELL_BOUND: fprintf(file, "#"); break;
+				case CELL_VALVE: fprintf(file, "+"); break;
 				}
 			}
 			fprintf(file, "\n");

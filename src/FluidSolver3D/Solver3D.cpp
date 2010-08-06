@@ -42,7 +42,7 @@ namespace FluidSolver3D
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
 				for (int k = 0; k < dimz; k++)
-					if (grid->GetType(i, j, k) == BOUND)
+					if (grid->GetType(i, j, k) == NODE_BOUND)
 					{
 						Vec3D velocity = grid->GetVel(i, j, k);
 						cur->U->elem(i, j, k) = velocity.x;
@@ -50,7 +50,7 @@ namespace FluidSolver3D
 						cur->W->elem(i, j, k) = velocity.z;
 						cur->T->elem(i, j, k) = grid->GetT(i, j, k);
 					}
-		cur->CopyLayerTo(grid, next, BOUND);
+		cur->CopyLayerTo(grid, next, NODE_BOUND);
 	}
 
 	void Solver3D::SetGridBoundaries()
@@ -66,7 +66,7 @@ namespace FluidSolver3D
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
 				for (int k = 0; k < dimz; k++)
-					if (grid->GetType(i, j, k) == OUT)
+					if (grid->GetType(i, j, k) == NODE_OUT)
 					{
 						next->U->elem(i, j, k) = 0.0;
 						next->V->elem(i, j, k) = 0.0;

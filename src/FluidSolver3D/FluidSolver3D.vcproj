@@ -117,6 +117,7 @@
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
+				OpenMP="true"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="3"
@@ -201,7 +202,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\Common\Common.h"
+				RelativePath="..\Common\Algorithms.h"
 				>
 			</File>
 			<File
@@ -221,11 +222,27 @@
 				>
 			</File>
 			<File
+				RelativePath="..\Common\IO.h"
+				>
+			</File>
+			<File
+				RelativePath="..\Common\Profiler.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Solver3D.h"
 				>
 			</File>
 			<File
+				RelativePath="..\Common\Structures.h"
+				>
+			</File>
+			<File
 				RelativePath=".\TimeLayer3D.h"
+				>
+			</File>
+			<File
+				RelativePath="..\Common\Timer.h"
 				>
 			</File>
 		</Filter>

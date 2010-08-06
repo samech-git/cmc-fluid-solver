@@ -262,7 +262,7 @@ namespace Common
 		}
 	}
 
-	static void LoadProject(char *proj, char* inputPath, char* fieldPath, char* outputPath, char* configPath, int MAX_PATH)
+	static void LoadProject(char *proj, char* inputPath, char* fieldPath, char* outputPath, char* configPath)
 	{
 		char projectPath[MAX_STR_SIZE];
 

@@ -200,7 +200,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\Common\Common.h"
+				RelativePath="..\Common\Algorithms.h"
 				>
 			</File>
 			<File
@@ -220,6 +220,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\Common\IO.h"
+				>
+			</File>
+			<File
 				RelativePath=".\ScalarField2D.h"
 				>
 			</File>
@@ -232,7 +236,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\Common\Structures.h"
+				>
+			</File>
+			<File
 				RelativePath=".\TimeLayer2D.h"
+				>
+			</File>
+			<File
+				RelativePath="..\Common\Timer.h"
 				>
 			</File>
 		</Filter>

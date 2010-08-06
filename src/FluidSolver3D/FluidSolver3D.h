@@ -4,6 +4,9 @@
 
 #include "AdiSolver3D.h"
 
-#include "..\Common\Common.h"
+#include "..\Common\Structures.h"
+#include "..\Common\IO.h"
+#include "..\Common\Algorithms.h"
 #include "..\Common\Config.h"
-#include "..\Common\Timer.h"
+
+#include <omp.h>

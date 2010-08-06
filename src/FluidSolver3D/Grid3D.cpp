@@ -79,41 +79,40 @@ namespace FluidSolver3D
 			for (int j = 0; j < dimy; j++)
 			{
 				int ind;
-				if (grid2D->GetType(i, j) == FluidSolver2D::OUT)
+				if (grid2D->GetType(i, j) == FluidSolver2D::CELL_OUT)
 				{
 					for (int k = 0; k < dimz; k++)
 					{
 						ind = i * dimy * dimz + j * dimz + k;
-						nodes[ind].type = OUT;
+						nodes[ind].type = NODE_OUT;
 					}
 				}
 				else
 				{
 					// set up & bottom bounds
-					nodes[i * dimy * dimz + j * dimz + 0].type = OUT;
-					nodes[i * dimy * dimz + j * dimz + dimz-1].type = OUT;
+					nodes[i * dimy * dimz + j * dimz + 0].type = NODE_OUT;
+					nodes[i * dimy * dimz + j * dimz + dimz-1].type = NODE_OUT;
 
-					nodes[i * dimy * dimz + j * dimz + 1].SetBound(NOSLIP, FREE, Vec3D(0.0, 0.0, 0.0), baseT);
-					nodes[i * dimy * dimz + j * dimz + dimz-2].SetBound(NOSLIP, FREE, Vec3D(0.0, 0.0, 0.0), baseT);
+					nodes[i * dimy * dimz + j * dimz + 1].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), baseT);
+					nodes[i * dimy * dimz + j * dimz + dimz-2].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), baseT);
 					
 					for (int k = 2; k < dimz-2; k++)
 					{
 						ind = i * dimy * dimz + j * dimz + k;
 						switch (grid2D->GetType(i, j))
 						{
-						case FluidSolver2D::BOUND:
-							nodes[ind].SetBound(NOSLIP, FREE, Vec3D(grid2D->GetData(i, j).vel.x, grid2D->GetData(i, j).vel.y, 0.0), grid2D->GetData(i, j).T);
+						case FluidSolver2D::CELL_BOUND:
+							nodes[ind].SetBound(BC_NOSLIP, BC_FREE, Vec3D(grid2D->GetData(i, j).vel.x, grid2D->GetData(i, j).vel.y, 0.0), grid2D->GetData(i, j).T);
 							break;
-						case FluidSolver2D::VALVE:
+						case FluidSolver2D::CELL_VALVE:
 							if( grid2D->GetData(i, j).vel.x == 0 && grid2D->GetData(i, j).vel.y == 0 )
-								nodes[ind].SetBound(FREE, FREE, Vec3D(grid2D->GetData(i, j).vel.x, grid2D->GetData(i, j).vel.y, 0.0), grid2D->GetData(i, j).T);
+								nodes[ind].SetBound(BC_FREE, BC_FREE, Vec3D(grid2D->GetData(i, j).vel.x, grid2D->GetData(i, j).vel.y, 0.0), grid2D->GetData(i, j).T);
 							else
-								nodes[ind].SetBound(NOSLIP, NOSLIP, Vec3D(grid2D->GetData(i, j).vel.x, grid2D->GetData(i, j).vel.y, 0.0), grid2D->GetData(i, j).T);
-							if (grid2D->GetData(i, j).T < 1) printf("%i %i\n", i, j);
-							nodes[ind].type = VALVE;
+								nodes[ind].SetBound(BC_NOSLIP, BC_NOSLIP, Vec3D(grid2D->GetData(i, j).vel.x, grid2D->GetData(i, j).vel.y, 0.0), grid2D->GetData(i, j).T);
+							nodes[ind].type = NODE_VALVE;
 							break;
-						case FluidSolver2D::IN:
-							nodes[ind].type = IN;
+						case FluidSolver2D::CELL_IN:
+							nodes[ind].type = NODE_IN;
 							nodes[ind].T = baseT;
 							break;
 						}
@@ -137,10 +136,10 @@ namespace FluidSolver3D
 					NodeType t = GetType(i, j, k);
 					switch (t)
 					{
-					case IN: fprintf(file, " "); break;
-					case OUT: fprintf(file, "."); break;
-					case BOUND: fprintf(file, "#"); break;		
-					case VALVE: fprintf(file, "+"); break;		
+					case NODE_IN: fprintf(file, " "); break;
+					case NODE_OUT: fprintf(file, "."); break;
+					case NODE_BOUND: fprintf(file, "#"); break;		
+					case NODE_VALVE: fprintf(file, "+"); break;		
 					}
 				}
 				fprintf(file, "\n");

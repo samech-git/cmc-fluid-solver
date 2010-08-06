@@ -1,14 +1,26 @@
 #pragma once
 
-#include "..\Common\Common.h"
+#include "..\Common\Structures.h"
+#include "..\Common\IO.h"
+#include "..\Common\Algorithms.h"
+
 #include "..\FluidSolver2D\Grid2D.h"
 
 using namespace Common;
 
 namespace FluidSolver3D
 {
-	enum NodeType { IN, OUT, BOUND, VALVE };
-	enum BCtype { NOSLIP, FREE };
+	enum NodeType { 
+		NODE_IN, 
+		NODE_OUT, 
+		NODE_BOUND, 
+		NODE_VALVE 
+	};
+	
+	enum BCtype { 
+		BC_NOSLIP, 
+		BC_FREE 
+	};
 
 	struct Node
 	{
@@ -20,7 +32,7 @@ namespace FluidSolver3D
 
 		void SetBound(BCtype _bc_vel, BCtype _bc_temp, Vec3D _v, double _T)
 		{
-			type = BOUND;
+			type = NODE_BOUND;
 			bc_vel = _bc_vel;
 			bc_temp = _bc_temp;
 			v = _v;

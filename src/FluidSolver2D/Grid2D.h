@@ -1,6 +1,7 @@
 #pragma once
 
-#include "../Common/Common.h"
+#include "..\Common\Structures.h"
+#include "..\Common\IO.h"
 
 #include <stdlib.h>
 #include <math.h>
@@ -17,8 +18,8 @@ using namespace Common;
 
 namespace FluidSolver2D
 {
-	enum CellType { IN, OUT, BOUND, VALVE };
-	enum CondType { NONE, NOSLIP, FREE };
+	enum CellType { CELL_IN, CELL_OUT, CELL_BOUND, CELL_VALVE };
+	enum CondType { COND_NONE, COND_NOSLIP, COND_FREE };
 
 	struct CondData2D
 	{
@@ -27,7 +28,7 @@ namespace FluidSolver2D
 		Vec2D vel;
 		double T;
 
-		CondData2D() : type(NONE), vel(Vec2D(0.0, 0.0)), T(0.0) { }
+		CondData2D() : type(COND_NONE), vel(Vec2D(0.0, 0.0)), T(0.0) { }
 		CondData2D(CondType _type, CellType _cell, Vec2D _vel, double _T) : type(_type), vel(_vel), T(_T), cell(_cell) { }
 	};
 
