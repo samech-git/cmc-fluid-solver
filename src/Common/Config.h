@@ -49,7 +49,7 @@ namespace Common
 			R_specific = 461.495;		// water,	287.058	for air (gas constant)
 			k = 0.6;					// water (thermal conductivity)
 			cv = 4200.0;				// water (specific heat capacity at constant volume)
-			startT = 300.0;				// in Kelvin
+			startT = 1.0;				// normalized
 
 			bc_noslip = true;	
 			bc_strength = 0.5;

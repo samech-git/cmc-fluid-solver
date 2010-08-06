@@ -10,8 +10,6 @@ namespace FluidSolver3D
 		temp = NULL;
 		half1 = NULL;
 		half2 = NULL;
-		temp_local = NULL;
-		next_local = NULL;
 		next = NULL;
 
 		a = NULL;
@@ -27,8 +25,6 @@ namespace FluidSolver3D
 		if (temp != NULL) delete temp;
 		if (half1 != NULL) delete half1;
 		if (half2 != NULL) delete half2;
-		if (temp_local != NULL) delete temp_local;
-		if (next_local != NULL) delete next_local;
 		if (next != NULL) delete next;
 
 		if (a != NULL) delete [] a;
@@ -64,10 +60,7 @@ namespace FluidSolver3D
 		half1 = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
 		half2 = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
 		next = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
-
 		temp = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
-		temp_local = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
-		next_local = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
 
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
@@ -76,6 +69,7 @@ namespace FluidSolver3D
 					{
 					case IN:
 					case BOUND:
+					case VALVE:
 					case OUT:
 						Vec3D velocity = grid->GetVel(i, j, k);
 						cur->U->elem(i, j, k) = velocity.x;
@@ -99,37 +93,28 @@ namespace FluidSolver3D
 		int it;
 		double err = next->EvalDivError(grid);
 
-		for (it = 0; (it < num_global) || (err > ERR_THRESHOLD); it++)
+		for (it = 0; it < num_global; it++)
 		{
 			// alternating directions
 			SolveDirection(dt, num_local, listZ, cur, temp, half1);		
 			SolveDirection(dt, num_local, listY, half1, temp, half2);
 			SolveDirection(dt, num_local, listX, half2, temp, next);
 
-			err = next->EvalDivError(grid);
-		
 			// update non-linear parameters
-			if (it == 0) next->CopyLayerTo(grid, temp, IN);
-				else next->MergeLayerTo(grid, temp, IN);
-			
-			if (it > MAX_GLOBAL_ITERS) 
-			{
-				printf("\nExceeded max number of iterations (%i)\n", MAX_GLOBAL_ITERS); 
-				exit(1); 
-			}
-
-			if (err > ERR_THRESHOLD)
-			{
-				printf("\nError is too big!\n", err);
-				exit(1);
-			}
+			next->MergeLayerTo(grid, temp, IN);
 		}
 
-		ClearOutterCells();
-
 		// output error
-		printf("\rerr = %.4f,", err);
+		err = next->EvalDivError(grid);
+		if (err > ERR_THRESHOLD) {
+			printf("\nError is too big!\n", err);
+			exit(1);
+		}
+		else
+			printf("\rerr = %.4f,", err);
 
+		ClearOutterCells();
+		
 		// copy result to current layer
 		next->CopyLayerTo(grid, cur);
 	}
@@ -203,36 +188,30 @@ namespace FluidSolver3D
 
 	void AdiSolver3D::SolveDirection(double dt, int num_local, vector<Segment3D> &list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
 	{
-		temp->CopyLayerTo(grid, temp_local);
-
 		DirType dir = list[0].dir;
 		for (int it = 0; it < num_local; it++)
 		{
 			for (size_t s = 0; s < list.size(); s++)
 			{		
-				SolveSegment(dt, list[s], type_U, dir, cur, temp, temp_local, next_local);
-				SolveSegment(dt, list[s], type_V, dir, cur, temp, temp_local, next_local);
-				SolveSegment(dt, list[s], type_W, dir, cur, temp, temp_local, next_local);
-				SolveSegment(dt, list[s], type_T, dir, cur, temp, temp_local, next_local);			
+				SolveSegment(dt, list[s], type_U, dir, cur, temp, next);
+				SolveSegment(dt, list[s], type_V, dir, cur, temp, next);
+				SolveSegment(dt, list[s], type_W, dir, cur, temp, next);
+				SolveSegment(dt, list[s], type_T, dir, cur, temp, next);			
 			}
 
 			// update non-linear
-			if (it == 0) next_local->CopyLayerTo(grid, temp_local, IN);
-				else next_local->MergeLayerTo(grid, temp_local, IN);
+			next->MergeLayerTo(grid, temp, IN);
 		}
-
-		temp_local->CopyLayerTo(grid, temp, IN);
-		next_local->CopyLayerTo(grid, next, IN);
 	}
 
-	void AdiSolver3D::SolveSegment(double dt, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *temp_local, TimeLayer3D *next_local)
+	void AdiSolver3D::SolveSegment(double dt, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
 	{
 		int n = seg.size;
 		ApplyBC0(seg.posx, seg.posy, seg.posz, var, b[0], c[0], d[0]);
-		BuildMatrix(dt, seg.posx, seg.posy, seg.posz, var, dir, a, b, c, d, n, cur, temp, temp_local);
+		BuildMatrix(dt, seg.posx, seg.posy, seg.posz, var, dir, a, b, c, d, n, cur, temp);
 		ApplyBC1(seg.endx, seg.endy, seg.endz, var, a[n-1], b[n-1], d[n-1]);
 		SolveTridiagonal(a, b, c, d, x, n);
-		UpdateSegment(x, seg, var, next_local);
+		UpdateSegment(x, seg, var, next);
 	}
 
 	void AdiSolver3D::UpdateSegment(double *x, Segment3D seg, VarType var, TimeLayer3D *layer)
@@ -260,7 +239,7 @@ namespace FluidSolver3D
 		}
 	}
 
-	void AdiSolver3D::BuildMatrix(double dt, int i, int j, int k, VarType var, DirType dir, double *a, double *b, double *c, double *d, int n, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *temp_local)
+	void AdiSolver3D::BuildMatrix(double dt, int i, int j, int k, VarType var, DirType dir, double *a, double *b, double *c, double *d, int n, TimeLayer3D *cur, TimeLayer3D *temp)
 	{
 		double vis_dx2, vis_dy2, vis_dz2;
 
@@ -284,57 +263,64 @@ namespace FluidSolver3D
 		{
 			switch (dir)
 			{
-			case X:
-				a[p] = - temp_local->U->elem(i+p, j, k) / (2 * grid->dx) - vis_dx2; 
-				b[p] = 1 / dt  +  2 * vis_dx2; 
-				c[p] = temp_local->U->elem(i+p, j, k) / (2 * grid->dx) - vis_dx2; 
+			case X:		
+				a[p] = - temp->U->elem(i+p, j, k) / (2 * grid->dx) - vis_dx2; 
+				b[p] = 3 / dt  +  2 * vis_dx2; 
+				c[p] = temp->U->elem(i+p, j, k) / (2 * grid->dx) - vis_dx2; 
 				
 				switch (var)	
 				{
-				case type_U: d[p] = cur->U->elem(i+p, j, k) / dt - params.v_T * temp_local->T->d_x(i+p, j, k); break;
-				case type_V: d[p] = cur->V->elem(i+p, j, k) / dt; break;
-				case type_W: d[p] = cur->W->elem(i+p, j, k) / dt; break;
-				case type_T: d[p] = cur->T->elem(i+p, j, k) / dt + params.t_phi * temp_local->DissFuncX(i+p, j, k); break;
+				case type_U: d[p] = cur->U->elem(i+p, j, k) * 3 / dt - params.v_T * temp->T->d_x(i+p, j, k); break;
+				case type_V: d[p] = cur->V->elem(i+p, j, k) * 3 / dt; break;
+				case type_W: d[p] = cur->W->elem(i+p, j, k) * 3 / dt; break;
+				case type_T: d[p] = cur->T->elem(i+p, j, k) * 3 / dt + params.t_phi * temp->DissFuncX(i+p, j, k); break;
 				}	
 				break;
 
 			case Y:
-				a[p] = - temp_local->V->elem(i, j+p, k) / (2 * grid->dy) - vis_dy2; 
-				b[p] = 1 / dt  +  2 * vis_dy2; 
-				c[p] = temp_local->V->elem(i, j+p, k) / (2 * grid->dy) - vis_dy2; 
+				a[p] = - temp->V->elem(i, j+p, k) / (2 * grid->dy) - vis_dy2; 
+				b[p] = 3 / dt  +  2 * vis_dy2; 
+				c[p] = temp->V->elem(i, j+p, k) / (2 * grid->dy) - vis_dy2; 
 				
 				switch (var)	
 				{
-				case type_U: d[p] = cur->U->elem(i, j+p, k) / dt; break;
-				case type_V: d[p] = cur->V->elem(i, j+p, k) / dt - params.v_T * temp_local->T->d_y(i, j+p, k); break;
-				case type_W: d[p] = cur->W->elem(i, j+p, k) / dt; break;
-				case type_T: d[p] = cur->T->elem(i, j+p, k) / dt + params.t_phi * temp_local->DissFuncY(i, j+p, k); break;
+				case type_U: d[p] = cur->U->elem(i, j+p, k) * 3 / dt; break;
+				case type_V: d[p] = cur->V->elem(i, j+p, k) * 3 / dt - params.v_T * temp->T->d_y(i, j+p, k); break;
+				case type_W: d[p] = cur->W->elem(i, j+p, k) * 3 / dt; break;
+				case type_T: d[p] = cur->T->elem(i, j+p, k) * 3 / dt + params.t_phi * temp->DissFuncY(i, j+p, k); break;
 				}
 				break;
 
 			case Z:
-				a[p] = - temp_local->W->elem(i, j, k+p) / (2 * grid->dz) - vis_dz2; 
-				b[p] = 1 / dt  +  2 * vis_dz2; 
-				c[p] = temp_local->W->elem(i, j, k+p) / (2 * grid->dz) - vis_dz2; 
+				a[p] = - temp->W->elem(i, j, k+p) / (2 * grid->dz) - vis_dz2; 
+				b[p] = 3 / dt  +  2 * vis_dz2; 
+				c[p] = temp->W->elem(i, j, k+p) / (2 * grid->dz) - vis_dz2; 
 				
 				switch (var)	
 				{
-				case type_U: d[p] = cur->U->elem(i, j, k+p) / dt; break;
-				case type_V: d[p] = cur->V->elem(i, j, k+p) / dt; break;
-				case type_W: d[p] = cur->W->elem(i, j, k+p) / dt - params.v_T * temp_local->T->d_z(i, j, k+p); break;
-				case type_T: d[p] = cur->T->elem(i, j, k+p) / dt + params.t_phi * temp_local->DissFuncZ(i, j, k+p); break;
+				case type_U: d[p] = cur->U->elem(i, j, k+p) * 3 / dt; break;
+				case type_V: d[p] = cur->V->elem(i, j, k+p) * 3 / dt; break;
+				case type_W: d[p] = cur->W->elem(i, j, k+p) * 3 / dt - params.v_T * temp->T->d_z(i, j, k+p); break;
+				case type_T: d[p] = cur->T->elem(i, j, k+p) * 3 / dt + params.t_phi * temp->DissFuncZ(i, j, k+p); break;
 				}
 				break;
-
 			}
 		}
 	}
 
 	void AdiSolver3D::ApplyBC0(int i, int j, int k, VarType var, double &b0, double &c0, double &d0)
 	{
-		switch (grid->GetBC(i, j, k))
+		if ((var == type_T && grid->GetBC_temp(i, j, k) == FREE) ||
+			(var != type_T && grid->GetBC_vel(i, j, k) == FREE))
 		{
-		case NOSLIP: 
+			// free
+			b0 = 1.0; 
+			c0 = -1.0; 
+			d0 = 0.0; 
+		}
+		else
+		{
+			// no-slip
 			b0 = 1.0; 
 			c0 = 0.0; 
 			switch (var)
@@ -344,20 +330,23 @@ namespace FluidSolver3D
 			case type_W: d0 = grid->GetVel(i, j, k).z; break;
 			case type_T: d0 = grid->GetT(i, j, k); break;
 			}
-			break;
-		case FREE: 
-			b0 = 1.0; 
-			c0 = -1.0; 
-			d0 = 0.0; 
-			break;
 		}
+		
 	}
 
 	void AdiSolver3D::ApplyBC1(int i, int j, int k, VarType var, double &a1, double &b1, double &d1)
 	{
-		switch (grid->GetBC(i, j, k))
+		if ((var == type_T && grid->GetBC_temp(i, j, k) == FREE) ||
+			(var != type_T && grid->GetBC_vel(i, j, k) == FREE))
 		{
-		case NOSLIP: 
+			// free
+			a1 = 1.0; 
+			b1 = -1.0; 
+			d1 = 0.0;
+		}
+		else
+		{
+			// no-slip
 			a1 = 0.0; 
 			b1 = 1.0; 
 			switch (var)
@@ -367,12 +356,6 @@ namespace FluidSolver3D
 			case type_W: d1 = grid->GetVel(i, j, k).z; break;
 			case type_T: d1 = grid->GetT(i, j, k); break;
 			}
-			break;
-		case FREE: 
-			a1 = 1.0; 
-			b1 = -1.0; 
-			d1 = 0.0;
-			break;
 		}
 	}	
 }

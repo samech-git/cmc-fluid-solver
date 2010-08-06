@@ -7,21 +7,22 @@ using namespace Common;
 
 namespace FluidSolver3D
 {
-	enum NodeType { IN, OUT, BOUND };
+	enum NodeType { IN, OUT, BOUND, VALVE };
 	enum BCtype { NOSLIP, FREE };
 
 	struct Node
 	{
 		NodeType type;
 
-		BCtype bc;
+		BCtype bc_vel, bc_temp;
 		Vec3D v;
 		double T;
 
-		void SetBound(BCtype _bc, Vec3D _v, double _T)
+		void SetBound(BCtype _bc_vel, BCtype _bc_temp, Vec3D _v, double _T)
 		{
 			type = BOUND;
-			bc = _bc;
+			bc_vel = _bc_vel;
+			bc_temp = _bc_temp;
 			v = _v;
 			T = _T;
 		}
@@ -38,7 +39,8 @@ namespace FluidSolver3D
 		~Grid3D();
 
 		NodeType GetType(int i, int j, int k);
-		BCtype GetBC(int i, int j, int k);
+		BCtype GetBC_vel(int i, int j, int k);
+		BCtype GetBC_temp(int i, int j, int k);
 		Vec3D GetVel(int i, int j, int k);
 		double GetT(int i, int j, int k);
 

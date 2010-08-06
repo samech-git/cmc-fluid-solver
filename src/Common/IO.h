@@ -138,7 +138,7 @@ namespace Common
 		fclose(file);
 	}
 
-	static void OutputNetCDF_U(const char *outputPath, Vec3D *v, int dimx, int dimy, int dimz, bool finish)
+	static void OutputNetCDF_U(const char *outputPath, Vec3D *v, double *T, int dimx, int dimy, int dimz, bool finish)
 	{
 		FILE *file = NULL;
 		fopen_s(&file, outputPath, "a");

@@ -25,8 +25,11 @@ int main(int argc, char **argv)
 	}
 	grid.Prepare(0.0);
 
-	sprintf_s(gridPath, "%s_grid.txt", argv[2]);
+	sprintf_s(gridPath, "%s_grid_3d.txt", argv[2]);
 	grid.TestPrint(gridPath);
+
+	sprintf_s(gridPath, "%s_grid_2d.txt", argv[2]);
+	grid.GetGrid2D()->TestPrint(gridPath);
 
 	FluidParams *params;
 	if (Config::useNormalizedParams) params = new FluidParams(Config::Re, Config::Pr, Config::lambda);
@@ -88,7 +91,7 @@ int main(int argc, char **argv)
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz);
-			OutputNetCDF_U(outputPath, resVel, Config::outdimx, Config::outdimy, Config::outdimz, 
+			OutputNetCDF_U(outputPath, resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, 
 							(i + Config::out_subframes >= Config::calc_subframes) && (currentframe == frames-1));
 		}
 	}

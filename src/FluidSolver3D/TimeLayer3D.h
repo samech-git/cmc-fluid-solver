@@ -159,6 +159,7 @@ namespace FluidSolver3D
 			CopyLayerTo(grid, dest, IN);
 			CopyLayerTo(grid, dest, OUT);
 			CopyLayerTo(grid, dest, BOUND);
+			CopyLayerTo(grid, dest, VALVE);
 		}
 
 		void CopyLayerTo(Grid3D *grid, TimeLayer3D *dest, NodeType type)

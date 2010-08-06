@@ -266,12 +266,22 @@ namespace FluidSolver2D
 			for (int j = 0; j < dimy; j++)
 				SetType(i, j, IN);
      
-		// rasterize lines
+		// rasterize lines (VALVE)
 		for (int j=0; j<frame.NumShapes; j++)
 			for (int i = 0; i < frame.Shapes[j].NumPoints - 1; i++) 
-				RasterLine(frame.Shapes[j].Points[i], frame.Shapes[j].Points[i+1],
-						   frame.Shapes[j].Velocities[i], frame.Shapes[j].Velocities[i+1],
-						   BOUND);
+				if( frame.Shapes[j].Active )
+					RasterLine(frame.Shapes[j].Points[i], frame.Shapes[j].Points[i+1],
+							   frame.Shapes[j].Velocities[i], frame.Shapes[j].Velocities[i+1],
+							   VALVE);
+		
+		// rasterize lines (BOUND)
+		for (int j=0; j<frame.NumShapes; j++)
+			for (int i = 0; i < frame.Shapes[j].NumPoints - 1; i++) 
+				if( !frame.Shapes[j].Active )
+					RasterLine(frame.Shapes[j].Points[i], frame.Shapes[j].Points[i+1],
+							   frame.Shapes[j].Velocities[i], frame.Shapes[j].Velocities[i+1],
+							   BOUND);
+			
         FloodFill(OUT); 
 		RasterField(frame.Field);
 
@@ -453,6 +463,8 @@ namespace FluidSolver2D
 												frames[framep1].Shapes[i].Velocities[k].x * substep;
 				res.Shapes[i].Velocities[k].y = frames[frame].Shapes[i].Velocities[k].y * isubstep + 
 												frames[framep1].Shapes[i].Velocities[k].y * substep;
+				
+				res.Shapes[i].Active = frames[frame].Shapes[i].Active;
 			}
 		}
 
@@ -555,10 +567,12 @@ namespace FluidSolver2D
 	}
 
 
-	void Grid2D::TestPrint()
+	void Grid2D::TestPrint(char *filename)
 	{
-		printf("grid view:\n");
-		printf("%i %i\n", dimx, dimy);
+		FILE *file = NULL;
+		fopen_s(&file, filename, "w");
+		fprintf(file, "grid view:\n");
+		fprintf(file, "%i %i\n", dimx, dimy);
 		for (int i = 0; i < dimx; i++)
 		{
 			for (int j = 0; j < dimy; j++)
@@ -566,13 +580,14 @@ namespace FluidSolver2D
 				CellType t = GetType(i, j);
 				switch (t)
 				{
-				case IN: printf(" "); break;
-				case OUT: printf("."); break;
-				case BOUND: printf("#"); break;
-				case VALVE: printf("+"); break;
+				case IN: fprintf(file, " "); break;
+				case OUT: fprintf(file, "."); break;
+				case BOUND: fprintf(file, "#"); break;
+				case VALVE: fprintf(file, "+"); break;
 				}
 			}
-			printf("\n");
+			fprintf(file, "\n");
 		}
+		fclose(file);
 	}
 }
