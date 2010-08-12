@@ -15,10 +15,7 @@
 	</Platforms>
 	<ToolFiles>
 		<ToolFile
-			RelativePath="..\..\..\..\..\..\p4tree\2006\sw\devrel\SDK10\Compute\C\common\Cuda.rules"
-		/>
-		<DefaultToolFile
-			FileName="NsightCudaRuntimeApi.v31.rules"
+			RelativePath="Cuda.rules"
 		/>
 	</ToolFiles>
 	<Configurations>
@@ -27,20 +24,16 @@
 			OutputDirectory="$(SolutionDir)..\bin\$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\NsightCudaToolkit.v31.vsprops"
 			CharacterSet="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
 			/>
 			<Tool
-				Name="CUDA Build Rule"
-			/>
-			<Tool
 				Name="VCCustomBuildTool"
 			/>
 			<Tool
-				Name="Cudart Build Rule"
+				Name="CUDA Build Rule"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -115,17 +108,14 @@
 				Name="VCPreBuildEventTool"
 			/>
 			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
 				Name="CUDA Build Rule"
 				Arch1="11"
 				Arch2="13"
 				Arch3="20"
 				ExtraNvccOptions=""
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="Cudart Build Rule"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
