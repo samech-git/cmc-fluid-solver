@@ -14,6 +14,12 @@
 		/>
 	</Platforms>
 	<ToolFiles>
+		<ToolFile
+			RelativePath="..\..\..\..\..\..\p4tree\2006\sw\devrel\SDK10\Compute\C\common\Cuda.rules"
+		/>
+		<DefaultToolFile
+			FileName="NsightCudaRuntimeApi.v31.rules"
+		/>
 	</ToolFiles>
 	<Configurations>
 		<Configuration
@@ -21,13 +27,20 @@
 			OutputDirectory="$(SolutionDir)..\bin\$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\NsightCudaToolkit.v31.vsprops"
 			CharacterSet="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
 			/>
 			<Tool
+				Name="CUDA Build Rule"
+			/>
+			<Tool
 				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="Cudart Build Rule"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -41,6 +54,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+				AdditionalIncludeDirectories="$(NSIGHT_CUDA_TOOLKIT)/include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -60,7 +74,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="cudart.lib"
 				LinkIncremental="2"
+				AdditionalLibraryDirectories="$(NSIGHT_CUDA_TOOLKIT)/lib/$(PlatformName)"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -99,7 +115,17 @@
 				Name="VCPreBuildEventTool"
 			/>
 			<Tool
+				Name="CUDA Build Rule"
+				Arch1="11"
+				Arch2="13"
+				Arch3="20"
+				ExtraNvccOptions=""
+			/>
+			<Tool
 				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="Cudart Build Rule"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -114,7 +140,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="$(CUDA_INC_PATH)"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;GPU_BACKEND"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				OpenMP="true"
@@ -133,7 +160,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="cudart.lib"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="$(CUDA_LIB_PATH)"
+				IgnoreAllDefaultLibraries="false"
 				GenerateDebugInformation="false"
 				SubSystem="1"
 				OptimizeReferences="2"
@@ -176,6 +206,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\AdiSolver3D.cu"
+				>
+			</File>
+			<File
 				RelativePath=".\FluidSolver3D.cpp"
 				>
 			</File>
@@ -189,6 +223,10 @@
 			</File>
 			<File
 				RelativePath=".\Solver3D.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\TimeLayer3D.cu"
 				>
 			</File>
 		</Filter>

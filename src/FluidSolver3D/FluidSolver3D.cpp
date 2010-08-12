@@ -3,11 +3,38 @@
 using namespace FluidSolver3D;
 using namespace Common;
 
+void parse_cmd_params(int argc, char **argv, BackendType &backend, bool &csv)
+{
+	for( int i = 4; i < argc; i++ )
+	{
+		if( !strcmp(argv[i], "GPU") ) backend = GPU;
+		if( !strcmp(argv[i], "CSV") ) csv = true;
+	}
+}
+
 int main(int argc, char **argv)
 {
+	BackendType backend = CPU;
+	bool csv = false;
+	parse_cmd_params(argc, argv, backend, csv);
+
+	if( backend == CPU )
+	{
 #ifdef _OPENMP
-	printf("Using OpenMP: num_proc = %i\n", omp_get_num_procs());
+		printf("Using OpenMP: num_proc = %i\n", omp_get_num_procs());
+#else
+		printf("Using single CPU\n");
 #endif
+	}
+	else
+	{
+		cudaDeviceProp deviceProp;
+		cudaGetDeviceProperties(&deviceProp, 0);
+		printf("Using GPU: %s\n", deviceProp.name);
+		cudaSetDevice(0);
+	}
+
+	printf("%s precision computations\n", (typeid(FTYPE) == typeid(float)) ?  "Single" : "Double");
 
 	char inputPath[MAX_STR_SIZE];
 	char configPath[MAX_STR_SIZE];
@@ -16,7 +43,7 @@ int main(int argc, char **argv)
 
 	FindFile(inputPath, argv[1]);
 	FindFile(configPath, argv[3]);
-
+	
 	Config::Config();
 	Config::LoadFromFile(configPath);
 
@@ -24,8 +51,7 @@ int main(int argc, char **argv)
 	Grid3D grid(Config::dx, Config::dy, Config::dz, Config::depth, Config::startT);
 	if (grid.LoadFromFile(inputPath))
 	{
-		printf("dx,dy,dz,dimx,dimy,dimz,bc_noslip\n");
-		printf("%f,%f,%f,%i,%i,%i,%i\n", Config::dx, Config::dy, Config::dz, grid.dimx, grid.dimy, grid.dimz, Config::bc_noslip);
+		printf("Grid = %i x %i x %i\n", grid.dimx, grid.dimy, grid.dimz);
 	}
 	grid.Prepare(0.0);
 
@@ -46,9 +72,8 @@ int main(int argc, char **argv)
 		case ADI: solver = new AdiSolver3D(); break;
 		case Stable: printf("Stable solver is not implemented yet!\n"); break;
 	}
-	solver->Init(&grid, *params);
+	solver->Init(backend, csv, &grid, *params);
 
-	printf("Starting from the beginning\n");
 	int startFrame = 0;
 	
 	int frames = grid.GetGrid2D()->GetFramesNum();
@@ -67,7 +92,6 @@ int main(int argc, char **argv)
 	cpu_timer timer;
 	timer.start();
 
-	printf("dt = %f\n", dt);
 	int lastframe = -1;
 	double t = dt;
 	for (int i=0; t < finaltime; t+=dt, i++)
@@ -83,7 +107,7 @@ int main(int argc, char **argv)
 
 		grid.Prepare(t);
 		solver->UpdateBoundaries();
-		solver->TimeStep(dt, Config::num_global, Config::num_local);
+		solver->TimeStep((FTYPE)dt, Config::num_global, Config::num_local);
 		solver->SetGridBoundaries();
 
 		timer.stop();

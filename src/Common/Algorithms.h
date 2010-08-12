@@ -2,7 +2,7 @@
 
 namespace Common
 {
-	static void SolveTridiagonal(double *a, double *b, double *c, double *d, double *x, int num)
+	static void SolveTridiagonal( FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, FTYPE *x, int num )
 	{
 		c[num-1] = 0.0;
 		

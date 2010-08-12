@@ -1,4 +1,5 @@
 #include "AdiSolver3D.h"
+#include "..\Common\Algorithms.h"
 
 namespace FluidSolver3D
 {
@@ -12,11 +13,15 @@ namespace FluidSolver3D
 		half2 = NULL;
 		next = NULL;
 
-		a = NULL;
-		b = NULL;
-		c = NULL;
-		d = NULL;
-		x = NULL;
+		a = d_a = NULL;
+		b = d_b = NULL;
+		c = d_c = NULL;
+		d = d_d = NULL;
+		x = d_x = NULL;
+
+		d_listX = NULL;
+		d_listY = NULL;
+		d_listZ = NULL;
 	}
 
 	void AdiSolver3D::FreeMemory()
@@ -32,18 +37,30 @@ namespace FluidSolver3D
 		if (c != NULL) delete [] c;
 		if (d != NULL) delete [] d;
 		if (x != NULL) delete [] x;
+
+		if (d_a != NULL) cudaFree(d_a);
+		if (d_b != NULL) cudaFree(d_b);
+		if (d_c != NULL) cudaFree(d_c);
+		if (d_d != NULL) cudaFree(d_d);
+		if (d_x != NULL) cudaFree(d_x);
+
+		if (d_listX != NULL) cudaFree(d_listX);
+		if (d_listY != NULL) cudaFree(d_listY);
+		if (d_listZ != NULL) cudaFree(d_listZ);
 	}
 
 	AdiSolver3D::~AdiSolver3D()
 	{
-		prof.PrintTimings();
+		prof.PrintTimings(csvFormat);
 
 		FreeMemory();
 	}
 
-	void AdiSolver3D::Init(Grid3D* _grid, FluidParams &_params)
+	void AdiSolver3D::Init(BackendType _backend, bool _csv, Grid3D* _grid, FluidParams &_params)
 	{
 		grid = _grid;
+		backend = _backend;
+		csvFormat = _csv;
 
 		dimx = grid->dimx;
 		dimy = grid->dimy;
@@ -52,37 +69,30 @@ namespace FluidSolver3D
 		params = _params;
 
 		int n = max(dimx, max(dimy, dimz));
-		a = new double[n * n * n];
-		b = new double[n * n * n];
-		c = new double[n * n * n];
-		d = new double[n * n * n];
-		x = new double[n * n * n];
+		a = new FTYPE[n * n * n];
+		b = new FTYPE[n * n * n];
+		c = new FTYPE[n * n * n];
+		d = new FTYPE[n * n * n];
+		x = new FTYPE[n * n * n];
 
-		cur = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
-		half1 = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
-		half2 = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
-		next = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
-		temp = new TimeLayer3D(grid->dimx, grid->dimy, grid->dimz, grid->dx, grid->dy, grid->dz);
+		if( backend == GPU )
+		{
+			// create GPU matrices
+			cudaMalloc( &d_a, sizeof(FTYPE) * n * n * n );
+			cudaMalloc( &d_b, sizeof(FTYPE) * n * n * n );
+			cudaMalloc( &d_c, sizeof(FTYPE) * n * n * n );
+			cudaMalloc( &d_d, sizeof(FTYPE) * n * n * n );
+			cudaMalloc( &d_x, sizeof(FTYPE) * n * n * n );
+		}
 
-		for (int i = 0; i < dimx; i++)
-			for (int j = 0; j < dimy; j++)
-				for (int k = 0; k < dimz; k++)
-					switch(grid->GetType(i, j, k))
-					{
-					case NODE_IN:
-					case NODE_BOUND:
-					case NODE_VALVE:
-					case NODE_OUT:
-						Vec3D velocity = grid->GetVel(i, j, k);
-						cur->U->elem(i, j, k) = velocity.x;
-						cur->V->elem(i, j, k) = velocity.y;
-						cur->W->elem(i, j, k) = velocity.z;
-						cur->T->elem(i, j, k) = grid->GetT(i, j, k);
-						break;
-					}
+		cur = new TimeLayer3D(backend, grid);
+		half1 = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
+		half2 = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
+		next = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
+		temp = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
 	}
 
-	void AdiSolver3D::TimeStep(double dt, int num_global, int num_local)
+	void AdiSolver3D::TimeStep(FTYPE dt, int num_global, int num_local)
 	{
 		CreateSegments();
 
@@ -96,9 +106,9 @@ namespace FluidSolver3D
 		for (int it = 0; it < num_global; it++)
 		{
 			// alternating directions
-			SolveDirection(dt, num_local, listZ, cur, temp, half1);		
-			SolveDirection(dt, num_local, listY, half1, temp, half2);
-			SolveDirection(dt, num_local, listX, half2, temp, next);
+			SolveDirection(dt, num_local, listZ, d_listZ, cur, temp, half1);		
+			SolveDirection(dt, num_local, listY, d_listY, half1, temp, half2);
+			SolveDirection(dt, num_local, listX, d_listX, half2, temp, next);
 
 			prof.StartEvent();
 				
@@ -120,7 +130,7 @@ namespace FluidSolver3D
 			exit(1);
 		}
 		else
-			printf("\rerr = %.4f,", err);
+			printf("\rerr = %.8f,", err);
 
 		prof.StartEvent();
 
@@ -202,26 +212,67 @@ namespace FluidSolver3D
 				}
 		}
 
+		if( backend == GPU )
+		{
+			// copy segments info to GPU as well
+			if( d_listX != NULL ) cudaFree( d_listX ); 
+			if( d_listY != NULL ) cudaFree( d_listY ); 
+			if( d_listZ != NULL ) cudaFree( d_listZ ); 
+
+			cudaMalloc( &d_listX, sizeof(Segment3D) * listX.size() );
+			cudaMalloc( &d_listY, sizeof(Segment3D) * listY.size() );
+			cudaMalloc( &d_listZ, sizeof(Segment3D) * listZ.size() );
+			
+			Segment3D *h_listX = new Segment3D[listX.size()];
+			for( int i = 0; i < (int)listX.size(); i++ ) h_listX[i] = listX[i];
+
+			Segment3D *h_listY = new Segment3D[listY.size()];
+			for( int i = 0; i < (int)listY.size(); i++ ) h_listY[i] = listY[i];
+			
+			Segment3D *h_listZ = new Segment3D[listZ.size()];
+			for( int i = 0; i < (int)listZ.size(); i++ ) h_listZ[i] = listZ[i];
+			
+			cudaMemcpy( d_listX, h_listX, sizeof(Segment3D) * listX.size(), cudaMemcpyHostToDevice );
+			cudaMemcpy( d_listY, h_listY, sizeof(Segment3D) * listY.size(), cudaMemcpyHostToDevice );
+			cudaMemcpy( d_listZ, h_listZ, sizeof(Segment3D) * listZ.size(), cudaMemcpyHostToDevice );
+
+			delete [] h_listX;
+			delete [] h_listY;
+			delete [] h_listZ;
+		}
+
 		prof.StopEvent("CreateSegments");
 	}
 
-	void AdiSolver3D::SolveDirection(double dt, int num_local, vector<Segment3D> &list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
+	void AdiSolver3D::SolveDirection(FTYPE dt, int num_local, vector<Segment3D> &list, Segment3D *d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
 	{
 		DirType dir = list[0].dir;
 		for (int it = 0; it < num_local; it++)
 		{
 			prof.StartEvent();
 
-			#pragma omp parallel default(none) firstprivate(dt, dir) shared(list, cur, temp, next)
+			switch( backend )
 			{
-				#pragma omp for
-				for (int s = 0; s < (int)list.size(); s++)
-				{		
-					SolveSegment(dt, s, list[s], type_U, dir, cur, temp, next);
-					SolveSegment(dt, s, list[s], type_V, dir, cur, temp, next);
-					SolveSegment(dt, s, list[s], type_W, dir, cur, temp, next);
-					SolveSegment(dt, s, list[s], type_T, dir, cur, temp, next);			
+			case CPU:
+				#pragma omp parallel default(none) firstprivate(dt, dir) shared(list, cur, temp, next)
+				{
+					#pragma omp for
+					for (int s = 0; s < (int)list.size(); s++)
+					{		
+						SolveSegment(dt, s, list[s], type_U, dir, cur, temp, next);
+						SolveSegment(dt, s, list[s], type_V, dir, cur, temp, next);
+						SolveSegment(dt, s, list[s], type_W, dir, cur, temp, next);
+						SolveSegment(dt, s, list[s], type_T, dir, cur, temp, next);			
+					}
 				}
+				break;
+			
+			case GPU:
+				SolveSegments_GPU(dt, params, list.size(), d_list, type_U, dir, grid->GetNodesGPU(), cur, temp, next, d_a, d_b, d_c, d_d, d_x);
+				SolveSegments_GPU(dt, params, list.size(), d_list, type_V, dir, grid->GetNodesGPU(), cur, temp, next, d_a, d_b, d_c, d_d, d_x);
+				SolveSegments_GPU(dt, params, list.size(), d_list, type_W, dir, grid->GetNodesGPU(), cur, temp, next, d_a, d_b, d_c, d_d, d_x);
+				SolveSegments_GPU(dt, params, list.size(), d_list, type_T, dir, grid->GetNodesGPU(), cur, temp, next, d_a, d_b, d_c, d_d, d_x);
+				break;
 			}
 
 			switch( dir )
@@ -240,16 +291,16 @@ namespace FluidSolver3D
 		}
 	}
 
-	void AdiSolver3D::SolveSegment(double dt, int id, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
+	void AdiSolver3D::SolveSegment(FTYPE dt, int id, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
 	{
 		int n = seg.size;
 
 		int max_n = max(dimx, max(dimy, dimz));
-		double *a = this->a + id * max_n;
-		double *b = this->b + id * max_n;
-		double *c = this->c + id * max_n;
-		double *d = this->d + id * max_n;
-		double *x = this->x + id * max_n;
+		FTYPE *a = this->a + id * max_n;
+		FTYPE *b = this->b + id * max_n;
+		FTYPE *c = this->c + id * max_n;
+		FTYPE *d = this->d + id * max_n;
+		FTYPE *x = this->x + id * max_n;
 
 		ApplyBC0(seg.posx, seg.posy, seg.posz, var, b[0], c[0], d[0]);
 		ApplyBC1(seg.endx, seg.endy, seg.endz, var, a[n-1], b[n-1], d[n-1]);
@@ -260,7 +311,7 @@ namespace FluidSolver3D
 		UpdateSegment(x, seg, var, next);
 	}
 
-	void AdiSolver3D::UpdateSegment(double *x, Segment3D seg, VarType var, TimeLayer3D *layer)
+	void AdiSolver3D::UpdateSegment(FTYPE *x, Segment3D seg, VarType var, TimeLayer3D *layer)
 	{
 		int i = seg.posx;
 		int j = seg.posy;
@@ -285,23 +336,26 @@ namespace FluidSolver3D
 		}
 	}
 
-	void AdiSolver3D::BuildMatrix(double dt, int i, int j, int k, VarType var, DirType dir, double *a, double *b, double *c, double *d, int n, TimeLayer3D *cur, TimeLayer3D *temp)
+	void AdiSolver3D::BuildMatrix(FTYPE dt, int i, int j, int k, VarType var, DirType dir, FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int n, TimeLayer3D *cur, TimeLayer3D *temp)
 	{
-		double vis_dx2, vis_dy2, vis_dz2;
+		FTYPE vis_dx2, vis_dy2, vis_dz2;
+		FTYPE dx = cur->dx;
+		FTYPE dy = cur->dy;
+		FTYPE dz = cur->dz;
 
 		switch (var)
 		{
 		case type_U:
 		case type_V:
 		case type_W:
-			vis_dx2 = params.v_vis / (grid->dx * grid->dx);
-			vis_dy2 = params.v_vis / (grid->dy * grid->dy);
-			vis_dz2 = params.v_vis / (grid->dz * grid->dz);
+			vis_dx2 = params.v_vis / (dx * dx);
+			vis_dy2 = params.v_vis / (dy * dy);
+			vis_dz2 = params.v_vis / (dz * dz);
 			break;
 		case type_T:
-			vis_dx2 = params.t_vis / (grid->dx * grid->dx);
-			vis_dy2 = params.t_vis / (grid->dy * grid->dy);
-			vis_dz2 = params.t_vis / (grid->dz * grid->dz);
+			vis_dx2 = params.t_vis / (dx * dx);
+			vis_dy2 = params.t_vis / (dy * dy);
+			vis_dz2 = params.t_vis / (dz * dz);
 			break;
 		}
 		
@@ -310,9 +364,9 @@ namespace FluidSolver3D
 			switch (dir)
 			{
 			case X:		
-				a[p] = - temp->U->elem(i+p, j, k) / (2 * grid->dx) - vis_dx2; 
+				a[p] = - temp->U->elem(i+p, j, k) / (2 * dx) - vis_dx2; 
 				b[p] = 3 / dt  +  2 * vis_dx2; 
-				c[p] = temp->U->elem(i+p, j, k) / (2 * grid->dx) - vis_dx2; 
+				c[p] = temp->U->elem(i+p, j, k) / (2 * dx) - vis_dx2; 
 				
 				switch (var)	
 				{
@@ -324,9 +378,9 @@ namespace FluidSolver3D
 				break;
 
 			case Y:
-				a[p] = - temp->V->elem(i, j+p, k) / (2 * grid->dy) - vis_dy2; 
+				a[p] = - temp->V->elem(i, j+p, k) / (2 * dy) - vis_dy2; 
 				b[p] = 3 / dt  +  2 * vis_dy2; 
-				c[p] = temp->V->elem(i, j+p, k) / (2 * grid->dy) - vis_dy2; 
+				c[p] = temp->V->elem(i, j+p, k) / (2 * dy) - vis_dy2; 
 				
 				switch (var)	
 				{
@@ -338,9 +392,9 @@ namespace FluidSolver3D
 				break;
 
 			case Z:
-				a[p] = - temp->W->elem(i, j, k+p) / (2 * grid->dz) - vis_dz2; 
+				a[p] = - temp->W->elem(i, j, k+p) / (2 * dz) - vis_dz2; 
 				b[p] = 3 / dt  +  2 * vis_dz2; 
-				c[p] = temp->W->elem(i, j, k+p) / (2 * grid->dz) - vis_dz2; 
+				c[p] = temp->W->elem(i, j, k+p) / (2 * dz) - vis_dz2; 
 				
 				switch (var)	
 				{
@@ -354,7 +408,7 @@ namespace FluidSolver3D
 		}
 	}
 
-	void AdiSolver3D::ApplyBC0(int i, int j, int k, VarType var, double &b0, double &c0, double &d0)
+	void AdiSolver3D::ApplyBC0(int i, int j, int k, VarType var, FTYPE &b0, FTYPE &c0, FTYPE &d0)
 	{
 		if ((var == type_T && grid->GetBC_temp(i, j, k) == BC_FREE) ||
 			(var != type_T && grid->GetBC_vel(i, j, k) == BC_FREE))
@@ -371,15 +425,15 @@ namespace FluidSolver3D
 			c0 = 0.0; 
 			switch (var)
 			{
-			case type_U: d0 = grid->GetVel(i, j, k).x; break;
-			case type_V: d0 = grid->GetVel(i, j, k).y; break;
-			case type_W: d0 = grid->GetVel(i, j, k).z; break;
-			case type_T: d0 = grid->GetT(i, j, k); break;
+			case type_U: d0 = (FTYPE)grid->GetVel(i, j, k).x; break;
+			case type_V: d0 = (FTYPE)grid->GetVel(i, j, k).y; break;
+			case type_W: d0 = (FTYPE)grid->GetVel(i, j, k).z; break;
+			case type_T: d0 = (FTYPE)grid->GetT(i, j, k); break;
 			}
 		}
 	}
 
-	void AdiSolver3D::ApplyBC1(int i, int j, int k, VarType var, double &a1, double &b1, double &d1)
+	void AdiSolver3D::ApplyBC1(int i, int j, int k, VarType var, FTYPE &a1, FTYPE &b1, FTYPE &d1)
 	{
 		if ((var == type_T && grid->GetBC_temp(i, j, k) == BC_FREE) ||
 			(var != type_T && grid->GetBC_vel(i, j, k) == BC_FREE))
@@ -396,10 +450,10 @@ namespace FluidSolver3D
 			b1 = 1.0; 
 			switch (var)
 			{
-			case type_U: d1 = grid->GetVel(i, j, k).x; break;
-			case type_V: d1 = grid->GetVel(i, j, k).y; break;
-			case type_W: d1 = grid->GetVel(i, j, k).z; break;
-			case type_T: d1 = grid->GetT(i, j, k); break;
+			case type_U: d1 = (FTYPE)grid->GetVel(i, j, k).x; break;
+			case type_V: d1 = (FTYPE)grid->GetVel(i, j, k).y; break;
+			case type_W: d1 = (FTYPE)grid->GetVel(i, j, k).z; break;
+			case type_T: d1 = (FTYPE)grid->GetT(i, j, k); break;
 			}
 		}
 	}	

@@ -1,5 +1,6 @@
 #pragma once
 
+#define FTYPE			float
 #define INF				1e10
 
 namespace Common
@@ -15,10 +16,10 @@ namespace Common
 
 	struct Vec3D
 	{
-		double x, y, z; 
+		FTYPE x, y, z; 
 
 		Vec3D() : x(0.0), y(0.0), z(0.0) { }
-		Vec3D(double _x, double _y, double _z) : x(_x), y(_y), z(_z) { }
+		Vec3D(FTYPE _x, FTYPE _y, FTYPE _z) : x(_x), y(_y), z(_z) { }
 		Vec3D(Vec3D &vec) : x(vec.x), y(vec.y), z(vec.z) { }
 	};
 
@@ -119,13 +120,13 @@ namespace Common
 
 			int itx = (int)tx;
 			int ity = (int)ty;
-			double dtx = tx - itx;
-			double dty = ty - ity;
+			/*double dtx = tx - itx;
+			double dty = ty - ity;*/
 
-			double f1 = (1 - dtx) * (1 - dty);
+			/*double f1 = (1 - dtx) * (1 - dty);
 			double f2 = dtx * (1 - dty);
 			double f3 = (1 - dtx) * dty;
-			double f4 = dtx * dty;
+			double f4 = dtx * dty;*/
 
 			int t = itx + ity*Nx;
 			
@@ -201,27 +202,27 @@ namespace Common
 
 	struct FluidParams
 	{
-		double v_T, v_vis;
-		double t_vis, t_phi;
+		FTYPE v_T, v_vis;
+		FTYPE t_vis, t_phi;
 
 		FluidParams() { }
 		
 		FluidParams(double Re, double Pr, double lambda)  
 		{
 			v_T = 1.0;
-			v_vis = 1.0 / Re;
+			v_vis = (FTYPE)(1.0 / Re);
 
-			t_vis = 1.0 / (Re * Pr);
-			t_phi = (lambda - 1) / (lambda * Re);
+			t_vis = (FTYPE)(1.0 / (Re * Pr));
+			t_phi = (FTYPE)((lambda - 1) / (lambda * Re));
 		}
 
 		FluidParams(double vis, double rho, double R, double k, double cv)
 		{
-			v_T = R;
-			v_vis = vis / rho;
+			v_T = (FTYPE)R;
+			v_vis = (FTYPE)(vis / rho);
 
-			t_vis = k / (rho * cv);
-			t_phi = vis / (rho * cv);
+			t_vis = (FTYPE)(k / (rho * cv));
+			t_phi = (FTYPE)(vis / (rho * cv));
 		}
 	};
 }

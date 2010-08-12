@@ -8,11 +8,10 @@ namespace FluidSolver3D
 	class Solver3D
 	{
 	public:
-		virtual void Init(Grid3D* grid, FluidParams &params) = 0;
-		virtual void TimeStep(double dt, int num_global, int num_local) = 0;
+		virtual void Init(BackendType backend, bool csvFormat, Grid3D* grid, FluidParams &params) = 0;
+		virtual void TimeStep(FTYPE dt, int num_global, int num_local) = 0;
 		
 		void GetLayer(Vec3D *v, double *T, int outdimx = 0, int outdimy = 0, int outdimz = 0);
-		void SetLayer(Vec3D *v, double *T);
 
 		void UpdateBoundaries();
 		void SetGridBoundaries();

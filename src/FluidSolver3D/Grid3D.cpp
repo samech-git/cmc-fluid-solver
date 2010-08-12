@@ -3,7 +3,7 @@
 namespace FluidSolver3D
 {
 	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT) : 
-		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL)
+		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL)
 	{
 		grid2D = new FluidSolver2D::Grid2D(dx, dy, baseT, true, 0.0);
 	}
@@ -11,12 +11,18 @@ namespace FluidSolver3D
 	Grid3D::~Grid3D()
 	{
 		if (nodes != NULL) delete [] nodes;
+		if (d_nodes != NULL) cudaFree(d_nodes);
 		if (grid2D != NULL) delete grid2D;
 	}
 
 	NodeType Grid3D::GetType(int i, int j, int k)
 	{
 		return nodes[i * dimy * dimz + j * dimz + k].type;
+	}
+
+	Node *Grid3D::GetNodesGPU()
+	{
+		return d_nodes;
 	}
 
 	BCtype Grid3D::GetBC_vel(int i, int j, int k)
@@ -34,7 +40,7 @@ namespace FluidSolver3D
 		return nodes[i * dimy * dimz + j * dimz + k].v;
 	}
 
-	double Grid3D::GetT(int i, int j, int k)
+	FTYPE Grid3D::GetT(int i, int j, int k)
 	{
 		return nodes[i * dimy * dimz + j * dimz + k].T;
 	}
@@ -64,6 +70,7 @@ namespace FluidSolver3D
 			dimy = grid2D->dimy;
 			dimz = (int)ceil(depth / dz) + 1;
 			nodes = new Node[dimx * dimy * dimz];
+			cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
 			return true;
 		}
 		else
@@ -93,8 +100,8 @@ namespace FluidSolver3D
 					nodes[i * dimy * dimz + j * dimz + 0].type = NODE_OUT;
 					nodes[i * dimy * dimz + j * dimz + dimz-1].type = NODE_OUT;
 
-					nodes[i * dimy * dimz + j * dimz + 1].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), baseT);
-					nodes[i * dimy * dimz + j * dimz + dimz-2].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), baseT);
+					nodes[i * dimy * dimz + j * dimz + 1].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), (FTYPE)baseT);
+					nodes[i * dimy * dimz + j * dimz + dimz-2].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), (FTYPE)baseT);
 					
 					for (int k = 2; k < dimz-2; k++)
 					{
@@ -102,23 +109,26 @@ namespace FluidSolver3D
 						switch (grid2D->GetType(i, j))
 						{
 						case FluidSolver2D::CELL_BOUND:
-							nodes[ind].SetBound(BC_NOSLIP, BC_FREE, Vec3D(grid2D->GetData(i, j).vel.x, grid2D->GetData(i, j).vel.y, 0.0), grid2D->GetData(i, j).T);
+							nodes[ind].SetBound(BC_NOSLIP, BC_FREE, Vec3D((FTYPE)grid2D->GetData(i, j).vel.x, (FTYPE)grid2D->GetData(i, j).vel.y, 0.0), (FTYPE)grid2D->GetData(i, j).T);
 							break;
 						case FluidSolver2D::CELL_VALVE:
 							if( grid2D->GetData(i, j).vel.x == 0 && grid2D->GetData(i, j).vel.y == 0 )
-								nodes[ind].SetBound(BC_FREE, BC_FREE, Vec3D(grid2D->GetData(i, j).vel.x, grid2D->GetData(i, j).vel.y, 0.0), grid2D->GetData(i, j).T);
+								nodes[ind].SetBound(BC_FREE, BC_FREE, Vec3D((FTYPE)grid2D->GetData(i, j).vel.x, (FTYPE)grid2D->GetData(i, j).vel.y, 0.0), (FTYPE)grid2D->GetData(i, j).T);
 							else
-								nodes[ind].SetBound(BC_NOSLIP, BC_NOSLIP, Vec3D(grid2D->GetData(i, j).vel.x, grid2D->GetData(i, j).vel.y, 0.0), grid2D->GetData(i, j).T);
+								nodes[ind].SetBound(BC_NOSLIP, BC_NOSLIP, Vec3D((FTYPE)grid2D->GetData(i, j).vel.x, (FTYPE)grid2D->GetData(i, j).vel.y, 0.0), (FTYPE)grid2D->GetData(i, j).T);
 							nodes[ind].type = NODE_VALVE;
 							break;
 						case FluidSolver2D::CELL_IN:
 							nodes[ind].type = NODE_IN;
-							nodes[ind].T = baseT;
+							nodes[ind].T = (FTYPE)baseT;
 							break;
 						}
 					}
 				}
 			}
+
+		// copy to GPU as well
+		cudaMemcpy(d_nodes, nodes, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyHostToDevice);
 	}
 
 	void Grid3D::TestPrint(char *filename)
