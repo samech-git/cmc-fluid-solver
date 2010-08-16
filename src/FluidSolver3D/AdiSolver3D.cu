@@ -34,17 +34,8 @@ namespace FluidSolver3D
 		}
 	};
 
-	/*#define elem(u, i, j, k)	(u[i * dimy * dimz + j * dimz + k])
+	#define get(a, elem_id)			a[id + (elem_id) * max_n * max_n]
 	
-	#define d_x(u, i, j, k)		((elem(u, i+1, j, k) - elem(u, i-1, j, k)) / (2 * dx))
-	#define d_y(u, i, j, k)		((elem(u, i, j+1, k) - elem(u, i, j-1, k)) / (2 * dy))
-	#define d_z(u, i, j, k)		((elem(u, i, j, k+1) - elem(u, i, j, k-1)) / (2 * dz))
-	#define d_xx(u, i, j, k)	((elem(u, i+1, j, k) - 2 * elem(u, i, j, k) + elem(u, i-1, j, k)) / (dx * dx))
-	#define d_yy(u, i, j, k)	((elem(u, i, j+1, k) - 2 * elem(u, i, j, k) + elem(u, i, j-1, k)) / (dy * dy))
-	#define d_zz(u, i, j, k)	((elem(u, i, j, k+1) - 2 * elem(u, i, j, k) + elem(u, i, j, k-1)) / (dz * dz))*/
-
-	//#define DissFuncX(u, v, w, i, j, k) (2 * d_x(u, i, j, k) * d_x(u, i, j, k) + d_x(v, i, j, k) * d_x(v, i, j, k) + d_x(w, i, j, k) * d_x(w, i, j, k) + d_x(v, i, j, k) * d_y(u, i, j, k) + d_x(w, i, j, k) * d_z(u, i, j, k))
-
 	template<int var>
 	__device__ void apply_bc0(int i, int j, int k, int dimy, int dimz, FTYPE &b0, FTYPE &c0, FTYPE &d0, Node *nodes)
 	{
@@ -100,78 +91,78 @@ namespace FluidSolver3D
 	}	
 
 	template<int dir, int var>
-	__device__ void build_matrix(FluidParamsGPU params, int i, int j, int k, FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int n, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp)
+	__device__ void build_matrix(FluidParamsGPU params, int i, int j, int k, FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int n, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, int id, int num_seg, int max_n)
 	{	
 		for (int p = 1; p < n-1; p++)
 		{
 			switch (dir)
 			{
 			case X:		
-				a[p] = - temp.elem(temp.u, i+p, j, k) / (2 * temp.dx) - params.vis_dx2; 
-				b[p] = 3 / params.dt  +  2 * params.vis_dx2; 
-				c[p] = temp.elem(temp.u, i+p, j, k) / (2 * temp.dx) - params.vis_dx2; 
+				get(a,p) = - temp.elem(temp.u, i+p, j, k) / (2 * temp.dx) - params.vis_dx2; 
+				get(b,p) = 3 / params.dt  +  2 * params.vis_dx2; 
+				get(c,p) = temp.elem(temp.u, i+p, j, k) / (2 * temp.dx) - params.vis_dx2; 
 				
 				switch (var)	
 				{
-				case type_U: d[p] = cur.elem(cur.u, i+p, j, k) * 3 / params.dt - params.v_T * temp.d_x(temp.T, i+p, j, k); break;
-				case type_V: d[p] = cur.elem(cur.v, i+p, j, k) * 3 / params.dt; break;
-				case type_W: d[p] = cur.elem(cur.w, i+p, j, k) * 3 / params.dt; break;
-				case type_T: d[p] = cur.elem(cur.T, i+p, j, k) * 3 / params.dt + params.t_phi * temp.DissFuncX(i+p, j, k); break;
+				case type_U: get(d,p) = cur.elem(cur.u, i+p, j, k) * 3 / params.dt - params.v_T * temp.d_x(temp.T, i+p, j, k); break;
+				case type_V: get(d,p) = cur.elem(cur.v, i+p, j, k) * 3 / params.dt; break;
+				case type_W: get(d,p) = cur.elem(cur.w, i+p, j, k) * 3 / params.dt; break;
+				case type_T: get(d,p) = cur.elem(cur.T, i+p, j, k) * 3 / params.dt + params.t_phi * temp.DissFuncX(i+p, j, k); break;
 				}	
 				break;
 
 			case Y:
-				a[p] = - temp.elem(temp.v, i, j+p, k) / (2 * temp.dy) - params.vis_dy2; 
-				b[p] = 3 / params.dt  +  2 * params.vis_dy2; 
-				c[p] = temp.elem(temp.v, i, j+p, k) / (2 * temp.dy) - params.vis_dy2; 
+				get(a,p) = - temp.elem(temp.v, i, j+p, k) / (2 * temp.dy) - params.vis_dy2; 
+				get(b,p) = 3 / params.dt  +  2 * params.vis_dy2; 
+				get(c,p) = temp.elem(temp.v, i, j+p, k) / (2 * temp.dy) - params.vis_dy2; 
 				
 				switch (var)	
 				{
-				case type_U: d[p] = cur.elem(cur.u, i, j+p, k) * 3 / params.dt; break;
-				case type_V: d[p] = cur.elem(cur.v, i, j+p, k) * 3 / params.dt - params.v_T * temp.d_y(temp.T, i, j+p, k); break;
-				case type_W: d[p] = cur.elem(cur.w, i, j+p, k) * 3 / params.dt; break;
-				case type_T: d[p] = cur.elem(cur.T, i, j+p, k) * 3 / params.dt + params.t_phi * temp.DissFuncY(i, j+p, k); break;
+				case type_U: get(d,p) = cur.elem(cur.u, i, j+p, k) * 3 / params.dt; break;
+				case type_V: get(d,p) = cur.elem(cur.v, i, j+p, k) * 3 / params.dt - params.v_T * temp.d_y(temp.T, i, j+p, k); break;
+				case type_W: get(d,p) = cur.elem(cur.w, i, j+p, k) * 3 / params.dt; break;
+				case type_T: get(d,p) = cur.elem(cur.T, i, j+p, k) * 3 / params.dt + params.t_phi * temp.DissFuncY(i, j+p, k); break;
 				}
 				break;
 
 			case Z:
-				a[p] = - temp.elem(temp.w, i, j, k+p) / (2 * temp.dz) - params.vis_dz2; 
-				b[p] = 3 / params.dt  +  2 * params.vis_dz2; 
-				c[p] = temp.elem(temp.w, i, j, k+p) / (2 * temp.dz) - params.vis_dz2; 
+				get(a,p) = - temp.elem(temp.w, i, j, k+p) / (2 * temp.dz) - params.vis_dz2; 
+				get(b,p) = 3 / params.dt  +  2 * params.vis_dz2; 
+				get(c,p) = temp.elem(temp.w, i, j, k+p) / (2 * temp.dz) - params.vis_dz2; 
 				
 				switch (var)	
 				{
-				case type_U: d[p] = cur.elem(cur.u, i, j, k+p) * 3 / params.dt; break;
-				case type_V: d[p] = cur.elem(cur.v, i, j, k+p) * 3 / params.dt; break;
-				case type_W: d[p] = cur.elem(cur.w, i, j, k+p) * 3 / params.dt - params.v_T * temp.d_z(temp.T, i, j, k+p); break;
-				case type_T: d[p] = cur.elem(cur.T, i, j, k+p) * 3 / params.dt + params.t_phi * temp.DissFuncZ(i, j, k+p); break;
+				case type_U: get(d,p) = cur.elem(cur.u, i, j, k+p) * 3 / params.dt; break;
+				case type_V: get(d,p) = cur.elem(cur.v, i, j, k+p) * 3 / params.dt; break;
+				case type_W: get(d,p) = cur.elem(cur.w, i, j, k+p) * 3 / params.dt - params.v_T * temp.d_z(temp.T, i, j, k+p); break;
+				case type_T: get(d,p) = cur.elem(cur.T, i, j, k+p) * 3 / params.dt + params.t_phi * temp.DissFuncZ(i, j, k+p); break;
 				}
 				break;
 			}
 		}
 	}
 
-	__device__ void solve_tridiagonal( FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, FTYPE *x, int num )
+	__device__ void solve_tridiagonal( FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, FTYPE *x, int num, int id, int num_seg, int max_n )
 	{
-		c[num-1] = 0.0;
+		get(c,num-1) = 0.0;
 		
-		c[0] = c[0] / b[0];
-		d[0] = d[0] / b[0];
+		get(c,0) = get(c,0) / get(b,0);
+		get(d,0) = get(d,0) / get(b,0);
 
 		for (int i = 1; i < num; i++)
 		{
-			c[i] = c[i] / (b[i] - a[i] * c[i-1]);
-			d[i] = (d[i] - d[i-1] * a[i]) / (b[i] - a[i] * c[i-1]);  
+			get(c,i) = get(c,i) / (get(b,i) - get(a,i) * get(c,i-1));
+			get(d,i) = (get(d,i) - get(d,i-1) * get(a,i)) / (get(b,i) - get(a,i) * get(c,i-1));  
 		}
 
-		x[num-1] = d[num-1];
+		get(x,num-1) = get(d,num-1);
 	
 		for (int i = num-2; i >= 0; i--)
-			x[i] = d[i] - c[i] * x[i+1];
+			get(x,i) = get(d,i) - get(c,i) * get(x,i+1);
 	}
 
 	template<int dir, int var>
-	__device__ void update_segment( FTYPE *d_x, Segment3D &seg, TimeLayer3D_GPU &layer )
+	__device__ void update_segment( FTYPE *x, Segment3D &seg, TimeLayer3D_GPU &layer, int id, int num_seg, int max_n )
 	{
 		int i = seg.posx;
 		int j = seg.posy;
@@ -181,10 +172,10 @@ namespace FluidSolver3D
 		{
 			switch (var)
 			{
-			case type_U: layer.elem(layer.u, i, j, k) = d_x[t]; break;
-			case type_V: layer.elem(layer.v, i, j, k) = d_x[t]; break;
-			case type_W: layer.elem(layer.w, i, j, k) = d_x[t]; break;
-			case type_T: layer.elem(layer.T, i, j, k) = d_x[t]; break;
+			case type_U: layer.elem(layer.u, i, j, k) = get(x,t); break;
+			case type_V: layer.elem(layer.v, i, j, k) = get(x,t); break;
+			case type_W: layer.elem(layer.w, i, j, k) = get(x,t); break;
+			case type_T: layer.elem(layer.T, i, j, k) = get(x,t); break;
 			}
 
 			switch (dir)
@@ -198,29 +189,23 @@ namespace FluidSolver3D
 
 	template<int dir, int var>
 	__global__ void solve_segments( FluidParamsGPU p, int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, TimeLayer3D_GPU next,
-									FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x )
+									FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, FTYPE *x )
 	{
 		// fetch current segment info
 		int id = blockIdx.x * blockDim.x + threadIdx.x;
 		if( id > num_seg ) return;
 		Segment3D &seg = segs[id];
-		int max_n = max(cur.dimx, max(cur.dimy, cur.dimz));
+		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
 		int n = seg.size;
 
-		FTYPE *a = d_a + id * max_n;
-		FTYPE *b = d_b + id * max_n;
-		FTYPE *c = d_c + id * max_n;
-		FTYPE *d = d_d + id * max_n;
-		FTYPE *x = d_x + id * max_n;
-
-		apply_bc0<var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, b[0], c[0], d[0], nodes);
-		apply_bc1<var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, a[n-1], b[n-1], d[n-1], nodes);
+		apply_bc0<var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes);
+		apply_bc1<var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes);
 		
-		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp);
+		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n);
 			
-		solve_tridiagonal(a, b, c, d, x, n);
+		solve_tridiagonal(a, b, c, d, x, n, id, num_seg, max_n);
 			
-		update_segment<dir, var>(x, seg, next);
+		update_segment<dir, var>(x, seg, next, id, num_seg, max_n);
 	}
 
 	template<DirType dir, VarType var>
