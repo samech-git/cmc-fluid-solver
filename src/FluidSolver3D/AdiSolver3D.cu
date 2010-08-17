@@ -6,11 +6,11 @@ namespace FluidSolver3D
 {
 	struct FluidParamsGPU
 	{
-		FTYPE vis_dx2, vis_dy2, vis_dz2;
+		FTYPE vis_dx2;
 		FTYPE dt, dx, dy, dz;
 		FTYPE v_T, t_phi;
 
-		FluidParamsGPU( VarType var, FTYPE _dt, FTYPE _dx, FTYPE _dy, FTYPE _dz, FluidParams _params ) :
+		FluidParamsGPU( VarType var, DirType dir, FTYPE _dt, FTYPE _dx, FTYPE _dy, FTYPE _dz, FluidParams _params ) : 
 			dt(_dt), dx(_dx), dy(_dy), dz(_dz)
 		{
 			switch (var)
@@ -18,14 +18,20 @@ namespace FluidSolver3D
 			case type_U:
 			case type_V:
 			case type_W:
-				vis_dx2 = _params.v_vis / (dx * dx);
-				vis_dy2 = _params.v_vis / (dy * dy);
-				vis_dz2 = _params.v_vis / (dz * dz);
+				switch (dir)
+				{
+				case X:	vis_dx2 = _params.v_vis / (dx * dx); break;
+				case Y: vis_dx2 = _params.v_vis / (dy * dy); break;
+				case Z: vis_dx2 = _params.v_vis / (dz * dz); break;
+				}
 				break;
 			case type_T:
-				vis_dx2 = _params.t_vis / (dx * dx);
-				vis_dy2 = _params.t_vis / (dy * dy);
-				vis_dz2 = _params.t_vis / (dz * dz);
+				switch (dir)
+				{
+				case X:	vis_dx2 = _params.t_vis / (dx * dx); break;
+				case Y: vis_dx2 = _params.t_vis / (dy * dy); break;
+				case Z: vis_dx2 = _params.t_vis / (dz * dz); break;
+				}
 				break;
 			}
 						
@@ -34,8 +40,14 @@ namespace FluidSolver3D
 		}
 	};
 
+#if 1
+	// interleave matrix arrays for better memory access
 	#define get(a, elem_id)			a[id + (elem_id) * max_n * max_n]
-	
+#else
+	// sequential layout - bad access pattern
+	#define get(a, elem_id)			a[elem_id + id * max_n]
+#endif
+
 	template<int var>
 	__device__ void apply_bc0(int i, int j, int k, int dimy, int dimz, FTYPE &b0, FTYPE &c0, FTYPE &d0, Node *nodes)
 	{
@@ -98,44 +110,44 @@ namespace FluidSolver3D
 			switch (dir)
 			{
 			case X:		
-				get(a,p) = - temp.elem(temp.u, i+p, j, k) / (2 * temp.dx) - params.vis_dx2; 
+				get(a,p) = - temp.elem(temp.u, i+p, j, k) / (2 * params.dx) - params.vis_dx2; 
 				get(b,p) = 3 / params.dt  +  2 * params.vis_dx2; 
-				get(c,p) = temp.elem(temp.u, i+p, j, k) / (2 * temp.dx) - params.vis_dx2; 
+				get(c,p) = temp.elem(temp.u, i+p, j, k) / (2 * params.dx) - params.vis_dx2; 
 				
 				switch (var)	
 				{
-				case type_U: get(d,p) = cur.elem(cur.u, i+p, j, k) * 3 / params.dt - params.v_T * temp.d_x(temp.T, i+p, j, k); break;
+				case type_U: get(d,p) = cur.elem(cur.u, i+p, j, k) * 3 / params.dt - params.v_T * temp.d_x(temp.T, params.dx, i+p, j, k); break;
 				case type_V: get(d,p) = cur.elem(cur.v, i+p, j, k) * 3 / params.dt; break;
 				case type_W: get(d,p) = cur.elem(cur.w, i+p, j, k) * 3 / params.dt; break;
-				case type_T: get(d,p) = cur.elem(cur.T, i+p, j, k) * 3 / params.dt + params.t_phi * temp.DissFuncX(i+p, j, k); break;
+				case type_T: get(d,p) = cur.elem(cur.T, i+p, j, k) * 3 / params.dt + params.t_phi * temp.DissFuncX(params.dx, params.dy, params.dz, i+p, j, k); break;
 				}	
 				break;
 
 			case Y:
-				get(a,p) = - temp.elem(temp.v, i, j+p, k) / (2 * temp.dy) - params.vis_dy2; 
-				get(b,p) = 3 / params.dt  +  2 * params.vis_dy2; 
-				get(c,p) = temp.elem(temp.v, i, j+p, k) / (2 * temp.dy) - params.vis_dy2; 
+				get(a,p) = - temp.elem(temp.v, i, j+p, k) / (2 * params.dy) - params.vis_dx2; 
+				get(b,p) = 3 / params.dt  +  2 * params.vis_dx2; 
+				get(c,p) = temp.elem(temp.v, i, j+p, k) / (2 * params.dy) - params.vis_dx2; 
 				
 				switch (var)	
 				{
 				case type_U: get(d,p) = cur.elem(cur.u, i, j+p, k) * 3 / params.dt; break;
-				case type_V: get(d,p) = cur.elem(cur.v, i, j+p, k) * 3 / params.dt - params.v_T * temp.d_y(temp.T, i, j+p, k); break;
+				case type_V: get(d,p) = cur.elem(cur.v, i, j+p, k) * 3 / params.dt - params.v_T * temp.d_y(temp.T, params.dy, i, j+p, k); break;
 				case type_W: get(d,p) = cur.elem(cur.w, i, j+p, k) * 3 / params.dt; break;
-				case type_T: get(d,p) = cur.elem(cur.T, i, j+p, k) * 3 / params.dt + params.t_phi * temp.DissFuncY(i, j+p, k); break;
+				case type_T: get(d,p) = cur.elem(cur.T, i, j+p, k) * 3 / params.dt + params.t_phi * temp.DissFuncY(params.dx, params.dy, params.dz, i, j+p, k); break;
 				}
 				break;
 
 			case Z:
-				get(a,p) = - temp.elem(temp.w, i, j, k+p) / (2 * temp.dz) - params.vis_dz2; 
-				get(b,p) = 3 / params.dt  +  2 * params.vis_dz2; 
-				get(c,p) = temp.elem(temp.w, i, j, k+p) / (2 * temp.dz) - params.vis_dz2; 
+				get(a,p) = - temp.elem(temp.w, i, j, k+p) / (2 * params.dz) - params.vis_dx2; 
+				get(b,p) = 3 / params.dt  +  2 * params.vis_dx2; 
+				get(c,p) = temp.elem(temp.w, i, j, k+p) / (2 * params.dz) - params.vis_dx2; 
 				
 				switch (var)	
 				{
 				case type_U: get(d,p) = cur.elem(cur.u, i, j, k+p) * 3 / params.dt; break;
 				case type_V: get(d,p) = cur.elem(cur.v, i, j, k+p) * 3 / params.dt; break;
-				case type_W: get(d,p) = cur.elem(cur.w, i, j, k+p) * 3 / params.dt - params.v_T * temp.d_z(temp.T, i, j, k+p); break;
-				case type_T: get(d,p) = cur.elem(cur.T, i, j, k+p) * 3 / params.dt + params.t_phi * temp.DissFuncZ(i, j, k+p); break;
+				case type_W: get(d,p) = cur.elem(cur.w, i, j, k+p) * 3 / params.dt - params.v_T * temp.d_z(temp.T, params.dz, i, j, k+p); break;
+				case type_T: get(d,p) = cur.elem(cur.T, i, j, k+p) * 3 / params.dt + params.t_phi * temp.DissFuncZ(params.dx, params.dy, params.dz, i, j, k+p); break;
 				}
 				break;
 			}
@@ -238,7 +250,7 @@ namespace FluidSolver3D
 		TimeLayer3D_GPU d_temp( temp );
 		TimeLayer3D_GPU d_next( next );
 
-		FluidParamsGPU p( var, dt, cur->dx, cur->dy, cur->dz, params );
+		FluidParamsGPU p( var, dir, dt, cur->dx, cur->dy, cur->dz, params );
 
 		switch( dir )
 		{

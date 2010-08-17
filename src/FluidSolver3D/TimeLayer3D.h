@@ -497,59 +497,53 @@ namespace FluidSolver3D
 	{
 		FTYPE *u, *v, *w, *T;
 		int dimx, dimy, dimz;
-		FTYPE dx, dy, dz;
 
 		inline __device__ FTYPE& elem(FTYPE *arr, int i, int j, int k)
 		{
 			return arr[i * dimy * dimz + j * dimz + k];
 		}
 
-		inline __device__ FTYPE d_x(FTYPE *arr, int i, int j, int k)	{ return (elem(arr, i+1, j, k) - elem(arr, i-1, j, k)) / (2 * dx); }
-		inline __device__ FTYPE d_y(FTYPE *arr, int i, int j, int k)	{ return (elem(arr, i, j+1, k) - elem(arr, i, j-1, k)) / (2 * dy); }
-		inline __device__ FTYPE d_z(FTYPE *arr, int i, int j, int k)	{ return (elem(arr, i, j, k+1) - elem(arr, i, j, k-1)) / (2 * dz); }
-		inline __device__ FTYPE d_xx(FTYPE *arr, int i, int j, int k)	{ return (elem(arr, i+1, j, k) - 2 * elem(arr, i, j, k) + elem(arr, i-1, j, k)) / (dx * dx); }
-		inline __device__ FTYPE d_yy(FTYPE *arr, int i, int j, int k)	{ return (elem(arr, i, j+1, k) - 2 * elem(arr, i, j, k) + elem(arr, i, j-1, k)) / (dy * dy); }
-		inline __device__ FTYPE d_zz(FTYPE *arr, int i, int j, int k)	{ return (elem(arr, i, j, k+1) - 2 * elem(arr, i, j, k) + elem(arr, i, j, k-1)) / (dz * dz); }
+		inline __device__ FTYPE d_x(FTYPE *arr, FTYPE dx, int i, int j, int k)	{ return (elem(arr, i+1, j, k) - elem(arr, i-1, j, k)) / (2 * dx); }
+		inline __device__ FTYPE d_y(FTYPE *arr, FTYPE dy, int i, int j, int k)	{ return (elem(arr, i, j+1, k) - elem(arr, i, j-1, k)) / (2 * dy); }
+		inline __device__ FTYPE d_z(FTYPE *arr, FTYPE dz, int i, int j, int k)	{ return (elem(arr, i, j, k+1) - elem(arr, i, j, k-1)) / (2 * dz); }
+		inline __device__ FTYPE d_xx(FTYPE *arr, FTYPE dx, int i, int j, int k)	{ return (elem(arr, i+1, j, k) - 2 * elem(arr, i, j, k) + elem(arr, i-1, j, k)) / (dx * dx); }
+		inline __device__ FTYPE d_yy(FTYPE *arr, FTYPE dy, int i, int j, int k)	{ return (elem(arr, i, j+1, k) - 2 * elem(arr, i, j, k) + elem(arr, i, j-1, k)) / (dy * dy); }
+		inline __device__ FTYPE d_zz(FTYPE *arr, FTYPE dz, int i, int j, int k)	{ return (elem(arr, i, j, k+1) - 2 * elem(arr, i, j, k) + elem(arr, i, j, k-1)) / (dz * dz); }
 
-		inline __device__ FTYPE DissFuncX(int i, int j, int k)
+		inline __device__ FTYPE DissFuncX(FTYPE dx, FTYPE dy, FTYPE dz, int i, int j, int k)
 		{
-			FTYPE u_x = d_x(u, i, j, k);
-			FTYPE v_x = d_x(v, i, j, k);
-			FTYPE w_x = d_x(w, i, j, k);
+			FTYPE u_x = d_x(u, dx, i, j, k);
+			FTYPE v_x = d_x(v, dx, i, j, k);
+			FTYPE w_x = d_x(w, dx, i, j, k);
 
-			FTYPE u_y = d_y(u, i, j, k);
-			FTYPE u_z = d_z(u, i, j, k);
+			FTYPE u_y = d_y(u, dy, i, j, k);
+			FTYPE u_z = d_z(u, dz, i, j, k);
 
 			return 2 * u_x * u_x + v_x * v_x + w_x * w_x + v_x * u_y + w_x * u_z;
 		}
 
-		inline __device__ FTYPE DissFuncY(int i, int j, int k)
+		inline __device__ FTYPE DissFuncY(FTYPE dx, FTYPE dy, FTYPE dz, int i, int j, int k)
 		{
-			FTYPE u_y = d_y(u, i, j, k);
-			FTYPE v_y = d_y(v, i, j, k);
-			FTYPE w_y = d_y(w, i, j, k);
+			FTYPE u_y = d_y(u, dy, i, j, k);
+			FTYPE v_y = d_y(v, dy, i, j, k);
+			FTYPE w_y = d_y(w, dy, i, j, k);
 
-			FTYPE v_x = d_x(v, i, j, k);
-			FTYPE v_z = d_z(v, i, j, k);
+			FTYPE v_x = d_x(v, dx, i, j, k);
+			FTYPE v_z = d_z(v, dz, i, j, k);
 
 			return u_y * u_y + 2 * v_y * v_y + w_y * w_y + u_y * v_x + w_y * v_z;
 		}
 
-		inline __device__ FTYPE DissFuncZ(int i, int j, int k)
+		inline __device__ FTYPE DissFuncZ(FTYPE dx, FTYPE dy, FTYPE dz, int i, int j, int k)
 		{
-			FTYPE u_z = d_z(u, i, j, k);
-			FTYPE v_z = d_z(v, i, j, k);
-			FTYPE w_z = d_z(w, i, j, k);
+			FTYPE u_z = d_z(u, dz, i, j, k);
+			FTYPE v_z = d_z(v, dz, i, j, k);
+			FTYPE w_z = d_z(w, dz, i, j, k);
 
-			FTYPE w_x = d_x(w, i, j, k);
-			FTYPE w_y = d_y(w, i, j, k);
+			FTYPE w_x = d_x(w, dx, i, j, k);
+			FTYPE w_y = d_y(w, dy, i, j, k);
 
 			return u_z * u_z + v_z * v_z + 2 * w_z * w_z + u_z * w_x + v_z * w_y;
-		}
-
-		inline __device__ FTYPE DissFunc(int i, int j, int k)
-		{
-			return DissFuncX(i, j, k) + DissFuncY(i, j, k) + DissFunc(i, j, k);
 		}
 
 		TimeLayer3D_GPU(TimeLayer3D *layer)
@@ -562,10 +556,6 @@ namespace FluidSolver3D
 			dimx = layer->dimx;
 			dimy = layer->dimy;
 			dimz = layer->dimz;
-
-			dx = layer->dx;
-			dy = layer->dy;
-			dz = layer->dz;
 		}
 	};
 }
