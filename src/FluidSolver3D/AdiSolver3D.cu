@@ -1,6 +1,6 @@
 #include "AdiSolver3D.h"
 
-#define BLOCK_DIM		128
+#define BLOCK_DIM		256
 
 namespace FluidSolver3D
 {
@@ -220,14 +220,63 @@ namespace FluidSolver3D
 		update_segment<dir, var>(x, seg, next, id, num_seg, max_n);
 	}
 
+	template<int dir, int var>
+	__global__ void build_matrix_simple( FluidParamsGPU p, int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, 
+										 FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d )
+	{
+		// fetch current segment info
+		int id = blockIdx.x * blockDim.x + threadIdx.x;
+		if( id > num_seg ) return;
+		Segment3D &seg = segs[id];
+		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
+		int n = seg.size;
+
+		apply_bc0<var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes);
+		apply_bc1<var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes);
+		
+		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n);
+	}
+
+	template<int dir, int var>
+	__global__ void build_matrix_optimized( FluidParamsGPU p, int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, 
+											FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d )
+	{
+		// TODO
+	}
+
+	template<int dir, int var>
+	__global__ void solve_matrix( int num_seg, Segment3D *segs, TimeLayer3D_GPU next,
+								  FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, FTYPE *x )
+	{
+		// fetch current segment info
+		int id = blockIdx.x * blockDim.x + threadIdx.x;
+		if( id > num_seg ) return;
+		Segment3D &seg = segs[id];
+		int max_n = max( max( next.dimx, next.dimy ), next.dimz );
+		int n = seg.size;
+
+		solve_tridiagonal(a, b, c, d, x, n, id, num_seg, max_n);
+			
+		update_segment<dir, var>(x, seg, next, id, num_seg, max_n);
+	}
+
 	template<DirType dir, VarType var>
 	void LaunchSolveSegments_dir_var( FluidParamsGPU p, int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
 									  FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x )
 	{
 		dim3 block(BLOCK_DIM);
 		dim3 grid((num_seg + block.x - 1)/block.x);
+
+#if 1
+		build_matrix_simple<dir, var><<<grid, block>>>( p, num_seg, segs, nodes, cur, temp, d_a, d_b, d_c, d_d );
+		cudaThreadSynchronize();
+
+		solve_matrix<dir, var><<<grid, block>>>( num_seg, segs, next, d_a, d_b, d_c, d_d, d_x );
+		cudaThreadSynchronize();
+#else
 		solve_segments<dir, var><<<grid, block>>>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x );
 		cudaThreadSynchronize();
+#endif
 	}
 
 	template<DirType dir>
