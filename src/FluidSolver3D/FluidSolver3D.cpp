@@ -3,12 +3,14 @@
 using namespace FluidSolver3D;
 using namespace Common;
 
-void parse_cmd_params(int argc, char **argv, BackendType &backend, bool &csv)
+void parse_cmd_params(int argc, char **argv, BackendType &backend, bool &csv, bool &transpose, bool &decompose)
 {
 	for( int i = 4; i < argc; i++ )
 	{
 		if( !strcmp(argv[i], "GPU") ) backend = GPU;
 		if( !strcmp(argv[i], "CSV") ) csv = true;
+		if( !strcmp(argv[i], "transpose") ) transpose = true;
+		if( !strcmp(argv[i], "decompose") ) decompose = true;
 	}
 }
 
@@ -16,7 +18,9 @@ int main(int argc, char **argv)
 {
 	BackendType backend = CPU;
 	bool csv = false;
-	parse_cmd_params(argc, argv, backend, csv);
+	bool transpose = false;
+	bool decompose = false;
+	parse_cmd_params(argc, argv, backend, csv, transpose, decompose);
 
 	if( backend == CPU )
 	{
@@ -69,8 +73,15 @@ int main(int argc, char **argv)
 	switch (Config::solverID)
 	{
 		case Explicit: printf("Explicit solver is not implemented yet!\n"); break;
-		case ADI: solver = new AdiSolver3D(); break;
 		case Stable: printf("Stable solver is not implemented yet!\n"); break;
+		case ADI: 
+			solver = new AdiSolver3D(); 
+			if( backend == GPU ) 
+			{
+				printf("GPU options:\n  transpose %s\n  decompose %s\n", transpose ? "ON" : "OFF", decompose ? "ON" : "OFF");
+				dynamic_cast<AdiSolver3D*>(solver)->SetOptionsGPU(transpose, decompose);
+			}
+			break;
 	}
 	solver->Init(backend, csv, &grid, *params);
 

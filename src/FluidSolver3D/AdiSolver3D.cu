@@ -22,7 +22,7 @@ namespace FluidSolver3D
 				{
 				case X:	vis_dx2 = _params.v_vis / (dx * dx); break;
 				case Y: vis_dx2 = _params.v_vis / (dy * dy); break;
-				case Z: vis_dx2 = _params.v_vis / (dz * dz); break;
+				case Z: case Z_as_Y: vis_dx2 = _params.v_vis / (dz * dz); break;
 				}
 				break;
 			case type_T:
@@ -30,7 +30,7 @@ namespace FluidSolver3D
 				{
 				case X:	vis_dx2 = _params.t_vis / (dx * dx); break;
 				case Y: vis_dx2 = _params.t_vis / (dy * dy); break;
-				case Z: vis_dx2 = _params.t_vis / (dz * dz); break;
+				case Z: case Z_as_Y:  vis_dx2 = _params.t_vis / (dz * dz); break;
 				}
 				break;
 			}
@@ -48,10 +48,13 @@ namespace FluidSolver3D
 	#define get(a, elem_id)			a[elem_id + id * max_n]
 #endif
 
-	template<int var>
+	template<int dir, int var>
 	__device__ void apply_bc0(int i, int j, int k, int dimy, int dimz, FTYPE &b0, FTYPE &c0, FTYPE &d0, Node *nodes)
 	{
-		int id = i * dimy * dimz + j * dimz + k;
+		int id = i * dimy * dimz;
+		if (dir != Z_as_Y) id += j * dimz + k;
+			else id += j * dimy + k;
+
 		if ((var == type_T && nodes[id].bc_temp == BC_FREE) ||
 			(var != type_T && nodes[id].bc_vel == BC_FREE))
 		{
@@ -75,10 +78,13 @@ namespace FluidSolver3D
 		}
 	}
 
-	template<int var>
+	template<int dir, int var>
 	__device__ void apply_bc1(int i, int j, int k, int dimy, int dimz, FTYPE &a1, FTYPE &b1, FTYPE &d1, Node *nodes)
 	{
-		int id = i * dimy * dimz + j * dimz + k;
+		int id = i * dimy * dimz;
+		if (dir != Z_as_Y) id += j * dimz + k;
+			else id += j * dimy + k;
+
 		if ((var == type_T && nodes[id].bc_temp == BC_FREE) ||
 			(var != type_T && nodes[id].bc_vel == BC_FREE))
 		{
@@ -150,6 +156,20 @@ namespace FluidSolver3D
 				case type_T: get(d,p) = cur.elem(cur.T, i, j, k+p) * 3 / params.dt + params.t_phi * temp.DissFuncZ(params.dx, params.dy, params.dz, i, j, k+p); break;
 				}
 				break;
+
+			case Z_as_Y:
+				get(a,p) = - temp.elem(temp.w, i, k+p, j) / (2 * params.dz) - params.vis_dx2; 
+				get(b,p) = 3 / params.dt  +  2 * params.vis_dx2; 
+				get(c,p) = temp.elem(temp.w, i, k+p, j) / (2 * params.dz) - params.vis_dx2; 
+				
+				switch (var)	
+				{
+				case type_U: get(d,p) = cur.elem(cur.u, i, k+p, j) * 3 / params.dt; break;
+				case type_V: get(d,p) = cur.elem(cur.v, i, k+p, j) * 3 / params.dt; break;
+				case type_W: get(d,p) = cur.elem(cur.w, i, k+p, j) * 3 / params.dt - params.v_T * temp.d_y(temp.T, params.dz, i, k+p, j); break;
+				case type_T: get(d,p) = cur.elem(cur.T, i, k+p, j) * 3 / params.dt + params.t_phi * temp.DissFuncZ_as_Y(params.dx, params.dz, params.dy, i, k+p, j); break;
+				}
+				break;
 			}
 		}
 	}
@@ -195,6 +215,7 @@ namespace FluidSolver3D
 			case X: i++; break;
 			case Y: j++; break;
 			case Z: k++; break;
+			case Z_as_Y: k++; break;
 			}
 		}
 	}
@@ -210,8 +231,8 @@ namespace FluidSolver3D
 		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
 		int n = seg.size;
 
-		apply_bc0<var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes);
-		apply_bc1<var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes);
+		apply_bc0<dir, var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes);
+		apply_bc1<dir, var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes);
 		
 		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n);
 			
@@ -221,8 +242,8 @@ namespace FluidSolver3D
 	}
 
 	template<int dir, int var>
-	__global__ void build_matrix_simple( FluidParamsGPU p, int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, 
-										 FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d )
+	__global__ void build_matrix( FluidParamsGPU p, int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, 
+								  FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d )
 	{
 		// fetch current segment info
 		int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -231,17 +252,10 @@ namespace FluidSolver3D
 		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
 		int n = seg.size;
 
-		apply_bc0<var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes);
-		apply_bc1<var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes);
+		apply_bc0<dir, var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes);
+		apply_bc1<dir, var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes);
 		
-		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n);
-	}
-
-	template<int dir, int var>
-	__global__ void build_matrix_optimized( FluidParamsGPU p, int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, 
-											FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d )
-	{
-		// TODO
+		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n);	
 	}
 
 	template<int dir, int var>
@@ -262,38 +276,43 @@ namespace FluidSolver3D
 
 	template<DirType dir, VarType var>
 	void LaunchSolveSegments_dir_var( FluidParamsGPU p, int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-									  FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x )
+									  FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x, bool decomposeOpt )
 	{
 		dim3 block(BLOCK_DIM);
 		dim3 grid((num_seg + block.x - 1)/block.x);
 
-#if 1
-		build_matrix_simple<dir, var><<<grid, block>>>( p, num_seg, segs, nodes, cur, temp, d_a, d_b, d_c, d_d );
-		cudaThreadSynchronize();
+		switch( decomposeOpt )
+		{
+		case true:
+			build_matrix<dir, var><<<grid, block>>>( p, num_seg, segs, nodes, cur, temp, d_a, d_b, d_c, d_d );
+			cudaThreadSynchronize();
 
-		solve_matrix<dir, var><<<grid, block>>>( num_seg, segs, next, d_a, d_b, d_c, d_d, d_x );
-		cudaThreadSynchronize();
-#else
-		solve_segments<dir, var><<<grid, block>>>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x );
-		cudaThreadSynchronize();
-#endif
+			solve_matrix<dir, var><<<grid, block>>>( num_seg, segs, next, d_a, d_b, d_c, d_d, d_x );
+			cudaThreadSynchronize();
+			break;
+
+		case false:
+			solve_segments<dir, var><<<grid, block>>>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x );
+			cudaThreadSynchronize();
+			break;
+		}
 	}
 
 	template<DirType dir>
 	void LaunchSolveSegments_dir( FluidParamsGPU p, int num_seg, Segment3D *segs, VarType var, Node* nodes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-								  FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x )
+								  FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x, bool decomposeOpt )
 	{
 		switch( var )
 		{
-		case type_U: LaunchSolveSegments_dir_var<dir, type_U>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x ); break;
-		case type_V: LaunchSolveSegments_dir_var<dir, type_V>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x ); break;
-		case type_W: LaunchSolveSegments_dir_var<dir, type_W>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x ); break;
-		case type_T: LaunchSolveSegments_dir_var<dir, type_T>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x ); break;
+		case type_U: LaunchSolveSegments_dir_var<dir, type_U>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
+		case type_V: LaunchSolveSegments_dir_var<dir, type_V>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
+		case type_W: LaunchSolveSegments_dir_var<dir, type_W>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
+		case type_T: LaunchSolveSegments_dir_var<dir, type_T>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
 		}
 	}
 
 	void SolveSegments_GPU( FTYPE dt, FluidParams params, int num_seg, Segment3D *segs, VarType var, DirType dir, Node* nodes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
-							FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x )
+							FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x, bool decomposeOpt )
 	{
 		TimeLayer3D_GPU d_cur( cur );
 		TimeLayer3D_GPU d_temp( temp );
@@ -303,9 +322,10 @@ namespace FluidSolver3D
 
 		switch( dir )
 		{
-		case X: LaunchSolveSegments_dir<X>( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x ); break;
-		case Y: LaunchSolveSegments_dir<Y>( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x ); break;
-		case Z: LaunchSolveSegments_dir<Z>( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x ); break;
+		case X: LaunchSolveSegments_dir<X>( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
+		case Y: LaunchSolveSegments_dir<Y>( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
+		case Z: LaunchSolveSegments_dir<Z>( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
+		case Z_as_Y: LaunchSolveSegments_dir<Z_as_Y>( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
 		}
 	}
 }

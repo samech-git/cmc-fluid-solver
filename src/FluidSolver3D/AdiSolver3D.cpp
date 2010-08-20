@@ -13,6 +13,9 @@ namespace FluidSolver3D
 		half2 = NULL;
 		next = NULL;
 
+		curT = NULL;
+		tempT = NULL;
+
 		a = d_a = NULL;
 		b = d_b = NULL;
 		c = d_c = NULL;
@@ -31,6 +34,9 @@ namespace FluidSolver3D
 		if (half1 != NULL) delete half1;
 		if (half2 != NULL) delete half2;
 		if (next != NULL) delete next;
+
+		if (curT != NULL) delete curT;
+		if (tempT != NULL) delete tempT;
 
 		if (a != NULL) delete [] a;
 		if (b != NULL) delete [] b;
@@ -54,6 +60,12 @@ namespace FluidSolver3D
 		prof.PrintTimings(csvFormat);
 
 		FreeMemory();
+	}
+
+	void AdiSolver3D::SetOptionsGPU(bool _transposeOpt, bool _decomposeOpt)
+	{
+		transposeOpt = _transposeOpt;
+		decomposeOpt = _decomposeOpt;
 	}
 
 	void AdiSolver3D::Init(BackendType _backend, bool _csv, Grid3D* _grid, FluidParams &_params)
@@ -90,6 +102,9 @@ namespace FluidSolver3D
 		half2 = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
 		next = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
 		temp = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
+
+		curT = new TimeLayer3D(backend, grid->dimx, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy);
+		tempT = new TimeLayer3D(backend, grid->dimx, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy);
 	}
 
 	void AdiSolver3D::TimeStep(FTYPE dt, int num_global, int num_local)
@@ -249,6 +264,17 @@ namespace FluidSolver3D
 		DirType dir = list[0].dir;
 		for (int it = 0; it < num_local; it++)
 		{
+			if( transposeOpt )
+			{
+				prof.StartEvent();
+
+				// transpose arrays
+				cur->Transpose(curT);
+				temp->Transpose(tempT);
+				
+				prof.StopEvent("Transpose");
+			}
+
 			prof.StartEvent();
 
 			switch( backend )
@@ -268,10 +294,22 @@ namespace FluidSolver3D
 				break;
 			
 			case GPU:
-				SolveSegments_GPU(dt, params, list.size(), d_list, type_U, dir, grid->GetNodesGPU(), cur, temp, next, d_a, d_b, d_c, d_d, d_x);
-				SolveSegments_GPU(dt, params, list.size(), d_list, type_V, dir, grid->GetNodesGPU(), cur, temp, next, d_a, d_b, d_c, d_d, d_x);
-				SolveSegments_GPU(dt, params, list.size(), d_list, type_W, dir, grid->GetNodesGPU(), cur, temp, next, d_a, d_b, d_c, d_d, d_x);
-				SolveSegments_GPU(dt, params, list.size(), d_list, type_T, dir, grid->GetNodesGPU(), cur, temp, next, d_a, d_b, d_c, d_d, d_x);
+				DirType dir_new = dir;
+				TimeLayer3D *cur_new = cur;
+				TimeLayer3D *temp_new = temp;
+
+				if( transposeOpt && dir == Z )
+				{
+					dir_new = Z_as_Y;
+					cur_new = curT;
+					temp_new = tempT;
+				}
+
+				SolveSegments_GPU(dt, params, list.size(), d_list, type_U, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);	
+				SolveSegments_GPU(dt, params, list.size(), d_list, type_V, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
+				SolveSegments_GPU(dt, params, list.size(), d_list, type_W, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
+				SolveSegments_GPU(dt, params, list.size(), d_list, type_T, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
+				
 				break;
 			}
 

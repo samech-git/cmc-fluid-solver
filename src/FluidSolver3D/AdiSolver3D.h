@@ -13,7 +13,7 @@ using namespace Common;
 namespace FluidSolver3D
 {
 	enum VarType { type_U, type_V, type_W, type_T };
-	enum DirType { X, Y, Z };
+	enum DirType { X, Y, Z, Z_as_Y };
 
 	struct Segment3D
 	{
@@ -24,7 +24,7 @@ namespace FluidSolver3D
 	};
 
 	extern void SolveSegments_GPU( FTYPE dt, FluidParams params, int num_seg, Segment3D *segs, VarType var, DirType dir, Node *nodes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
-								   FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x );
+								   FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x, bool decomposeOpt );
 
 	class AdiSolver3D : public Solver3D
 	{
@@ -34,16 +34,21 @@ namespace FluidSolver3D
 
 		void Init(BackendType backend, bool _csv, Grid3D* _grid, FluidParams &_params);
 		void TimeStep(FTYPE dt, int num_global, int num_local);
+		void SetOptionsGPU(bool _transposeOpt, bool _decomposeOpt);
 
 	private:
 		Profiler prof;
 		bool csvFormat;
 		BackendType backend;
 
+		// options, optimizations
+		bool transposeOpt, decomposeOpt;
+
 		vector<Segment3D> listX, listY, listZ;		// segments in CPU mem
 		Segment3D *d_listX, *d_listY, *d_listZ;		// same segments in GPU mem 
 
 		TimeLayer3D *temp, *half1, *half2;
+		TimeLayer3D *curT, *tempT;					// for transpose GPU optimization
 
 		FTYPE *a, *b, *c, *d, *x;					// matrices in CPU mem
 		FTYPE *d_a, *d_b, *d_c, *d_d, *d_x;			// same matrices in GPU mem

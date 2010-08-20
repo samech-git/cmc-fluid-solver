@@ -10,6 +10,7 @@ extern void CopyFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE *src, FTYPE *des
 extern void MergeFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE *src, FTYPE *dest, Node *nodes, NodeType target);
 extern void CopyFromGrid_GPU(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *v, FTYPE *w, FTYPE *T, Node *nodes, NodeType target);
 extern void Clear_GPU(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *v, FTYPE *w, FTYPE *T, Node *nodes, NodeType target, FTYPE const_u, FTYPE const_v, FTYPE const_w, FTYPE const_T);
+extern void Transpose_GPU(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *dest_u);
 
 enum BackendType { CPU, GPU };
 
@@ -130,6 +131,22 @@ namespace FluidSolver3D
 					break;
 				}
 			}
+		}
+
+		void Transpose(ScalarField3D *dest)
+		{
+			switch( hw )
+			{
+			case CPU:
+				{
+					printf("Transpose is not implemented for CPU!\n");
+				}
+			case GPU:
+				{
+					Transpose_GPU(dimx, dimy, dimz, getArray(), dest->getArray());
+					break;	
+				}
+			}		
 		}
 
 	private:
@@ -461,6 +478,64 @@ namespace FluidSolver3D
 				}
 			}
 		}
+
+		void Transpose(TimeLayer3D *dest)
+		{
+			U->Transpose(dest->U);
+			V->Transpose(dest->V);
+			W->Transpose(dest->W);
+			T->Transpose(dest->T);
+		}
+
+		void PrintToFile(FILE *file, const char *desc, FTYPE *u, int dimx, int dimy, int dimz)
+		{
+			fprintf(file, "Array %s[%i,%i,%i]:\n", desc, dimx, dimy, dimz);
+			for (int i = 0; i < dimx; i++)
+			{			
+				for (int j = 0; j < dimy; j++)
+				{
+					for (int k = 0; k < dimz; k++)
+					{
+						int id = i * dimy * dimz + j * dimz + k;
+						fprintf(file, "%.8f ", u[id]);
+					}
+					fprintf(file, "\n");
+				}
+				fprintf(file, "\n");
+			}
+		}
+
+		void PrintToFile(const char *filename)
+		{
+			FILE *file = NULL;
+			fopen_s(&file, filename, "w");
+
+			if( hw == GPU )
+			{
+				FTYPE *u_cpu = new FTYPE[dimx * dimy * dimz];
+				FTYPE *v_cpu = new FTYPE[dimx * dimy * dimz];
+				FTYPE *w_cpu = new FTYPE[dimx * dimy * dimz];
+				FTYPE *T_cpu = new FTYPE[dimx * dimy * dimz];
+				cudaMemcpy(u_cpu, U->getArray(), sizeof(FTYPE) * dimx * dimy * dimz, cudaMemcpyDeviceToHost);
+				cudaMemcpy(v_cpu, V->getArray(), sizeof(FTYPE) * dimx * dimy * dimz, cudaMemcpyDeviceToHost);
+				cudaMemcpy(w_cpu, W->getArray(), sizeof(FTYPE) * dimx * dimy * dimz, cudaMemcpyDeviceToHost);
+				cudaMemcpy(T_cpu, T->getArray(), sizeof(FTYPE) * dimx * dimy * dimz, cudaMemcpyDeviceToHost);
+
+				PrintToFile(file, "u", u_cpu, dimx, dimy, dimz);
+				PrintToFile(file, "v", v_cpu, dimx, dimy, dimz);
+				PrintToFile(file, "w", w_cpu, dimx, dimy, dimz);
+				PrintToFile(file, "T", T_cpu, dimx, dimy, dimz);
+				
+				delete [] u_cpu;
+				delete [] v_cpu;
+				delete [] w_cpu;
+				delete [] T_cpu;
+			}
+			else
+				printf("Print to file is not implemented for CPU! :)\n");
+
+			fclose(file);
+		}
 		
 		TimeLayer3D(BackendType _hw, int _dimx, int _dimy, int _dimz, FTYPE _dx, FTYPE _dy, FTYPE _dz) : 
 			hw(_hw), dimx(_dimx), dimy(_dimy), dimz(_dimz),
@@ -542,6 +617,18 @@ namespace FluidSolver3D
 
 			FTYPE w_x = d_x(w, dx, i, j, k);
 			FTYPE w_y = d_y(w, dy, i, j, k);
+
+			return u_z * u_z + v_z * v_z + 2 * w_z * w_z + u_z * w_x + v_z * w_y;
+		}
+
+		inline __device__ FTYPE DissFuncZ_as_Y(FTYPE dx, FTYPE dy, FTYPE dz, int i, int j, int k)
+		{
+			FTYPE u_z = d_y(u, dy, i, j, k);
+			FTYPE v_z = d_y(v, dy, i, j, k);
+			FTYPE w_z = d_y(w, dy, i, j, k);
+
+			FTYPE w_x = d_x(w, dx, i, j, k);
+			FTYPE w_y = d_z(w, dz, i, j, k);
 
 			return u_z * u_z + v_z * v_z + 2 * w_z * w_z + u_z * w_x + v_z * w_y;
 		}
