@@ -225,4 +225,10 @@ namespace Common
 			t_phi = (FTYPE)(vis / (rho * cv));
 		}
 	};
+
+	static int AlignBy32(int num)
+	{
+		if( (num & 31) == 0 ) return num;
+			else return (((num >> 5) + 1) << 5);
+	}
 }

@@ -68,7 +68,8 @@ namespace FluidSolver3D
 		{
 			dimx = grid2D->dimx;
 			dimy = grid2D->dimy;
-			dimz = (int)ceil(depth / dz) + 1;
+			active_dimz = (int)ceil(depth / dz) + 1;
+			dimz = AlignBy32(active_dimz);
 			nodes = new Node[dimx * dimy * dimz];
 			cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
 			return true;
@@ -98,12 +99,13 @@ namespace FluidSolver3D
 				{
 					// set up & bottom bounds
 					nodes[i * dimy * dimz + j * dimz + 0].type = NODE_OUT;
-					nodes[i * dimy * dimz + j * dimz + dimz-1].type = NODE_OUT;
+					for (int k = active_dimz-1; k < dimz; k++)
+						nodes[i * dimy * dimz + j * dimz + k].type = NODE_OUT;
 
 					nodes[i * dimy * dimz + j * dimz + 1].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), (FTYPE)baseT);
-					nodes[i * dimy * dimz + j * dimz + dimz-2].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), (FTYPE)baseT);
+					nodes[i * dimy * dimz + j * dimz + active_dimz-2].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), (FTYPE)baseT);
 					
-					for (int k = 2; k < dimz-2; k++)
+					for (int k = 2; k < active_dimz-2; k++)
 					{
 						ind = i * dimy * dimz + j * dimz + k;
 						switch (grid2D->GetType(i, j))

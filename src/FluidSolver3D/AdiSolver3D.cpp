@@ -108,14 +108,21 @@ namespace FluidSolver3D
 	}
 
 	void AdiSolver3D::TimeStep(FTYPE dt, int num_global, int num_local)
-	{
+	{	
 		CreateSegments();
 
+		// setup non-linear layer
 		prof.StartEvent();
-
 		cur->CopyLayerTo(temp);
-
 		prof.StopEvent("CopyLayer");
+
+		// create transposed cur array if opt is enabled
+		if (transposeOpt)
+		{
+			prof.StartEvent();
+			cur->Transpose(curT);
+			prof.StopEvent("Transpose");
+		}
 
 		// do global iterations
 		for (int it = 0; it < num_global; it++)
@@ -125,21 +132,18 @@ namespace FluidSolver3D
 			SolveDirection(dt, num_local, listY, d_listY, half1, temp, half2);
 			SolveDirection(dt, num_local, listX, d_listX, half2, temp, next);
 
+			// update non-linear layer
 			prof.StartEvent();
-				
-			// update non-linear parameters
 			next->MergeLayerTo(grid, temp, NODE_IN);
-
 			prof.StopEvent("MergeLayer");
 		}
 
+		// compute error
 		prof.StartEvent();
-
-		// output error
 		double err = next->EvalDivError(grid);
-
 		prof.StopEvent("EvalDivError");
 
+		// check & output error
 		if (err > ERR_THRESHOLD) {
 			printf("\nError is too big!\n", err);
 			exit(1);
@@ -147,10 +151,9 @@ namespace FluidSolver3D
 		else
 			printf("\rerr = %.8f,", err);
 
+		// clear cells for dynamic grid update
 		prof.StartEvent();
-
 		ClearOutterCells();
-
 		prof.StopEvent("ClearLayer");
 
 		// swap current/next pointers 
@@ -264,14 +267,11 @@ namespace FluidSolver3D
 		DirType dir = list[0].dir;
 		for (int it = 0; it < num_local; it++)
 		{
+			// transpose non-linear layer if opt is enabled
 			if( transposeOpt )
 			{
-				prof.StartEvent();
-
-				// transpose arrays
-				cur->Transpose(curT);
+				prof.StartEvent();			
 				temp->Transpose(tempT);
-				
 				prof.StopEvent("Transpose");
 			}
 
@@ -300,6 +300,7 @@ namespace FluidSolver3D
 
 				if( transposeOpt && dir == Z )
 				{
+					// set transposed direction
 					dir_new = Z_as_Y;
 					cur_new = curT;
 					temp_new = tempT;
@@ -320,11 +321,9 @@ namespace FluidSolver3D
 			case Z: prof.StopEvent("SolveSegments_Z"); break;
 			}
 
+			// update non-linear layer
 			prof.StartEvent();
-
-			// update non-linear
 			next->MergeLayerTo(grid, temp, NODE_IN);
-
 			prof.StopEvent("MergeLayer");
 		}
 	}

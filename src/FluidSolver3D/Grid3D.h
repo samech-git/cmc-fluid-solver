@@ -75,5 +75,6 @@ namespace FluidSolver3D
 
 		FluidSolver2D::Grid2D *grid2D;		// 2D helper grid for borders
 		double depth;						// depth
+		int active_dimz;					// dimz before align
 	};
 }

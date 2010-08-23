@@ -231,8 +231,8 @@ namespace FluidSolver2D
 	{
 		bbox.Build(num_frames, frames);
 	
-		dimx = (int)ceil((bbox.pMax.x - bbox.pMin.x) / dx) + 1;
-		dimy = (int)ceil((bbox.pMax.y - bbox.pMin.y) / dy) + 1;
+		dimx = AlignBy32((int)ceil((bbox.pMax.x - bbox.pMin.x) / dx) + 1);
+		dimy = AlignBy32((int)ceil((bbox.pMax.y - bbox.pMin.y) / dy) + 1);
 
 		// allocate data
 		int size = dimx * dimy;
