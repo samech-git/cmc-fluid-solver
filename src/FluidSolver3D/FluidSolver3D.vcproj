@@ -14,8 +14,8 @@
 		/>
 	</Platforms>
 	<ToolFiles>
-		<ToolFile
-			RelativePath=".\Cuda.rules"
+		<DefaultToolFile
+			FileName="NvCudaRuntimeApi.v3.2.rules"
 		/>
 	</ToolFiles>
 	<Configurations>
@@ -24,6 +24,7 @@
 			OutputDirectory="$(SolutionDir)..\bin\$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\NvCudaToolkit.v3.2.vsprops"
 			CharacterSet="1"
 			>
 			<Tool
@@ -33,11 +34,11 @@
 				Name="VCCustomBuildTool"
 			/>
 			<Tool
-				Name="CUDA Build Rule"
-				Arch1="11"
+				Name="Cudart Build Rule"
 				Arch2="13"
 				Arch3="20"
-				ExtraNvccOptions="-m32"
+				HostDebugInfo="true"
+				Runtime="1"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -51,11 +52,11 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="$(CUDA_INC_PATH)"
+				AdditionalIncludeDirectories="$(CudaToolsRoot)/include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="3"
+				RuntimeLibrary="1"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
@@ -73,7 +74,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="cudart.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="$(CUDA_LIB_PATH)\..\lib"
+				AdditionalLibraryDirectories="$(CudaToolsRoot)/lib/$(PlatformName)"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -105,6 +106,7 @@
 			OutputDirectory="$(SolutionDir)..\bin\$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\NvCudaToolkit.v3.2.vsprops"
 			CharacterSet="1"
 			WholeProgramOptimization="1"
 			>
@@ -115,11 +117,9 @@
 				Name="VCCustomBuildTool"
 			/>
 			<Tool
-				Name="CUDA Build Rule"
-				Arch1="11"
+				Name="Cudart Build Rule"
 				Arch2="13"
 				Arch3="20"
-				ExtraNvccOptions="-m32"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -134,9 +134,9 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="$(CUDA_INC_PATH)"
+				AdditionalIncludeDirectories="$(CudaToolsRoot)/include"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;GPU_BACKEND"
-				RuntimeLibrary="2"
+				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				OpenMP="true"
 				UsePrecompiledHeader="0"
@@ -156,7 +156,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="cudart.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="$(CUDA_LIB_PATH)\..\lib"
+				AdditionalLibraryDirectories="$(CudaToolsRoot)/lib/$(PlatformName)"
 				IgnoreAllDefaultLibraries="false"
 				GenerateDebugInformation="false"
 				SubSystem="1"
