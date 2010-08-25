@@ -11,6 +11,8 @@ using namespace Common;
 
 namespace FluidSolver3D
 {
+	enum BackendType { CPU, GPU };
+
 	enum NodeType { 
 		NODE_IN, 
 		NODE_OUT, 
@@ -48,7 +50,7 @@ namespace FluidSolver3D
 
 		double baseT;
 
-		Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT);
+		Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend);
 		~Grid3D();
 
 		NodeType GetType(int i, int j, int k);
@@ -70,6 +72,8 @@ namespace FluidSolver3D
 		void Grid3D::TestPrint(char *filename);
 
 	protected:
+		BackendType backend;
+
 		Node*		nodes;		// all grid nodes
 		Node*		d_nodes;	// same nodes stored on GPU
 

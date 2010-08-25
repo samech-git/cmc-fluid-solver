@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 	Config::LoadFromFile(configPath);
 
 	//--------------------------------------- Initializing ---------------------------------------
-	Grid3D grid(Config::dx, Config::dy, Config::dz, Config::depth, Config::startT);
+	Grid3D grid(Config::dx, Config::dy, Config::dz, Config::depth, Config::startT, backend);
 	printf("Grid options:\n  align %s\n", align ? "ON" : "OFF");
 	if (grid.LoadFromFile(inputPath, align))
 	{

@@ -2,8 +2,8 @@
 
 namespace FluidSolver3D
 {
-	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT) : 
-		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL)
+	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend) : 
+		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL), backend(_backend)
 	{
 		grid2D = new FluidSolver2D::Grid2D(dx, dy, baseT, true, 0.0);
 	}
@@ -71,7 +71,8 @@ namespace FluidSolver3D
 			active_dimz = (int)ceil(depth / dz) + 1;
 			dimz = align ? AlignBy32(active_dimz) : active_dimz;
 			nodes = new Node[dimx * dimy * dimz];
-			cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
+			if( backend == GPU ) 
+				cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
 			return true;
 		}
 		else
@@ -130,7 +131,8 @@ namespace FluidSolver3D
 			}
 
 		// copy to GPU as well
-		cudaMemcpy(d_nodes, nodes, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyHostToDevice);
+		if( backend == GPU ) 
+			cudaMemcpy(d_nodes, nodes, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyHostToDevice);
 	}
 
 	void Grid3D::TestPrint(char *filename)

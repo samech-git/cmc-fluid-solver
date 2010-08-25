@@ -12,8 +12,6 @@ extern void CopyFromGrid_GPU(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *v, F
 extern void Clear_GPU(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *v, FTYPE *w, FTYPE *T, Node *nodes, NodeType target, FTYPE const_u, FTYPE const_v, FTYPE const_w, FTYPE const_T);
 extern void Transpose_GPU(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *dest_u);
 
-enum BackendType { CPU, GPU };
-
 namespace FluidSolver3D
 {
 	struct ScalarField3D
@@ -63,7 +61,7 @@ namespace FluidSolver3D
 				u = new FTYPE[dimx * dimy * dimz]; 
 				switch( field->hw )
 				{
-				case CPU: cudaMemcpy(u, field->getArray(), dimx * dimy * dimz * sizeof(FTYPE), cudaMemcpyHostToHost); break;
+				case CPU: memcpy(u, field->getArray(), dimx * dimy * dimz * sizeof(FTYPE)); break;
 				case GPU: cudaMemcpy(u, field->getArray(), dimx * dimy * dimz * sizeof(FTYPE), cudaMemcpyDeviceToHost); break;
 				}
 				break;
@@ -251,7 +249,12 @@ namespace FluidSolver3D
 			case CPU:
 				switch( dest->hw )
 				{
-				case CPU: dir = cudaMemcpyHostToHost; break;
+				case CPU: 
+					memcpy(dest->U->getArray(), U->getArray(), dimx * dimy * dimz * sizeof(FTYPE));
+					memcpy(dest->V->getArray(), V->getArray(), dimx * dimy * dimz * sizeof(FTYPE));
+					memcpy(dest->W->getArray(), W->getArray(), dimx * dimy * dimz * sizeof(FTYPE));
+					memcpy(dest->T->getArray(), T->getArray(), dimx * dimy * dimz * sizeof(FTYPE));
+					return;
 				case GPU: dir = cudaMemcpyHostToDevice; break;
 				}
 				break;
