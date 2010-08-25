@@ -271,6 +271,8 @@ namespace FluidSolver3D
 			cudaMemcpy(dest->V->getArray(), V->getArray(), dimx * dimy * dimz * sizeof(FTYPE), dir);
 			cudaMemcpy(dest->W->getArray(), W->getArray(), dimx * dimy * dimz * sizeof(FTYPE), dir);
 			cudaMemcpy(dest->T->getArray(), T->getArray(), dimx * dimy * dimz * sizeof(FTYPE), dir);
+
+			cudaThreadSynchronize();
 		}
 
 		void CopyLayerTo(Grid3D *grid, TimeLayer3D *dest, NodeType type)
