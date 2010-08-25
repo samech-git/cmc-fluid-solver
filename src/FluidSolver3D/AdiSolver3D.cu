@@ -1,6 +1,9 @@
 #include "AdiSolver3D.h"
 
-#define BLOCK_DIM		256
+#define SOLVER_BLOCK_DIM	256
+
+#define SEG_BLOCK_DIM_X		32
+#define SEG_BLOCK_DIM_Y		8
 
 namespace FluidSolver3D
 {
@@ -275,10 +278,10 @@ namespace FluidSolver3D
 	}
 
 	template<DirType dir, VarType var>
-	void LaunchSolveSegments_dir_var( FluidParamsGPU p, int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
+	void LaunchSolveSegments_dir_var( FluidParamsGPU p, int num_seg, Segment3D *segs, Node *nodes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
 									  FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x, bool decomposeOpt )
 	{
-		dim3 block(BLOCK_DIM);
+		dim3 block(SOLVER_BLOCK_DIM);
 		dim3 grid((num_seg + block.x - 1)/block.x);
 
 		switch( decomposeOpt )
@@ -299,7 +302,7 @@ namespace FluidSolver3D
 	}
 
 	template<DirType dir>
-	void LaunchSolveSegments_dir( FluidParamsGPU p, int num_seg, Segment3D *segs, VarType var, Node* nodes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
+	void LaunchSolveSegments_dir( FluidParamsGPU p, int num_seg, Segment3D *segs, VarType var, Node *nodes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
 								  FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x, bool decomposeOpt )
 	{
 		switch( var )
@@ -311,7 +314,7 @@ namespace FluidSolver3D
 		}
 	}
 
-	void SolveSegments_GPU( FTYPE dt, FluidParams params, int num_seg, Segment3D *segs, VarType var, DirType dir, Node* nodes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
+	void SolveSegments_GPU( FTYPE dt, FluidParams params, int num_seg, Segment3D *segs, VarType var, DirType dir, Node *nodes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
 							FTYPE *d_a, FTYPE *d_b, FTYPE *d_c, FTYPE *d_d, FTYPE *d_x, bool decomposeOpt )
 	{
 		TimeLayer3D_GPU d_cur( cur );

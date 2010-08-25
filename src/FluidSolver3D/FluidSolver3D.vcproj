@@ -35,6 +35,7 @@
 			/>
 			<Tool
 				Name="Cudart Build Rule"
+				Arch1="11"
 				Arch2="13"
 				Arch3="20"
 				HostDebugInfo="true"
@@ -118,8 +119,11 @@
 			/>
 			<Tool
 				Name="Cudart Build Rule"
+				Arch1="11"
 				Arch2="13"
 				Arch3="20"
+				Optimization="2"
+				Runtime="0"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"

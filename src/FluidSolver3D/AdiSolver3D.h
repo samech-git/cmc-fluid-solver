@@ -43,9 +43,10 @@ namespace FluidSolver3D
 
 		// options, optimizations
 		bool transposeOpt, decomposeOpt;
-
-		vector<Segment3D> listX, listY, listZ;		// segments in CPU mem
-		Segment3D *d_listX, *d_listY, *d_listZ;		// same segments in GPU mem 
+		
+		int numSegs[3];
+		Segment3D *h_listX, *h_listY, *h_listZ;		// segments in CPU mem
+		Segment3D *d_listX, *d_listY, *d_listZ;		// segments in GPU mem 
 
 		TimeLayer3D *temp, *half1, *half2;
 		TimeLayer3D *curT, *tempT;					// for transpose GPU optimization
@@ -57,11 +58,14 @@ namespace FluidSolver3D
 		void ApplyBC0(int i, int j, int k, VarType var, FTYPE &b0, FTYPE &c0, FTYPE &d0);
 		void ApplyBC1(int i, int j, int k, VarType var, FTYPE &a1, FTYPE &b1, FTYPE &d1);
 		
+		template<DirType dir>
+		void CreateListSegments(int &numSeg, Segment3D *h_list, Segment3D *d_list, int dim1, int dim2, int dim3);
+		
 		void CreateSegments();
 		void SolveSegment(FTYPE dt, int id, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
 		void UpdateSegment(FTYPE *x, Segment3D seg, VarType var, TimeLayer3D *layer);
 		
-		void SolveDirection(FTYPE dt, int num_local, vector<Segment3D> &list, Segment3D *d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
+		void SolveDirection(DirType dir, FTYPE dt, int num_local, Segment3D *h_list, Segment3D *d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
 
 		void FreeMemory();
 	};

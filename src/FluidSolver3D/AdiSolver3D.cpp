@@ -22,9 +22,9 @@ namespace FluidSolver3D
 		d = d_d = NULL;
 		x = d_x = NULL;
 
-		d_listX = NULL;
-		d_listY = NULL;
-		d_listZ = NULL;
+		h_listX = d_listX = NULL;
+		h_listY = d_listY = NULL;
+		h_listZ = d_listZ = NULL;
 	}
 
 	void AdiSolver3D::FreeMemory()
@@ -43,6 +43,10 @@ namespace FluidSolver3D
 		if (c != NULL) delete [] c;
 		if (d != NULL) delete [] d;
 		if (x != NULL) delete [] x;
+
+		if (h_listX != NULL) delete [] h_listX;
+		if (h_listY != NULL) delete [] h_listY;
+		if (h_listZ != NULL) delete [] h_listZ;
 
 		if (d_a != NULL) cudaFree(d_a);
 		if (d_b != NULL) cudaFree(d_b);
@@ -87,6 +91,10 @@ namespace FluidSolver3D
 		d = new FTYPE[n * n * n];
 		x = new FTYPE[n * n * n];
 
+		h_listX = new Segment3D[grid->dimy * grid->dimz];
+		h_listY = new Segment3D[grid->dimx * grid->dimz];
+		h_listZ = new Segment3D[grid->dimx * grid->dimy];
+
 		if( backend == GPU )
 		{
 			// create GPU matrices
@@ -95,6 +103,15 @@ namespace FluidSolver3D
 			cudaMalloc( &d_c, sizeof(FTYPE) * n * n * n );
 			cudaMalloc( &d_d, sizeof(FTYPE) * n * n * n );
 			cudaMalloc( &d_x, sizeof(FTYPE) * n * n * n );
+						
+			cudaMalloc( &d_listX, sizeof(Segment3D) * grid->dimy * grid->dimz );
+			cudaMalloc( &d_listY, sizeof(Segment3D) * grid->dimx * grid->dimz );
+			cudaMalloc( &d_listZ, sizeof(Segment3D) * grid->dimx * grid->dimy );
+		}
+		else
+		{
+			transposeOpt = false;
+			decomposeOpt = false;
 		}
 
 		cur = new TimeLayer3D(backend, grid);
@@ -128,9 +145,9 @@ namespace FluidSolver3D
 		for (int it = 0; it < num_global; it++)
 		{
 			// alternating directions
-			SolveDirection(dt, num_local, listZ, d_listZ, cur, temp, half1);		
-			SolveDirection(dt, num_local, listY, d_listY, half1, temp, half2);
-			SolveDirection(dt, num_local, listX, d_listX, half2, temp, next);
+			SolveDirection(Z, dt, num_local, h_listZ, d_listZ, cur, temp, half1);		
+			SolveDirection(Y, dt, num_local, h_listY, d_listY, half1, temp, half2);
+			SolveDirection(X, dt, num_local, h_listX, d_listX, half2, temp, next);
 
 			// update non-linear layer
 			prof.StartEvent();
@@ -162,109 +179,82 @@ namespace FluidSolver3D
 		cur = tmp;
 	}
 
-	void AdiSolver3D::CreateSegments()
-	{
-		prof.StartEvent();
-
-		for (int dir = X; dir <= Z; dir++)
-		{
-			vector<Segment3D> *list;
-			int dim1, dim2, dim3;
-			switch (dir)
+	template<DirType dir>
+	void AdiSolver3D::CreateListSegments(int &numSeg, Segment3D *h_list, Segment3D *d_list, int dim1, int dim2, int dim3)
+	{	
+		numSeg = 0;
+		for (int i = 0; i < dim2; i++)
+			for (int j = 0; j < dim3; j++)
 			{
-			case X: list = &listX; dim1 = dimx; dim2 = dimy; dim3 = dimz; break;
-			case Y: list = &listY; dim1 = dimy; dim2 = dimx; dim3 = dimz; break;
-			case Z: list = &listZ; dim1 = dimz; dim2 = dimx; dim3 = dimy; break;
-			}
-			list->clear();
-			
-			for (int i = 0; i < dim2; i++)
-				for (int j = 0; j < dim3; j++)
+				Segment3D seg, new_seg;
+				int state = 0, incx, incy, incz;
+				switch (dir)
 				{
-					Segment3D seg, new_seg;
-					int state = 0, incx, incy, incz;
-					switch (dir)
-					{
-					case X:	
-						seg.posx = 0; seg.posy = i; seg.posz = j; 
-						incx = 1; incy = 0; incz = 0;
-						break;
-					case Y: 
-						seg.posx = i; seg.posy = 0; seg.posz = j; 
-						incx = 0; incy = 1; incz = 0;
-						break;
-					case Z: 
-						seg.posx = i; seg.posy = j; seg.posz = 0; 
-						incx = 0; incy = 0; incz = 1; 
-						break;
-					}
-					seg.dir = (DirType)dir;
-
-					while ((seg.posx + incx < dimx) && (seg.posy + incy < dimy) && (seg.posz + incz < dimz))
-					{
-						if (grid->GetType(seg.posx + incx, seg.posy + incy, seg.posz + incz) == NODE_IN)
-						{
-							if (state == 0) 
-								new_seg = seg;
-							state = 1;
-						}
-						else
-						{
-							if (state == 1)
-							{
-								new_seg.endx = seg.posx + incx;
-								new_seg.endy = seg.posy + incy;
-								new_seg.endz = seg.posz + incz;
-
-								new_seg.size = (new_seg.endx - new_seg.posx) + (new_seg.endy - new_seg.posy) + (new_seg.endz - new_seg.posz) + 1;
-
-								list->push_back(new_seg);
-								state = 0;
-							}
-						}
-						
-						seg.posx += incx;
-						seg.posy += incy;
-						seg.posz += incz;
-					}
+				case X:	
+					seg.posx = 0; seg.posy = i; seg.posz = j; 
+					incx = 1; incy = 0; incz = 0;
+					break;
+				case Y: 
+					seg.posx = i; seg.posy = 0; seg.posz = j; 
+					incx = 0; incy = 1; incz = 0;
+					break;
+				case Z: 
+					seg.posx = i; seg.posy = j; seg.posz = 0; 
+					incx = 0; incy = 0; incz = 1; 
+					break;
 				}
-		}
+				seg.dir = (DirType)dir;
+
+				while ((seg.posx + incx < dimx) && (seg.posy + incy < dimy) && (seg.posz + incz < dimz))
+				{
+					if (grid->GetType(seg.posx + incx, seg.posy + incy, seg.posz + incz) == NODE_IN)
+					{
+						if (state == 0) 
+							new_seg = seg;
+						state = 1;
+					}
+					else
+					{
+						if (state == 1)
+						{
+							new_seg.endx = seg.posx + incx;
+							new_seg.endy = seg.posy + incy;
+							new_seg.endz = seg.posz + incz;
+
+							new_seg.size = (new_seg.endx - new_seg.posx) + (new_seg.endy - new_seg.posy) + (new_seg.endz - new_seg.posz) + 1;
+
+							h_list[numSeg] = new_seg;
+							numSeg++;
+							state = 0;
+						}
+					}
+					
+					seg.posx += incx;
+					seg.posy += incy;
+					seg.posz += incz;
+				}
+			}
 
 		if( backend == GPU )
 		{
 			// copy segments info to GPU as well
-			if( d_listX != NULL ) cudaFree( d_listX ); 
-			if( d_listY != NULL ) cudaFree( d_listY ); 
-			if( d_listZ != NULL ) cudaFree( d_listZ ); 
-
-			cudaMalloc( &d_listX, sizeof(Segment3D) * listX.size() );
-			cudaMalloc( &d_listY, sizeof(Segment3D) * listY.size() );
-			cudaMalloc( &d_listZ, sizeof(Segment3D) * listZ.size() );
-			
-			Segment3D *h_listX = new Segment3D[listX.size()];
-			for( int i = 0; i < (int)listX.size(); i++ ) h_listX[i] = listX[i];
-
-			Segment3D *h_listY = new Segment3D[listY.size()];
-			for( int i = 0; i < (int)listY.size(); i++ ) h_listY[i] = listY[i];
-			
-			Segment3D *h_listZ = new Segment3D[listZ.size()];
-			for( int i = 0; i < (int)listZ.size(); i++ ) h_listZ[i] = listZ[i];
-			
-			cudaMemcpy( d_listX, h_listX, sizeof(Segment3D) * listX.size(), cudaMemcpyHostToDevice );
-			cudaMemcpy( d_listY, h_listY, sizeof(Segment3D) * listY.size(), cudaMemcpyHostToDevice );
-			cudaMemcpy( d_listZ, h_listZ, sizeof(Segment3D) * listZ.size(), cudaMemcpyHostToDevice );
-
-			delete [] h_listX;
-			delete [] h_listY;
-			delete [] h_listZ;
+			cudaMemcpy( d_list, h_list, sizeof(Segment3D) * numSeg, cudaMemcpyHostToDevice );
 		}
+	}
+
+	void AdiSolver3D::CreateSegments()
+	{
+		prof.StartEvent();
+
+		CreateListSegments<X>(numSegs[X], h_listX, d_listX, dimx, dimy, dimz);
+		CreateListSegments<Y>(numSegs[Y], h_listY, d_listY, dimy, dimx, dimz);
+		CreateListSegments<Z>(numSegs[Z], h_listZ, d_listZ, dimz, dimx, dimy);
 
 		prof.StopEvent("CreateSegments");
 	}
 
-	void AdiSolver3D::SolveDirection(FTYPE dt, int num_local, vector<Segment3D> &list, Segment3D *d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
+	void AdiSolver3D::SolveDirection(DirType dir, FTYPE dt, int num_local, Segment3D *h_list, Segment3D *d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
 	{
-		DirType dir = list[0].dir;
 		for (int it = 0; it < num_local; it++)
 		{
 			// transpose non-linear layer if opt is enabled
@@ -280,15 +270,15 @@ namespace FluidSolver3D
 			switch( backend )
 			{
 			case CPU:
-				#pragma omp parallel default(none) firstprivate(dt, dir) shared(list, cur, temp, next)
+				#pragma omp parallel default(none) firstprivate(dt, dir) shared(h_list, cur, temp, next)
 				{
 					#pragma omp for
-					for (int s = 0; s < (int)list.size(); s++)
+					for (int s = 0; s < numSegs[dir]; s++)
 					{		
-						SolveSegment(dt, s, list[s], type_U, dir, cur, temp, next);
-						SolveSegment(dt, s, list[s], type_V, dir, cur, temp, next);
-						SolveSegment(dt, s, list[s], type_W, dir, cur, temp, next);
-						SolveSegment(dt, s, list[s], type_T, dir, cur, temp, next);			
+						SolveSegment(dt, s, h_list[s], type_U, dir, cur, temp, next);
+						SolveSegment(dt, s, h_list[s], type_V, dir, cur, temp, next);
+						SolveSegment(dt, s, h_list[s], type_W, dir, cur, temp, next);
+						SolveSegment(dt, s, h_list[s], type_T, dir, cur, temp, next);			
 					}
 				}
 				break;
@@ -306,10 +296,10 @@ namespace FluidSolver3D
 					temp_new = tempT;
 				}
 
-				SolveSegments_GPU(dt, params, list.size(), d_list, type_U, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);	
-				SolveSegments_GPU(dt, params, list.size(), d_list, type_V, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
-				SolveSegments_GPU(dt, params, list.size(), d_list, type_W, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
-				SolveSegments_GPU(dt, params, list.size(), d_list, type_T, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
+				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_U, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);	
+				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_V, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
+				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_W, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
+				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_T, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
 				
 				break;
 			}
