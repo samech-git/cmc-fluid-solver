@@ -227,12 +227,14 @@ namespace FluidSolver2D
 	}
 
 
-	void Grid2D::Init()
+	void Grid2D::Init(bool align)
 	{
 		bbox.Build(num_frames, frames);
 	
-		dimx = AlignBy32((int)ceil((bbox.pMax.x - bbox.pMin.x) / dx) + 1);
-		dimy = AlignBy32((int)ceil((bbox.pMax.y - bbox.pMin.y) / dy) + 1);
+		dimx = ((int)ceil((bbox.pMax.x - bbox.pMin.x) / dx) + 1);
+		dimy = ((int)ceil((bbox.pMax.y - bbox.pMin.y) / dy) + 1);
+
+		if( align ) { dimx = AlignBy32(dimx); dimy = AlignBy32(dimy); } 
 
 		// allocate data
 		int size = dimx * dimy;
@@ -296,7 +298,7 @@ namespace FluidSolver2D
 			}
 	}
 
-	bool Grid2D::LoadFromFile(char *filename, char *fieldname)
+	bool Grid2D::LoadFromFile(char *filename, char *fieldname, bool align)
 	{
 		FILE *file = NULL;
 		if (fopen_s(&file, filename, "r") != 0)
@@ -397,7 +399,7 @@ namespace FluidSolver2D
 		for (int j=0; j<num_frames; j++)
 			ComputeBorderVelocities(j);
 		
-		Init();
+		Init(align);
 		return true;
 	}
 

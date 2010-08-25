@@ -62,14 +62,14 @@ namespace FluidSolver3D
 		nodes[i * dimy * dimz + j * dimz + k].v = new_v;
 	}
 
-	bool Grid3D::LoadFromFile(char *filename)
+	bool Grid3D::LoadFromFile(char *filename, bool align)
 	{
-		if (grid2D->LoadFromFile(filename, ""))
+		if (grid2D->LoadFromFile(filename, "", align))
 		{
 			dimx = grid2D->dimx;
 			dimy = grid2D->dimy;
 			active_dimz = (int)ceil(depth / dz) + 1;
-			dimz = AlignBy32(active_dimz);
+			dimz = align ? AlignBy32(active_dimz) : active_dimz;
 			nodes = new Node[dimx * dimy * dimz];
 			cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
 			return true;

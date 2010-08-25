@@ -3,7 +3,7 @@
 using namespace FluidSolver3D;
 using namespace Common;
 
-void parse_cmd_params(int argc, char **argv, BackendType &backend, bool &csv, bool &transpose, bool &decompose)
+void parse_cmd_params(int argc, char **argv, BackendType &backend, bool &csv, bool &transpose, bool &decompose, bool &align)
 {
 	for( int i = 4; i < argc; i++ )
 	{
@@ -11,6 +11,7 @@ void parse_cmd_params(int argc, char **argv, BackendType &backend, bool &csv, bo
 		if( !strcmp(argv[i], "CSV") ) csv = true;
 		if( !strcmp(argv[i], "transpose") ) transpose = true;
 		if( !strcmp(argv[i], "decompose") ) decompose = true;
+		if( !strcmp(argv[i], "align") ) align = true;
 	}
 }
 
@@ -20,7 +21,8 @@ int main(int argc, char **argv)
 	bool csv = false;
 	bool transpose = false;
 	bool decompose = false;
-	parse_cmd_params(argc, argv, backend, csv, transpose, decompose);
+	bool align = false;
+	parse_cmd_params(argc, argv, backend, csv, transpose, decompose, align);
 
 	if( backend == CPU )
 	{
@@ -53,7 +55,8 @@ int main(int argc, char **argv)
 
 	//--------------------------------------- Initializing ---------------------------------------
 	Grid3D grid(Config::dx, Config::dy, Config::dz, Config::depth, Config::startT);
-	if (grid.LoadFromFile(inputPath))
+	printf("Grid options:\n  align %s\n", align ? "ON" : "OFF");
+	if (grid.LoadFromFile(inputPath, align))
 	{
 		printf("Grid = %i x %i x %i\n", grid.dimx, grid.dimy, grid.dimz);
 	}
@@ -78,7 +81,7 @@ int main(int argc, char **argv)
 			solver = new AdiSolver3D(); 
 			if( backend == GPU ) 
 			{
-				printf("GPU options:\n  transpose %s\n  decompose %s\n", transpose ? "ON" : "OFF", decompose ? "ON" : "OFF");
+				printf("Solver options:\n  transpose %s\n  decompose %s\n", transpose ? "ON" : "OFF", decompose ? "ON" : "OFF");
 				dynamic_cast<AdiSolver3D*>(solver)->SetOptionsGPU(transpose, decompose);
 			}
 			break;

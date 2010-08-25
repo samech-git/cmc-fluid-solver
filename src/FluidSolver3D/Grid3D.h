@@ -64,7 +64,7 @@ namespace FluidSolver3D
 		double GetFrameTime();
 		FluidSolver2D::Grid2D *GetGrid2D();
 		
-		bool LoadFromFile(char *filename);
+		bool LoadFromFile(char *filename, bool align = false);
 		void Prepare(double time);
 
 		void Grid3D::TestPrint(char *filename);

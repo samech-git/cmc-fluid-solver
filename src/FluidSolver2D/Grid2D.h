@@ -52,7 +52,7 @@ namespace FluidSolver2D
 		int GetFrame(double time);
 		float GetLayerTime(double t);
 
-		bool LoadFromFile(char *filename, char *fieldname);
+		bool LoadFromFile(char *filename, char *fieldname, bool align = false);
 		void TestPrint(char *filename);
 
 		BBox2D bbox;		// bounding box
@@ -73,7 +73,7 @@ namespace FluidSolver2D
 		CondData2D *curData;
 		CondData2D *nextData;
 
-		void Init();
+		void Init(bool align);
 
 		VecTN GetTangentNormal(Vec2D vector, Vec2D orientation);
 		Vec2D GetBounfVelocity(int x, int y);
