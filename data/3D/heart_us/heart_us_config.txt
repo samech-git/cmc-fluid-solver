@@ -1,0 +1,26 @@
+dimension	3D
+
+Re		200.0
+Pr		0.72
+lambda		1.4
+
+bc_type		NoSlip
+
+grid_dx		0.0007
+grid_dy		0.0007
+
+cycles 		1
+calc_subframes 	1
+
+out_subframes 	1
+out_gridx	104
+out_gridy 	104
+
+solver		ADI
+num_global 	4
+num_local 	2
+
+out_gridz	102
+grid_dz		0.01
+depth		1.0
+
