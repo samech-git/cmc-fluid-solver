@@ -7,6 +7,7 @@
 #include "Solver3D.h"
 
 #define ERR_THRESHOLD		0.01
+#define MAX_SEGS_PER_ROW	2
 
 using namespace Common;
 

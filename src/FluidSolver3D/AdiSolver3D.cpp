@@ -91,9 +91,9 @@ namespace FluidSolver3D
 		d = new FTYPE[n * n * n];
 		x = new FTYPE[n * n * n];
 
-		h_listX = new Segment3D[grid->dimy * grid->dimz];
-		h_listY = new Segment3D[grid->dimx * grid->dimz];
-		h_listZ = new Segment3D[grid->dimx * grid->dimy];
+		h_listX = new Segment3D[grid->dimy * grid->dimz * MAX_SEGS_PER_ROW];
+		h_listY = new Segment3D[grid->dimx * grid->dimz * MAX_SEGS_PER_ROW];
+		h_listZ = new Segment3D[grid->dimx * grid->dimy * MAX_SEGS_PER_ROW];
 
 		if( backend == GPU )
 		{
@@ -104,9 +104,9 @@ namespace FluidSolver3D
 			cudaMalloc( &d_d, sizeof(FTYPE) * n * n * n );
 			cudaMalloc( &d_x, sizeof(FTYPE) * n * n * n );
 						
-			cudaMalloc( &d_listX, sizeof(Segment3D) * grid->dimy * grid->dimz );
-			cudaMalloc( &d_listY, sizeof(Segment3D) * grid->dimx * grid->dimz );
-			cudaMalloc( &d_listZ, sizeof(Segment3D) * grid->dimx * grid->dimy );
+			cudaMalloc( &d_listX, sizeof(Segment3D) * grid->dimy * grid->dimz * MAX_SEGS_PER_ROW );
+			cudaMalloc( &d_listY, sizeof(Segment3D) * grid->dimx * grid->dimz * MAX_SEGS_PER_ROW );
+			cudaMalloc( &d_listZ, sizeof(Segment3D) * grid->dimx * grid->dimy * MAX_SEGS_PER_ROW );
 		}
 		else
 		{

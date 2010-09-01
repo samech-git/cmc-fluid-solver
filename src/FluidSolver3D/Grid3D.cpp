@@ -141,12 +141,12 @@ namespace FluidSolver3D
 		fopen_s(&file, filename, "w");
 		fprintf(file, "grid (z-slices):\n");
 		fprintf(file, "%i %i %i\n", dimx, dimy, dimz);
-		for (int i = 0; i < dimx; i++)
+		for (int k = 0; k < dimz; k++)
 		{
-			for (int j = 0; j < dimy; j++)
+			for (int i = 0; i < dimx; i++)
 			{
-				for (int k = 0; k < dimz; k++)
-				{
+				for (int j = 0; j < dimy; j++)
+				{					
 					NodeType t = GetType(i, j, k);
 					switch (t)
 					{
