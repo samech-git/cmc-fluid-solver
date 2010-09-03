@@ -53,7 +53,8 @@ namespace FluidSolver2D
 		float GetLayerTime(double t);
 
 		bool LoadFromFile(char *filename, char *fieldname, bool align = false);
-		void TestPrint(char *filename);
+		void OutputText(char *filename);
+		void OutputImage(char *filename);
 
 		BBox2D bbox;		// bounding box
 		double startT;		// initial temperature

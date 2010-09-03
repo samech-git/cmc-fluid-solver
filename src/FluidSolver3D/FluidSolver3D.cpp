@@ -65,8 +65,8 @@ int main(int argc, char **argv)
 	sprintf_s(gridPath, "%s_grid_3d.txt", argv[2]);
 	grid.TestPrint(gridPath);
 
-	sprintf_s(gridPath, "%s_grid_2d.txt", argv[2]);
-	grid.GetGrid2D()->TestPrint(gridPath);
+	sprintf_s(gridPath, "%s_grid_2d.bmp", argv[2]);
+	grid.GetGrid2D()->OutputImage(gridPath);
 
 	FluidParams *params;
 	if (Config::useNormalizedParams) params = new FluidParams(Config::Re, Config::Pr, Config::lambda);

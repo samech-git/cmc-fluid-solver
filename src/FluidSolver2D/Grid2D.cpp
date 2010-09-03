@@ -1,6 +1,9 @@
 #include "Grid2D.h"
 #include "IO.h"
 
+// used only for BMP output
+#include <windows.h>
+
 namespace FluidSolver2D
 {
 	Grid2D::Grid2D(double _dx, double _dy, double _startT, bool _bc_noslip, double _bc_strength) : dx(_dx), dy(_dy), startT(_startT), bc_noslip(_bc_noslip), bc_strength(_bc_strength), curData(NULL), nextData(NULL) {	}
@@ -569,7 +572,7 @@ namespace FluidSolver2D
 	}
 
 
-	void Grid2D::TestPrint(char *filename)
+	void Grid2D::OutputText(char *filename)
 	{
 		FILE *file = NULL;
 		fopen_s(&file, filename, "w");
@@ -590,6 +593,51 @@ namespace FluidSolver2D
 			}
 			fprintf(file, "\n");
 		}
+		fclose(file);
+	}
+
+	void Grid2D::OutputImage(char *filename)
+	{
+		BITMAPFILEHEADER bfh;
+		BITMAPINFOHEADER bih;
+		
+		memset(&bfh, sizeof(bfh), 0);
+		bfh.bfType = 0x4D42;
+		bfh.bfOffBits = sizeof(bfh) + sizeof(bih);
+		bfh.bfSize = bfh.bfOffBits + sizeof(char) * 3 * dimx * dimy + dimx * (dimy % 4);
+		
+		memset(&bih, sizeof(bih), 0);
+		bih.biSize = sizeof(bih);
+		bih.biBitCount = 24;
+		bih.biCompression = BI_RGB;
+		bih.biHeight = dimx;
+		bih.biWidth = dimy;
+		bih.biPlanes = 1;
+
+		FILE *file = NULL;
+		fopen_s(&file, filename, "w");
+		fwrite(&bfh, sizeof(bfh), 1, file);
+		fwrite(&bih, sizeof(bih), 1, file);
+
+		for (int i = 0; i < dimx; i++)
+		{
+			char color[3];
+			for (int j = 0; j < dimy; j++)
+			{
+				CellType t = GetType(i, j);
+				switch (t)
+				{
+				case CELL_IN: color[0] = (char)245; color[1] = (char)73; color[2] = (char)69; break;		// blue
+				case CELL_OUT: color[0] = (char)0; color[1] = (char)0; color[2] = (char)0; break;			// black
+				case CELL_BOUND: color[0] = (char)255; color[1] = (char)255; color[2] = (char)255; break;	// white
+				case CELL_VALVE: color[0] = (char)241; color[1] = (char)41; color[2] = (char)212; break;	// purple
+				}
+
+				fwrite(color, sizeof(char) * 3, 1, file);
+			}
+			fwrite(color, sizeof(char) * 3, dimy % 4, file);
+		}
+
 		fclose(file);
 	}
 }
