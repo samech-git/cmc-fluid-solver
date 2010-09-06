@@ -50,7 +50,7 @@ namespace FluidSolver3D
 		Segment3D *d_listX, *d_listY, *d_listZ;		// segments in GPU mem 
 
 		TimeLayer3D *temp, *half1, *half2;
-		TimeLayer3D *curT, *tempT;					// for transpose GPU optimization
+		TimeLayer3D *curT, *tempT, *nextT;			// for transpose GPU optimization
 
 		FTYPE *a, *b, *c, *d, *x;					// matrices in CPU mem
 		FTYPE *d_a, *d_b, *d_c, *d_d, *d_x;			// same matrices in GPU mem

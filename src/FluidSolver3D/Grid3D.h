@@ -59,7 +59,9 @@ namespace FluidSolver3D
 		Vec3D GetVel(int i, int j, int k);
 		FTYPE GetT(int i, int j, int k);
 
-		Node *GetNodesGPU();		// return all nodes info stored on GPU
+		// return all nodes info as an array
+		Node *GetNodesCPU();							 
+		Node *GetNodesGPU(bool transposed = false);		
 
 		void SetNodeVel(int i, int j, int k, Vec3D new_v);
 
@@ -76,6 +78,7 @@ namespace FluidSolver3D
 
 		Node*		nodes;		// all grid nodes
 		Node*		d_nodes;	// same nodes stored on GPU
+		Node*		d_nodesT;	// transposed nodes on GPU
 
 		FluidSolver2D::Grid2D *grid2D;		// 2D helper grid for borders
 		double depth;						// depth

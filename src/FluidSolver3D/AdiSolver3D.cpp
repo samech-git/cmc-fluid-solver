@@ -15,6 +15,7 @@ namespace FluidSolver3D
 
 		curT = NULL;
 		tempT = NULL;
+		nextT = NULL;
 
 		a = d_a = NULL;
 		b = d_b = NULL;
@@ -37,6 +38,7 @@ namespace FluidSolver3D
 
 		if (curT != NULL) delete curT;
 		if (tempT != NULL) delete tempT;
+		if (nextT != NULL) delete nextT;
 
 		if (a != NULL) delete [] a;
 		if (b != NULL) delete [] b;
@@ -85,11 +87,11 @@ namespace FluidSolver3D
 		params = _params;
 
 		int n = max(dimx, max(dimy, dimz));
-		a = new FTYPE[n * n * n];
-		b = new FTYPE[n * n * n];
-		c = new FTYPE[n * n * n];
-		d = new FTYPE[n * n * n];
-		x = new FTYPE[n * n * n];
+		a = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
+		b = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
+		c = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
+		d = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
+		x = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
 
 		h_listX = new Segment3D[grid->dimy * grid->dimz * MAX_SEGS_PER_ROW];
 		h_listY = new Segment3D[grid->dimx * grid->dimz * MAX_SEGS_PER_ROW];
@@ -98,11 +100,11 @@ namespace FluidSolver3D
 		if( backend == GPU )
 		{
 			// create GPU matrices
-			cudaMalloc( &d_a, sizeof(FTYPE) * n * n * n );
-			cudaMalloc( &d_b, sizeof(FTYPE) * n * n * n );
-			cudaMalloc( &d_c, sizeof(FTYPE) * n * n * n );
-			cudaMalloc( &d_d, sizeof(FTYPE) * n * n * n );
-			cudaMalloc( &d_x, sizeof(FTYPE) * n * n * n );
+			cudaMalloc( &d_a, sizeof(FTYPE) * n * n * n * MAX_SEGS_PER_ROW );
+			cudaMalloc( &d_b, sizeof(FTYPE) * n * n * n * MAX_SEGS_PER_ROW );
+			cudaMalloc( &d_c, sizeof(FTYPE) * n * n * n * MAX_SEGS_PER_ROW );
+			cudaMalloc( &d_d, sizeof(FTYPE) * n * n * n * MAX_SEGS_PER_ROW );
+			cudaMalloc( &d_x, sizeof(FTYPE) * n * n * n * MAX_SEGS_PER_ROW );
 						
 			cudaMalloc( &d_listX, sizeof(Segment3D) * grid->dimy * grid->dimz * MAX_SEGS_PER_ROW );
 			cudaMalloc( &d_listY, sizeof(Segment3D) * grid->dimx * grid->dimz * MAX_SEGS_PER_ROW );
@@ -122,6 +124,7 @@ namespace FluidSolver3D
 
 		curT = new TimeLayer3D(backend, grid->dimx, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy);
 		tempT = new TimeLayer3D(backend, grid->dimx, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy);
+		nextT = new TimeLayer3D(backend, grid->dimx, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy);
 	}
 
 	void AdiSolver3D::TimeStep(FTYPE dt, int num_global, int num_local)
@@ -145,7 +148,7 @@ namespace FluidSolver3D
 		for (int it = 0; it < num_global; it++)
 		{
 			// alternating directions
-			SolveDirection(Z, dt, num_local, h_listZ, d_listZ, cur, temp, half1);		
+			SolveDirection(Z, dt, num_local, h_listZ, d_listZ, cur, temp, half1);
 			SolveDirection(Y, dt, num_local, h_listY, d_listY, half1, temp, half2);
 			SolveDirection(X, dt, num_local, h_listX, d_listX, half2, temp, next);
 
@@ -255,16 +258,27 @@ namespace FluidSolver3D
 
 	void AdiSolver3D::SolveDirection(DirType dir, FTYPE dt, int num_local, Segment3D *h_list, Segment3D *d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
 	{
+		DirType dir_new = dir;
+		TimeLayer3D *cur_new = cur;
+		TimeLayer3D *temp_new = temp;
+		TimeLayer3D *next_new = next;
+
+		// transpose non-linear layer if opt is enabled
+		if( transposeOpt && dir == Z )
+		{
+			prof.StartEvent();			
+			temp->Transpose(tempT);
+			prof.StopEvent("Transpose");
+
+			// set transposed direction
+			dir_new = Z_as_Y;
+			cur_new = curT;
+			temp_new = tempT;
+			next_new = nextT;
+		}
+
 		for (int it = 0; it < num_local; it++)
 		{
-			// transpose non-linear layer if opt is enabled
-			if( transposeOpt )
-			{
-				prof.StartEvent();			
-				temp->Transpose(tempT);
-				prof.StopEvent("Transpose");
-			}
-
 			prof.StartEvent();
 
 			switch( backend )
@@ -281,26 +295,12 @@ namespace FluidSolver3D
 						SolveSegment(dt, s, h_list[s], type_T, dir, cur, temp, next);			
 					}
 				}
-				break;
-			
+				break;		
 			case GPU:
-				DirType dir_new = dir;
-				TimeLayer3D *cur_new = cur;
-				TimeLayer3D *temp_new = temp;
-
-				if( transposeOpt && dir == Z )
-				{
-					// set transposed direction
-					dir_new = Z_as_Y;
-					cur_new = curT;
-					temp_new = tempT;
-				}
-
-				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_U, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);	
-				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_V, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
-				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_W, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
-				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_T, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
-				
+				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_U, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);	
+				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_V, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
+				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_W, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
+				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_T, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);				
 				break;
 			}
 
@@ -311,10 +311,29 @@ namespace FluidSolver3D
 			case Z: prof.StopEvent("SolveSegments_Z"); break;
 			}
 
-			// update non-linear layer
-			prof.StartEvent();
-			next->MergeLayerTo(grid, temp, NODE_IN);
-			prof.StopEvent("MergeLayer");
+			if( dir_new == Z_as_Y )
+			{
+				// update non-linear layer
+				prof.StartEvent();
+				nextT->MergeLayerTo(grid, tempT, NODE_IN, true);
+				prof.StopEvent("MergeLayer");
+			}
+			else
+			{
+				// update non-linear layer
+				prof.StartEvent();
+				next->MergeLayerTo(grid, temp, NODE_IN);
+				prof.StopEvent("MergeLayer");
+			}
+		}
+
+		// transpose temp and next layers to normal order
+		if( dir_new == Z_as_Y )
+		{
+			prof.StartEvent();			
+			nextT->Transpose(next);
+			tempT->Transpose(temp);
+			prof.StopEvent("Transpose");
 		}
 	}
 

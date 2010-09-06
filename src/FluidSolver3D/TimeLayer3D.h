@@ -106,26 +106,29 @@ namespace FluidSolver3D
 			}
 		}
 
-		void MergeFieldTo(Grid3D *grid, ScalarField3D *dest, NodeType type)
+		void MergeFieldTo(Node *nodes, ScalarField3D *dest, NodeType type)
 		{
 			switch( hw )
 			{
 			case CPU:
 				{
-					#pragma omp parallel default(none) firstprivate(type) shared(grid, dest)
+					#pragma omp parallel default(none) firstprivate(type) shared(nodes, dest)
 					{
 						#pragma omp for
 						for (int i = 0; i < dimx; i++)
 							for (int j = 0; j < dimy; j++)
 								for (int k = 0; k < dimz; k++)
-									if (grid->GetType(i, j, k) == type)
+								{
+									int id = i * dimy * dimz + j * dimz + k;
+									if (nodes[id].type == type)
 										dest->elem(i, j, k) = (dest->elem(i, j, k) + elem(i, j, k)) / 2;
+								}
 					}
 					break;
 				}
 			case GPU:
 				{
-					MergeFieldTo_GPU(dimx, dimy, dimz, u, dest->getArray(), grid->GetNodesGPU(), type);
+					MergeFieldTo_GPU(dimx, dimy, dimz, u, dest->getArray(), nodes, type);
 					break;
 				}
 			}
@@ -145,6 +148,29 @@ namespace FluidSolver3D
 					break;	
 				}
 			}		
+		}
+
+		void DumpToFile(char *filename, int x = -1)
+		{
+			ScalarField3D host_copy(CPU, this);
+
+			int x_start, x_end;
+			if( x == -1 ) { x_start = 0; x_end = dimx; }
+				else { x_start = x; x_end = x+1; }
+			
+			FILE *file = NULL;
+			fopen_s(&file, filename, "w");
+			for( int i = x_start; i < x_end; i++ )
+			{
+				fprintf(file, "x = %i\n", i);
+				for( int j = 0; j < dimy; j++ )
+				{
+					for( int k = 0; k < dimz; k++ )
+						fprintf(file, "%.3f ", host_copy.elem(i, j, k));
+					fprintf(file, "\n");
+				}
+			}
+			fclose(file);
 		}
 
 	private:
@@ -233,12 +259,14 @@ namespace FluidSolver3D
 			return err / count;
 		}
 
-		void MergeLayerTo(Grid3D *grid, TimeLayer3D *dest, NodeType type)
+		void MergeLayerTo(Grid3D *grid, TimeLayer3D *dest, NodeType type, bool transposed = false)
 		{
-			U->MergeFieldTo(grid, dest->U, type);
-			V->MergeFieldTo(grid, dest->V, type);
-			W->MergeFieldTo(grid, dest->W, type);
-			T->MergeFieldTo(grid, dest->T, type);
+			Node *nodes = ( hw == CPU ) ? grid->GetNodesCPU() : grid->GetNodesGPU(transposed);
+
+			U->MergeFieldTo( nodes, dest->U, type );
+			V->MergeFieldTo( nodes, dest->V, type );
+			W->MergeFieldTo( nodes, dest->W, type );
+			T->MergeFieldTo( nodes, dest->T, type );
 		}
 
 		void CopyLayerTo(TimeLayer3D *dest)

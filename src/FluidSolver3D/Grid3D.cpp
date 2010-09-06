@@ -3,7 +3,7 @@
 namespace FluidSolver3D
 {
 	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend) : 
-		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL), backend(_backend)
+		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend)
 	{
 		grid2D = new FluidSolver2D::Grid2D(dx, dy, baseT, true, 0.0);
 	}
@@ -12,6 +12,7 @@ namespace FluidSolver3D
 	{
 		if (nodes != NULL) delete [] nodes;
 		if (d_nodes != NULL) cudaFree(d_nodes);
+		if (d_nodesT != NULL) cudaFree(d_nodesT);
 		if (grid2D != NULL) delete grid2D;
 	}
 
@@ -20,9 +21,14 @@ namespace FluidSolver3D
 		return nodes[i * dimy * dimz + j * dimz + k].type;
 	}
 
-	Node *Grid3D::GetNodesGPU()
+	Node *Grid3D::GetNodesGPU(bool transposed)
 	{
-		return d_nodes;
+		return (transposed ? d_nodesT : d_nodes);
+	}
+
+	Node *Grid3D::GetNodesCPU()
+	{
+		return nodes;
 	}
 
 	BCtype Grid3D::GetBC_vel(int i, int j, int k)
@@ -72,7 +78,10 @@ namespace FluidSolver3D
 			dimz = align ? AlignBy32(active_dimz) : active_dimz;
 			nodes = new Node[dimx * dimy * dimz];
 			if( backend == GPU ) 
+			{
 				cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
+				cudaMalloc(&d_nodesT, sizeof(Node) * dimx * dimy * dimz);
+			}
 			return true;
 		}
 		else
@@ -132,7 +141,24 @@ namespace FluidSolver3D
 
 		// copy to GPU as well
 		if( backend == GPU ) 
+		{
 			cudaMemcpy(d_nodes, nodes, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyHostToDevice);
+
+			// currently implemented on CPU but it's possible to do a transpose on GPU
+			Node *nodesT = new Node[dimx * dimy * dimz];
+
+			for (int i = 0; i < dimx; i++)
+				for (int j = 0; j < dimy; j++)
+					for (int k = 0; k < dimz; k++)
+					{
+						int id = i * dimy * dimz + j * dimz + k;
+						int idT = i * dimy * dimz + k * dimy + j;
+						nodesT[idT] = nodes[id];
+					}
+
+			cudaMemcpy(d_nodesT, nodesT, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyHostToDevice);
+			delete [] nodesT;
+		}
 	}
 
 	void Grid3D::TestPrint(char *filename)

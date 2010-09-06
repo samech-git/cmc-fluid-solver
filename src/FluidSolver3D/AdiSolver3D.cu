@@ -45,7 +45,7 @@ namespace FluidSolver3D
 
 #if 1
 	// interleave matrix arrays for better memory access
-	#define get(a, elem_id)			a[id + (elem_id) * max_n * max_n]
+	#define get(a, elem_id)			a[id + (elem_id) * max_n * max_n * MAX_SEGS_PER_ROW]
 #else
 	// sequential layout - bad access pattern
 	#define get(a, elem_id)			a[elem_id + id * max_n]
@@ -202,6 +202,12 @@ namespace FluidSolver3D
 		int i = seg.posx;
 		int j = seg.posy;
 		int k = seg.posz;
+		
+		if( dir == Z_as_Y ) 
+		{
+			k = seg.posy;
+			j = seg.posz;
+		}
 
 		for (int t = 0; t < seg.size; t++)
 		{
@@ -218,7 +224,7 @@ namespace FluidSolver3D
 			case X: i++; break;
 			case Y: j++; break;
 			case Z: k++; break;
-			case Z_as_Y: k++; break;
+			case Z_as_Y: j++; break;
 			}
 		}
 	}
