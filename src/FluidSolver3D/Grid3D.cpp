@@ -145,19 +145,22 @@ namespace FluidSolver3D
 			cudaMemcpy(d_nodes, nodes, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyHostToDevice);
 
 			// currently implemented on CPU but it's possible to do a transpose on GPU
-			Node *nodesT = new Node[dimx * dimy * dimz];
+			//Node *nodesT = new Node[dimx * dimy * dimz];
 
 			for (int i = 0; i < dimx; i++)
 				for (int j = 0; j < dimy; j++)
-					for (int k = 0; k < dimz; k++)
+					for (int k = j+1; k < dimz; k++)
 					{
 						int id = i * dimy * dimz + j * dimz + k;
 						int idT = i * dimy * dimz + k * dimy + j;
-						nodesT[idT] = nodes[id];
+						Node tmp = nodes[idT];
+						nodes[idT] = nodes[id];
+						nodes[id] = tmp;
 					}
 
-			cudaMemcpy(d_nodesT, nodesT, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyHostToDevice);
-			delete [] nodesT;
+			cudaMemcpy(d_nodesT, nodes, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyHostToDevice);
+			cudaMemcpy(nodes, d_nodes, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyDeviceToHost);
+			//delete [] nodesT;
 		}
 	}
 

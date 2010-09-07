@@ -49,7 +49,7 @@ namespace FluidSolver3D
 		Segment3D *h_listX, *h_listY, *h_listZ;		// segments in CPU mem
 		Segment3D *d_listX, *d_listY, *d_listZ;		// segments in GPU mem 
 
-		TimeLayer3D *temp, *half1, *half2;
+		TimeLayer3D *temp, *half;
 		TimeLayer3D *curT, *tempT, *nextT;			// for transpose GPU optimization
 
 		FTYPE *a, *b, *c, *d, *x;					// matrices in CPU mem
@@ -62,7 +62,9 @@ namespace FluidSolver3D
 		template<DirType dir>
 		void CreateListSegments(int &numSeg, Segment3D *h_list, Segment3D *d_list, int dim1, int dim2, int dim3);
 		
+		void OutputSegmentsInfo(int num, Segment3D *list, char *filename);
 		void CreateSegments();
+
 		void SolveSegment(FTYPE dt, int id, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
 		void UpdateSegment(FTYPE *x, Segment3D seg, VarType var, TimeLayer3D *layer);
 		

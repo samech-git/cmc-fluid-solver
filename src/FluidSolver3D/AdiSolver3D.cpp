@@ -9,8 +9,7 @@ namespace FluidSolver3D
 
 		cur = NULL;
 		temp = NULL;
-		half1 = NULL;
-		half2 = NULL;
+		half = NULL;
 		next = NULL;
 
 		curT = NULL;
@@ -32,8 +31,7 @@ namespace FluidSolver3D
 	{
 		if (cur != NULL) delete cur;
 		if (temp != NULL) delete temp;
-		if (half1 != NULL) delete half1;
-		if (half2 != NULL) delete half2;
+		if (half != NULL) delete half;
 		if (next != NULL) delete next;
 
 		if (curT != NULL) delete curT;
@@ -87,11 +85,6 @@ namespace FluidSolver3D
 		params = _params;
 
 		int n = max(dimx, max(dimy, dimz));
-		a = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
-		b = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
-		c = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
-		d = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
-		x = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
 
 		h_listX = new Segment3D[grid->dimy * grid->dimz * MAX_SEGS_PER_ROW];
 		h_listY = new Segment3D[grid->dimx * grid->dimz * MAX_SEGS_PER_ROW];
@@ -112,13 +105,18 @@ namespace FluidSolver3D
 		}
 		else
 		{
+			a = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
+			b = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
+			c = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
+			d = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
+			x = new FTYPE[n * n * n * MAX_SEGS_PER_ROW];
+
 			transposeOpt = false;
 			decomposeOpt = false;
 		}
 
 		cur = new TimeLayer3D(backend, grid);
-		half1 = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
-		half2 = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
+		half = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
 		next = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
 		temp = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
 
@@ -127,9 +125,26 @@ namespace FluidSolver3D
 		nextT = new TimeLayer3D(backend, grid->dimx, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy);
 	}
 
+	void AdiSolver3D::OutputSegmentsInfo(int num, Segment3D *list, char *filename)
+	{
+		FILE *file = NULL;
+		fopen_s(&file, filename, "w");
+		int num_elem = 0;
+		for (int i = 0; i < num; i++) num_elem += list[i].size;
+		fprintf(file, "num_systems = %i\nunknown_elements = %i\nall_elements = %i\n", num, num_elem-num*2, num_elem);
+		for (int i = 0; i < num; i++)
+			fprintf(file, "%i ", list[i].size);
+		fclose(file);
+	}
+
 	void AdiSolver3D::TimeStep(FTYPE dt, int num_global, int num_local)
 	{	
 		CreateSegments();
+		
+		// output segments info to file for benchmarking tridiagonal solvers
+		//OutputSegmentsInfo(numSegs[X], h_listX, "segsX.txt");
+		//OutputSegmentsInfo(numSegs[Y], h_listY, "segsY.txt");
+		//OutputSegmentsInfo(numSegs[Z], h_listZ, "segsZ.txt");
 
 		// setup non-linear layer
 		prof.StartEvent();
@@ -148,9 +163,9 @@ namespace FluidSolver3D
 		for (int it = 0; it < num_global; it++)
 		{
 			// alternating directions
-			SolveDirection(Z, dt, num_local, h_listZ, d_listZ, cur, temp, half1);
-			SolveDirection(Y, dt, num_local, h_listY, d_listY, half1, temp, half2);
-			SolveDirection(X, dt, num_local, h_listX, d_listX, half2, temp, next);
+			SolveDirection(Z, dt, num_local, h_listZ, d_listZ, cur, temp, next);
+			SolveDirection(Y, dt, num_local, h_listY, d_listY, next, temp, half);
+			SolveDirection(X, dt, num_local, h_listX, d_listX, half, temp, next);
 
 			// update non-linear layer
 			prof.StartEvent();
