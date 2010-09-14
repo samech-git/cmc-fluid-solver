@@ -15,7 +15,7 @@
 	</Platforms>
 	<ToolFiles>
 		<DefaultToolFile
-			FileName="NvCudaRuntimeApi.v3.2.rules"
+			FileName="NvCudaRuntimeApi.rules"
 		/>
 	</ToolFiles>
 	<Configurations>
@@ -24,7 +24,6 @@
 			OutputDirectory="$(SolutionDir)..\bin\$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\NvCudaToolkit.v3.2.vsprops"
 			CharacterSet="1"
 			>
 			<Tool
@@ -107,7 +106,6 @@
 			OutputDirectory="$(SolutionDir)..\bin\$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\NvCudaToolkit.v3.2.vsprops"
 			CharacterSet="1"
 			WholeProgramOptimization="1"
 			>
