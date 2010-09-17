@@ -301,6 +301,7 @@ namespace FluidSolver3D
 			break;
 
 		case false:
+			cudaFuncSetCacheConfig(solve_segments<dir, var>, cudaFuncCachePreferL1);
 			solve_segments<dir, var><<<grid, block>>>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x );
 			cudaThreadSynchronize();
 			break;
