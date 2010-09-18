@@ -5,8 +5,11 @@
 #define COPY_BLOCK_DIM_X		32
 #define COPY_BLOCK_DIM_Y		8
 
-#define TRANSPOSE_TILE_DIM		16
-#define TRANSPOSE_BLOCK_ROWS	16
+#define TRANSPOSE_SMEM_TILE_DIM			16
+#define TRANSPOSE_SMEM_BLOCK_ROWS		16
+
+#define TRANSPOSE_CACHE_TILE_DIM		32
+#define TRANSPOSE_CACHE_BLOCK_ROWS		8
 
 using namespace FluidSolver3D;
 
@@ -80,16 +83,16 @@ __global__ void merge(int dimx, int dimy, int dimz, FTYPE *src, FTYPE *dest, Nod
 	}
 }
 
-__global__ void transpose(int dimx, int dimy, int dimz, FTYPE *src, FTYPE *dest)
+__global__ void transpose_shared(int dimx, int dimy, int dimz, FTYPE *src, FTYPE *dest)
 {
-	__shared__ FTYPE tile[TRANSPOSE_TILE_DIM][TRANSPOSE_TILE_DIM+1];
+	__shared__ FTYPE tile[TRANSPOSE_SMEM_TILE_DIM][TRANSPOSE_SMEM_TILE_DIM+1];
 
     // read the tile from global memory into shared memory
-	int k0 = blockIdx.x * TRANSPOSE_TILE_DIM + threadIdx.x;
-	int j0 = blockIdx.y * TRANSPOSE_TILE_DIM + threadIdx.y;
+	int k0 = blockIdx.x * TRANSPOSE_SMEM_TILE_DIM + threadIdx.x;
+	int j0 = blockIdx.y * TRANSPOSE_SMEM_TILE_DIM + threadIdx.y;
 
-	int j1 = blockIdx.y * TRANSPOSE_TILE_DIM + threadIdx.x;
-    int k1 = blockIdx.x * TRANSPOSE_TILE_DIM + threadIdx.y;
+	int j1 = blockIdx.y * TRANSPOSE_SMEM_TILE_DIM + threadIdx.x;
+    int k1 = blockIdx.x * TRANSPOSE_SMEM_TILE_DIM + threadIdx.y;
 
 	int base_u0 = k0 + j0 * dimz;	
     int base_u1 = j1 + k1 * dimy;
@@ -97,19 +100,37 @@ __global__ void transpose(int dimx, int dimy, int dimz, FTYPE *src, FTYPE *dest)
 	for (int i = 0; i < dimx; i++)
 	{	
 		// read tile from global to shared memory
-		for (int row = 0; row < TRANSPOSE_TILE_DIM; row += TRANSPOSE_BLOCK_ROWS)
+		for (int row = 0; row < TRANSPOSE_SMEM_TILE_DIM; row += TRANSPOSE_SMEM_BLOCK_ROWS)
 			tile[threadIdx.y + row][threadIdx.x] = src[base_u0 + row * dimz];
 		base_u0 += dimz * dimy;
 	
 		__syncthreads();
 	
 		// write the transposed tile to global memory 
-		for (int row = 0; row < TRANSPOSE_TILE_DIM; row += TRANSPOSE_BLOCK_ROWS)
+		for (int row = 0; row < TRANSPOSE_SMEM_TILE_DIM; row += TRANSPOSE_SMEM_BLOCK_ROWS)
 			dest[base_u1 + row * dimy] = tile[threadIdx.x][threadIdx.y + row];
 		base_u1 += dimz * dimy;
 	}
 }
 
+__global__ void transpose_cache(int dimx, int dimy, int dimz, FTYPE *src, FTYPE *dest)
+{
+	int i = blockIdx.y / ((dimy + TRANSPOSE_CACHE_TILE_DIM - 1)/TRANSPOSE_CACHE_TILE_DIM);
+	int blkY = blockIdx.y % ((dimy + TRANSPOSE_CACHE_TILE_DIM - 1)/TRANSPOSE_CACHE_TILE_DIM);
+
+	int j1 = blkY * TRANSPOSE_CACHE_TILE_DIM + threadIdx.x;
+    int k1 = blockIdx.x * TRANSPOSE_CACHE_TILE_DIM + threadIdx.y;
+
+	int base_src = blockIdx.x * TRANSPOSE_CACHE_TILE_DIM + blkY * TRANSPOSE_CACHE_TILE_DIM * dimz;
+	int base_dst = j1 + k1 * dimy;
+	
+	base_src += dimz * dimy * i;
+	base_dst += dimz * dimy * i;
+
+	// load directly from global memory filling up L1
+	for (int row = 0; row < TRANSPOSE_CACHE_TILE_DIM; row += TRANSPOSE_CACHE_BLOCK_ROWS)
+		dest[base_dst + row * dimy] = src[base_src + threadIdx.x * dimz + threadIdx.y + row];
+}
 
 void CopyFromGrid_GPU(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *v, FTYPE *w, FTYPE *T, Node *nodes, NodeType target)
 {
@@ -143,10 +164,29 @@ void Clear_GPU(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *v, FTYPE *w, FTYPE
 	cudaThreadSynchronize();
 }
 
+void Transpose_GPU_shared(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *dest_u)
+{
+	dim3 block(TRANSPOSE_SMEM_TILE_DIM, TRANSPOSE_SMEM_BLOCK_ROWS);
+	dim3 grid((dimz + TRANSPOSE_SMEM_TILE_DIM - 1)/TRANSPOSE_SMEM_TILE_DIM, (dimy + TRANSPOSE_SMEM_TILE_DIM - 1)/TRANSPOSE_SMEM_TILE_DIM);
+	cudaFuncSetCacheConfig(transpose_shared, cudaFuncCachePreferL1);
+	transpose_shared<<<grid, block>>>(dimx, dimy, dimz, u, dest_u);
+	cudaThreadSynchronize();
+}
+
+void Transpose_GPU_cache(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *dest_u)
+{
+	dim3 block(TRANSPOSE_CACHE_TILE_DIM, TRANSPOSE_CACHE_BLOCK_ROWS);
+	dim3 grid((dimz + TRANSPOSE_CACHE_TILE_DIM - 1)/TRANSPOSE_CACHE_TILE_DIM, dimx * ((dimy + TRANSPOSE_CACHE_TILE_DIM - 1)/TRANSPOSE_CACHE_TILE_DIM));
+	cudaFuncSetCacheConfig(transpose_cache, cudaFuncCachePreferL1);
+	transpose_cache<<<grid, block>>>(dimx, dimy, dimz, u, dest_u);
+	cudaThreadSynchronize();
+}
+
 void Transpose_GPU(int dimx, int dimy, int dimz, FTYPE *u, FTYPE *dest_u)
 {
-	dim3 block(TRANSPOSE_TILE_DIM, TRANSPOSE_BLOCK_ROWS);
-	dim3 grid((dimz + TRANSPOSE_TILE_DIM - 1)/TRANSPOSE_TILE_DIM, (dimy + TRANSPOSE_TILE_DIM - 1)/TRANSPOSE_TILE_DIM);
-	transpose<<<grid, block>>>(dimx, dimy, dimz, u, dest_u);
-	cudaThreadSynchronize();
+#if 1
+	Transpose_GPU_shared(dimx, dimy, dimz, u, dest_u);
+#else
+	Transpose_GPU_cache(dimx, dimy, dimz, u, dest_u);
+#endif
 }
