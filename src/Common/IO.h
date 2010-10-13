@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <string>
 
 #define MAX_STR_SIZE	255
 
@@ -260,6 +261,84 @@ namespace Common
 			else
 				break;
 		}
+	}
+
+	static void ReadPoint2D(FILE *file, Point2D &p)
+	{
+		std::string str = "";
+		char c;	
+
+		// read line
+		fscanf_s(file, "%c", &c);
+		while (c == '\n' || c == ' ') fscanf_s(file, "%c", &c);
+		while (c != '\n')
+		{
+			str += c;	
+			fscanf_s(file, "%c", &c);
+		}
+
+		// replace ',' with '.' if necessary
+		std::string::size_type pos = 0;
+		std::string::size_type found;
+		while ((found = str.find(',', pos)) != std::string::npos)
+		{
+			str.replace(found, 1, 1, '.');
+			pos = found;
+		}
+
+		// separate 2 values
+		pos = 0;
+		found = str.find(' ', pos);
+		std::string s1 = str.substr(0, found);
+		std::string s2 = str.substr(found+1, std::string::npos);
+
+		// convert to doubles
+		p.x = atof(s1.c_str());
+		p.y = atof(s2.c_str());
+	}
+
+	static void ReadPoint3D(FILE *file, Point3D &p)
+	{
+		std::string str[3];
+		str[0] = str[1] = str[2] = "";
+		char c;	
+
+		// read line
+		fscanf_s(file, "%c", &c);
+		while (c == '\n' || c == ' ') fscanf_s(file, "%c", &c);
+		
+		for (int i = 0; i < 3; i++)
+		{
+			while (c != '\n' && c != ' ')
+			{
+				str[i] += c;	
+				fscanf_s(file, "%c", &c);
+			}
+
+			// replace ',' with '.' if necessary
+			std::string::size_type found;
+			if ((found = str[i].find(',', 0)) != std::string::npos)
+				str[i].replace(found, 1, 1, '.');
+		}
+
+		// convert to doubles
+		p.x = atof(str[0].c_str());
+		p.y = atof(str[1].c_str());
+		p.z = atof(str[2].c_str());
+	}
+
+	static int ExtractInt(char* str)
+	{
+		int result = 0;
+		for(int i=0; i>=0; i++)
+		{
+			char c = str[i];
+			if (c >= '0' && c<= '9')
+				result = result*10 + c - '0';
+			if (c == 0)
+				return result;
+		}
+		return result;
 	}
 
 	static void LoadProject(char *proj, char* inputPath, char* fieldPath, char* outputPath, char* configPath)

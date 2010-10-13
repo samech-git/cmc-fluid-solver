@@ -8,12 +8,14 @@ namespace Common
 {
 	enum solver { Explicit, ADI, Stable };
 	enum dimension { _2D, _3D, unknown };
+	enum mode { _depthZ, _poly };
 	
 	class Config
 	{
 	public:
 
 		static dimension problem_dim;
+		static mode test_mode;
 
 		// grid size
 		static double dx, dy, dz;
@@ -113,6 +115,14 @@ namespace Common
 				else problem_dim = _3D;
 		}
 
+		static void ReadMode(FILE *file)
+		{
+			char dimStr[MAX_STR_SIZE];
+			fscanf_s(file, "%s", dimStr, MAX_STR_SIZE);
+			if (!strcmp(dimStr, "depthZ")) test_mode = _depthZ;
+				else test_mode = _poly;
+		}
+
 		static void LoadFromFile(char *filename)
 		{
 			FILE *file = NULL;
@@ -127,6 +137,7 @@ namespace Common
 				if (ret <= 0) break;
 
 				if (!strcmp(str, "dimension")) ReadDim(file);
+				if (!strcmp(str, "mode")) ReadMode(file);
 
 				if (!strcmp(str, "viscosity")) ReadDouble(file, viscosity);
 				if (!strcmp(str, "density")) ReadDouble(file, density);
@@ -166,13 +177,17 @@ namespace Common
 			if (problem_dim == _3D)
 			{
 				if (dz < 0) { printf("cannot find dz!\n"); exit(0); }
-				if (depth < 0) { printf("cannot find depth!\n"); exit(0); }
+				if (test_mode == _depthZ)
+				{
+					if (depth < 0) { printf("cannot find depth!\n"); exit(0); }
+				}
 			}
 			if (useNormalizedParams && (Re < 0 || Pr < 0 || lambda < 0)) { printf("must specify Re, Pr and lambda!\n"); exit(0); }
 		}
 	};
 
 	dimension Config::problem_dim;
+	mode Config::test_mode;
 
 	double Config::dx, Config::dy, Config::dz;
 

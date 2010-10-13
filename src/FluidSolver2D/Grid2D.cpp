@@ -55,54 +55,6 @@ namespace FluidSolver2D
 		nextData[x * dimy + y] = d;
 	}
 
-	void ReadPoint2D(FILE *file, Point2D &p)
-	{
-		string str = "";
-		char c;	
-
-		// read line
-		fscanf_s(file, "%c", &c);
-		while (c == '\n' || c == ' ') fscanf_s(file, "%c", &c);
-		while (c != '\n')
-		{
-			str += c;	
-			fscanf_s(file, "%c", &c);
-		}
-
-		// replace ',' with '.' if necessary
-		string::size_type pos = 0;
-		string::size_type found;
-		while ((found = str.find(',', pos)) != string::npos)
-		{
-			str.replace(found, 1, 1, '.');
-			pos = found;
-		}
-
-		// separate 2 values
-		pos = 0;
-		found = str.find(' ', pos);
-		string s1 = str.substr(0, found);
-		string s2 = str.substr(found+1, string::npos);
-
-		// convert to doubles
-		p.x = atof(s1.c_str());
-		p.y = atof(s2.c_str());
-	}
-
-	int ExtractInt(char* str)
-	{
-		int result = 0;
-		for(int i=0; i>=0; i++)
-		{
-			char c = str[i];
-			if (c >= '0' && c<= '9')
-				result = result*10 + c - '0';
-			if (c == 0)
-				return result;
-		}
-		return result;
-	}
-
 	VecTN Grid2D::GetTangentNormal(Vec2D vector, Vec2D orientation)
 	{
 		double l = (vector.x * orientation.x + vector.y * orientation.y) / (orientation.x * orientation.x + orientation.y * orientation.y);

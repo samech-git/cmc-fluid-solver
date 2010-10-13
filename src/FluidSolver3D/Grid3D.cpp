@@ -3,9 +3,14 @@
 namespace FluidSolver3D
 {
 	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend) : 
-		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend)
+		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend), use3Dshape(false)
 	{
 		grid2D = new FluidSolver2D::Grid2D(dx, dy, baseT, true, 0.0);
+	}
+
+	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend) : 
+		dx(_dx), dy(_dy), dz(_dz), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend), use3Dshape(true)
+	{
 	}
 
 	Grid3D::~Grid3D()
@@ -68,27 +73,129 @@ namespace FluidSolver3D
 		nodes[i * dimy * dimz + j * dimz + k].v = new_v;
 	}
 
+	void Grid3D::Init(bool align)
+	{
+		bbox.Build(num_frames, frames);
+	
+		dimx = ((int)ceil((bbox.pMax.x - bbox.pMin.x) / dx) + 1);
+		dimy = ((int)ceil((bbox.pMax.y - bbox.pMin.y) / dy) + 1);
+		dimz = ((int)ceil((bbox.pMax.z - bbox.pMin.z) / dz) + 1);
+
+		if( align ) { dimx = AlignBy32(dimx); dimy = AlignBy32(dimy); dimz = AlignBy32(dimz); } 
+
+		// allocate data
+		int size = dimx * dimy * dimz;
+		nodes = new Node[size];
+		if( backend == GPU ) 
+		{
+			cudaMalloc(&d_nodes, sizeof(Node) * size);
+			cudaMalloc(&d_nodesT, sizeof(Node) * size);
+		}
+		
+		for (int i=0; i<size; i++)
+		{
+			nodes[i].type = NODE_OUT;
+			nodes[i].v = Vec3D(0.0, 0.0, 0.0);
+			nodes[i].T = 0;
+		}
+
+		// convert physical coordinates to the grid coordinates
+		for (int j = 0; j < num_frames; j++)
+			for (int i = 0; i < frames[j].NumShapes; i++)
+				for (int k = 0; k < frames[j].Shapes[i].NumVertices; k++)
+				{
+					frames[j].Shapes[i].Vertices[k].x = (frames[j].Shapes[i].Vertices[k].x - bbox.pMin.x) / dx;
+					frames[j].Shapes[i].Vertices[k].y = (frames[j].Shapes[i].Vertices[k].y - bbox.pMin.y) / dy;
+					frames[j].Shapes[i].Vertices[k].z = (frames[j].Shapes[i].Vertices[k].z - bbox.pMin.z) / dz;
+				}
+
+	}
+
 	bool Grid3D::LoadFromFile(char *filename, bool align)
 	{
-		if (grid2D->LoadFromFile(filename, "", align))
+		if (use3Dshape)
 		{
-			dimx = grid2D->dimx;
-			dimy = grid2D->dimy;
-			active_dimz = (int)ceil(depth / dz) + 1;
-			dimz = align ? AlignBy32(active_dimz) : active_dimz;
-			nodes = new Node[dimx * dimy * dimz];
-			if( backend == GPU ) 
+			// load 3D poly model
+			FILE *file = NULL;
+			if (fopen_s(&file, filename, "r") != 0)
 			{
-				cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
-				cudaMalloc(&d_nodesT, sizeof(Node) * dimx * dimy * dimz);
+				printf("Error: cannot open file \"%s\" \n", filename);
+				return false;
 			}
+
+			fscanf_s(file, "%i", &num_frames);	
+			Point3D p;
+			int temp;
+			frames = new FrameInfo3D[num_frames];
+		
+			for (int j=0; j<num_frames; j++)
+			{
+				// use only 1 shape for now
+				frames[j].Init(1);
+
+				for (int i = 0; i<frames[j].NumShapes; i++)
+				{
+					fscanf_s(file, "%i", &temp);
+					frames[j].Shapes[i].InitVerts(temp);
+					for (int k=0; k<frames[j].Shapes[i].NumVertices; k++)
+					{
+						ReadPoint3D(file, p);
+						frames[j].Shapes[i].Vertices[k] = p * GRID_SCALE_FACTOR;
+						
+						ReadPoint3D(file, p);
+						frames[j].Shapes[i].Velocities[k] = p;
+					}
+
+					fscanf_s(file, "%i", &temp);
+					frames[j].Shapes[i].InitInds(temp);
+					for (int k=0; k<frames[j].Shapes[i].NumIndices*3; k++)
+					{
+						fscanf_s(file, "%i", &temp);
+						frames[j].Shapes[i].Indices[k] = temp;
+					}
+				}
+			}
+			fclose(file);
+			
+			Init(align);
+			
 			return true;
 		}
 		else
-			return false;
+		{
+			// load 2D shape, extend in depth
+			if (grid2D->LoadFromFile(filename, "", align))
+			{
+				dimx = grid2D->dimx;
+				dimy = grid2D->dimy;
+				active_dimz = (int)ceil(depth / dz) + 1;
+				dimz = align ? AlignBy32(active_dimz) : active_dimz;
+				nodes = new Node[dimx * dimy * dimz];
+				if( backend == GPU ) 
+				{
+					cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
+					cudaMalloc(&d_nodesT, sizeof(Node) * dimx * dimy * dimz);
+				}
+				return true;
+			}
+			else
+				return false;
+		}
 	}
 
 	void Grid3D::Prepare(double time)
+	{
+		if (use3Dshape) 
+		{
+			// TODO: prepare 3D shape
+		}
+		else
+		{
+			Prepare2D(time);
+		}
+	}
+
+	void Grid3D::Prepare2D(double time)
 	{
 		grid2D->Prepare(time);
 

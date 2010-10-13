@@ -1,6 +1,6 @@
 #pragma once
 
-#include "..\Common\Structures.h"
+#include "..\Common\Geometry.h"
 #include "..\Common\IO.h"
 
 #include "..\FluidSolver2D\Grid2D.h"
@@ -50,7 +50,8 @@ namespace FluidSolver3D
 
 		double baseT;
 
-		Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend);
+		Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend);		// 2D with constant depth
+		Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend);					// polygons
 		~Grid3D();
 
 		NodeType GetType(int i, int j, int k);
@@ -71,7 +72,7 @@ namespace FluidSolver3D
 		bool LoadFromFile(char *filename, bool align = false);
 		void Prepare(double time);
 
-		void Grid3D::TestPrint(char *filename);
+		void TestPrint(char *filename);
 
 	protected:
 		BackendType backend;
@@ -79,6 +80,17 @@ namespace FluidSolver3D
 		Node*		nodes;		// all grid nodes
 		Node*		d_nodes;	// same nodes stored on GPU
 		Node*		d_nodesT;	// transposed nodes on GPU
+
+		bool use3Dshape;
+
+		BBox3D bbox;
+		FrameInfo3D* frames;
+		int num_frames;
+
+		void Init(bool align);
+
+		// helper function for 2D shape update
+		void Prepare2D(double time);
 
 		FluidSolver2D::Grid2D *grid2D;		// 2D helper grid for borders
 		double depth;						// depth

@@ -57,9 +57,7 @@ int main(int argc, char **argv)
 	Grid3D grid(Config::dx, Config::dy, Config::dz, Config::depth, Config::startT, backend);
 	printf("Grid options:\n  align %s\n", align ? "ON" : "OFF");
 	if (grid.LoadFromFile(inputPath, align))
-	{
 		printf("Grid = %i x %i x %i\n", grid.dimx, grid.dimy, grid.dimz);
-	}
 	grid.Prepare(0.0);
 
 	sprintf_s(gridPath, "%s_grid_3d.txt", argv[2]);

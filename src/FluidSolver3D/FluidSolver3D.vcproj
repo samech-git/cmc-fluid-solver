@@ -15,7 +15,7 @@
 	</Platforms>
 	<ToolFiles>
 		<DefaultToolFile
-			FileName="NvCudaRuntimeApi.rules"
+			FileName="NvCudaRuntimeApi.v3.2.rules"
 		/>
 	</ToolFiles>
 	<Configurations>
@@ -34,11 +34,6 @@
 			/>
 			<Tool
 				Name="Cudart Build Rule"
-				Arch1="11"
-				Arch2="13"
-				Arch3="20"
-				HostDebugInfo="true"
-				Runtime="1"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -120,8 +115,6 @@
 				Arch1="11"
 				Arch2="13"
 				Arch3="20"
-				Optimization="2"
-				Runtime="0"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -136,7 +129,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="$(CudaToolsRoot)/include"
+				AdditionalIncludeDirectories="$(CUDA_PATH_V3_2)/include"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;GPU_BACKEND"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -158,7 +151,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="cudart.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="$(CudaToolsRoot)/lib/$(PlatformName)"
+				AdditionalLibraryDirectories="$(CUDA_PATH_V3_2)/lib/$(PlatformName)"
 				IgnoreAllDefaultLibraries="false"
 				GenerateDebugInformation="false"
 				SubSystem="1"
@@ -248,6 +241,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\Common\Geometry.h"
+				>
+			</File>
+			<File
 				RelativePath="..\FluidSolver2D\Grid2D.h"
 				>
 			</File>
@@ -265,10 +262,6 @@
 			</File>
 			<File
 				RelativePath=".\Solver3D.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Common\Structures.h"
 				>
 			</File>
 			<File

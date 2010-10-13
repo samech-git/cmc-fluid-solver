@@ -1,13 +1,10 @@
 #pragma once
 
-#include "..\Common\Structures.h"
+#include "..\Common\Geometry.h"
 #include "..\Common\IO.h"
 
 #include <stdlib.h>
-#include <math.h>
-
 #include <vector>
-#include <string>
 
 #define BBOX_OFFSET			0.03
 #define GRID_SCALE_FACTOR	0.001f

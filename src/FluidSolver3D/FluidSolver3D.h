@@ -7,6 +7,6 @@
 
 #include "AdiSolver3D.h"
 
-#include "..\Common\Structures.h"
+#include "..\Common\Geometry.h"
 #include "..\Common\IO.h"
 #include "..\Common\Config.h"
