@@ -297,7 +297,7 @@ namespace Common
 		p.y = atof(s2.c_str());
 	}
 
-	static void ReadPoint3D(FILE *file, Point3D &p)
+	static void ReadPoint3D(FILE *file, Vec3D &p)
 	{
 		std::string str[3];
 		str[0] = str[1] = str[2] = "";
@@ -319,12 +319,14 @@ namespace Common
 			std::string::size_type found;
 			if ((found = str[i].find(',', 0)) != std::string::npos)
 				str[i].replace(found, 1, 1, '.');
+
+			while (c == ' ') fscanf_s(file, "%c", &c);
 		}
 
 		// convert to doubles
-		p.x = atof(str[0].c_str());
-		p.y = atof(str[1].c_str());
-		p.z = atof(str[2].c_str());
+		p.x = (FTYPE)atof(str[0].c_str());
+		p.y = (FTYPE)atof(str[1].c_str());
+		p.z = (FTYPE)atof(str[2].c_str());
 	}
 
 	static int ExtractInt(char* str)

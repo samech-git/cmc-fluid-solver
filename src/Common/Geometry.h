@@ -4,30 +4,11 @@
 
 #define FTYPE			float
 #define INF				1e10
-#define COMP_EPS		1e-10
+#define COMP_EPS		1e-8
+#define BBOX_PADDING	0.02
 
 namespace Common
 {
-	struct Point2D 
-	{ 
-		double x, y; 
-
-		Point2D() : x(0.0), y(0.0) { }
-		Point2D(double _x, double _y) : x(_x), y(_y) { }
-	};
-
-	struct Point3D
-	{
-		double x, y, z;
-		Point3D() : x(0.0), y(0.0), z(0.0) { }
-		Point3D(double _x, double _y, double _z) : x(_x), y(_y), z(_z) { }
-		
-		Point3D operator * (const double t)
-		{
-			return Point3D(x*t, y*t, z*t);
-		}
-	};
-
 	struct Vec2D
 	{
 		double x, y; 
@@ -35,6 +16,20 @@ namespace Common
 		Vec2D() : x(0.0), y(0.0) { }
 		Vec2D(double _x, double _y) : x(_x), y(_y) { }
 		Vec2D(Vec2D &vec) : x(vec.x), y(vec.y) { }
+
+		double dot(const Vec2D &vec)
+		{
+			return (x * vec.x + y * vec.y);
+		}
+	};
+
+	struct Point2D 
+	{ 
+		double x, y; 
+
+		Point2D() : x(0.0), y(0.0) { }
+		Point2D(double _x, double _y) : x(_x), y(_y) { }
+		Point2D(Vec2D &vec) : x(vec.x), y(vec.y) { }
 	};
 
 	struct Vec3D
@@ -45,11 +40,49 @@ namespace Common
 		Vec3D(FTYPE _x, FTYPE _y, FTYPE _z) : x(_x), y(_y), z(_z) { }
 		Vec3D(Vec3D &vec) : x(vec.x), y(vec.y), z(vec.z) { }
 
-		void operator = (Point3D &v)
+		Vec3D operator * (const FTYPE t)
 		{
-			x = (FTYPE)v.x;
-			y = (FTYPE)v.y;
-			z = (FTYPE)v.z;
+			return Vec3D(x*t, y*t, z*t);
+		}
+
+		Vec3D operator + (const Vec3D &vec)
+		{
+			return Vec3D(x + vec.x, y + vec.y, z + vec.z);
+		}
+
+		Vec3D operator - (const Vec3D &vec)
+		{
+			return Vec3D(x - vec.x, y - vec.y, z - vec.z);
+		}
+
+		FTYPE length()
+		{
+			return sqrt(x*x + y*y + z*z);
+		}
+
+		bool equal(const Vec3D &vec)
+		{
+			return ((fabs(x - vec.x) < COMP_EPS) &&
+					(fabs(y - vec.y) < COMP_EPS) &&
+					(fabs(z - vec.z) < COMP_EPS));
+		}
+
+		FTYPE dot(const Vec3D &vec)
+		{
+			return (x * vec.x + y * vec.y + z * vec.z);
+		}
+
+		Vec3D cross(const Vec3D &vec)
+		{
+			return Vec3D( y * vec.z - z * vec.y, z * vec.x - x * vec.z, x * vec.y - y * vec.x );
+		}
+
+		void normalize()
+		{
+			FTYPE t = 1 / length();
+			x *= t;
+			y *= t;
+			z *= t;
 		}
 	};
 
@@ -86,7 +119,7 @@ namespace Common
 
 	struct Shape3D
 	{
-		Point3D* Vertices;
+		Vec3D* Vertices;
 		Vec3D* Velocities;
 		int* Indices;
 
@@ -95,21 +128,27 @@ namespace Common
 		
 		bool Active;
 
+		void Init(Shape3D &shape)
+		{
+			InitVerts(shape.NumVertices);
+			InitInds(shape.NumIndices);
+		}
+
 		void InitVerts(int num)
 		{
 			NumVertices = num;
-			Vertices = new Point3D[num];
+			Vertices = new Vec3D[num];
 			Velocities = new Vec3D[num];
 		}
 
 		void InitInds(int num)
 		{
 			NumIndices = num;
-			Indices = new int[num * 3];
+			Indices = new int[num*3];
 		}
 
 		Shape3D() : Vertices(0), Velocities(0), Indices(0) { }
-
+	
 		~Shape3D()
 		{
 			if (Vertices) delete[] Vertices;
@@ -318,6 +357,11 @@ namespace Common
 			if (p.y > pMax.y) pMax.y = p.y;
 		}
 
+		void AddPoint(Vec2D p)
+		{
+			AddPoint(Point2D(p.x, p.y));
+		}
+
 		void Build(int num_frames, FrameInfo2D* frames)
 		{
 			Clear();
@@ -329,11 +373,11 @@ namespace Common
 			double wx = pMax.x - pMin.x;
 			double wy = pMax.y - pMin.y;
 			
-			pMin.x -= wx * 0.02;
-			pMin.y -= wy * 0.02;
+			pMin.x -= wx * BBOX_PADDING;
+			pMin.y -= wy * BBOX_PADDING;
 			
-			pMax.x += wx * 0.02;
-			pMax.y += wy * 0.02;
+			pMax.x += wx * BBOX_PADDING;
+			pMax.y += wy * BBOX_PADDING;
 		}
 
 		void Clear()
@@ -345,11 +389,11 @@ namespace Common
 
 	struct BBox3D
 	{
-		Point3D pMin, pMax;
+		Vec3D pMin, pMax;
 
 		BBox3D() { Clear(); }
 		
-		void AddPoint(Point3D p)
+		void AddPoint(Vec3D p)
 		{
 			if (p.x < pMin.x) pMin.x = p.x;
 			if (p.y < pMin.y) pMin.y = p.y;
@@ -368,17 +412,35 @@ namespace Common
 					for (int k = 0; k < frames[j].Shapes[i].NumVertices; k++)
 						AddPoint(frames[j].Shapes[i].Vertices[k]);
 
-			double wx = pMax.x - pMin.x;
-			double wy = pMax.y - pMin.y;
-			double wz = pMax.z - pMin.z;
+			FTYPE wx = pMax.x - pMin.x;
+			FTYPE wy = pMax.y - pMin.y;
+			FTYPE wz = pMax.z - pMin.z;
 			
-			pMin.x -= wx * 0.02;
-			pMin.y -= wy * 0.02;
-			pMin.z -= wz * 0.02;
+			pMin.x -= wx * (FTYPE)BBOX_PADDING;
+			pMin.y -= wy * (FTYPE)BBOX_PADDING;
+			pMin.z -= wz * (FTYPE)BBOX_PADDING;
 			
-			pMax.x += wx * 0.02;
-			pMax.y += wy * 0.02;
-			pMax.z += wz * 0.02;
+			pMax.x += wx * (FTYPE)BBOX_PADDING;
+			pMax.y += wy * (FTYPE)BBOX_PADDING;
+			pMax.z += wz * (FTYPE)BBOX_PADDING;
+		}
+
+		void ProjX(BBox2D &res)
+		{
+			res.pMin = Vec2D(pMin.y, pMin.z);
+			res.pMax = Vec2D(pMax.y, pMax.z);
+		}
+
+		void ProjY(BBox2D &res)
+		{
+			res.pMin = Vec2D(pMin.x, pMin.z);
+			res.pMax = Vec2D(pMax.x, pMax.z);
+		}
+
+		void ProjZ(BBox2D &res)
+		{
+			res.pMin = Vec2D(pMin.x, pMin.y);
+			res.pMax = Vec2D(pMax.x, pMax.y);
 		}
 
 		void Clear()

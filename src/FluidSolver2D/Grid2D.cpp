@@ -181,7 +181,6 @@ namespace FluidSolver2D
 		delete [] queue;
 	}
 
-
 	void Grid2D::Init(bool align)
 	{
 		bbox.Build(num_frames, frames);

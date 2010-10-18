@@ -47,7 +47,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="$(CudaToolsRoot)/include"
+				AdditionalIncludeDirectories="$(CUDA_PATH_V3_2)/include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -69,7 +69,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="cudart.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="$(CudaToolsRoot)/lib/$(PlatformName)"
+				AdditionalLibraryDirectories="$(CUDA_PATH_V3_2)/lib/$(PlatformName)"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"

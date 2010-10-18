@@ -54,17 +54,31 @@ int main(int argc, char **argv)
 	Config::LoadFromFile(configPath);
 
 	//--------------------------------------- Initializing ---------------------------------------
-	Grid3D grid(Config::dx, Config::dy, Config::dz, Config::depth, Config::startT, backend);
+	Grid3D *grid = NULL;
+	if( Config::test_mode == _poly ) 
+	{
+		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::startT, backend);
+		printf("Geometry: 3D polygons\n", grid->dimx, grid->dimy, grid->dimz);
+	}
+	else 
+	{
+		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::depth, Config::startT, backend);
+		printf("Geometry: extruded 2D shape\n");
+	}
+
 	printf("Grid options:\n  align %s\n", align ? "ON" : "OFF");
-	if (grid.LoadFromFile(inputPath, align))
-		printf("Grid = %i x %i x %i\n", grid.dimx, grid.dimy, grid.dimz);
-	grid.Prepare(0.0);
+	if (grid->LoadFromFile(inputPath, align))
+		printf("Grid = %i x %i x %i\n", grid->dimx, grid->dimy, grid->dimz);
+	grid->Prepare(0.0);
 
 	sprintf_s(gridPath, "%s_grid_3d.txt", argv[2]);
-	grid.TestPrint(gridPath);
+	grid->TestPrint(gridPath);
 
-	sprintf_s(gridPath, "%s_grid_2d.bmp", argv[2]);
-	grid.GetGrid2D()->OutputImage(gridPath);
+	if( grid->GetGrid2D() != NULL )
+	{
+		sprintf_s(gridPath, "%s_grid_2d.bmp", argv[2]);
+		grid->GetGrid2D()->OutputImage(gridPath);
+	}
 
 	FluidParams *params;
 	if (Config::useNormalizedParams) params = new FluidParams(Config::Re, Config::Pr, Config::lambda);
@@ -84,17 +98,17 @@ int main(int argc, char **argv)
 			}
 			break;
 	}
-	solver->Init(backend, csv, &grid, *params);
+	solver->Init(backend, csv, grid, *params);
 
 	int startFrame = 0;
 	
-	int frames = grid.GetGrid2D()->GetFramesNum();
-	double length = grid.GetGrid2D()->GetCycleLenght();
+	int frames = grid->GetGrid2D()->GetFramesNum();
+	double length = grid->GetGrid2D()->GetCycleLenght();
 	double dt = length / (frames * Config::calc_subframes);
 	double finaltime = length * Config::cycles;
 
 	sprintf_s(outputPath, MAX_STR_SIZE, "%s_res.txt", argv[2]);
-	OutputNetCDFHeader(outputPath, &grid.GetGrid2D()->bbox, Config::depth, dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+	OutputNetCDFHeader(outputPath, &grid->GetGrid2D()->bbox, Config::depth, dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
 	
 	// allocate result arrays
 	Vec3D *resVel = new Vec3D[Config::outdimx * Config::outdimy * Config::outdimz];
@@ -108,8 +122,8 @@ int main(int argc, char **argv)
 	double t = dt;
 	for (int i=0; t < finaltime; t+=dt, i++)
 	{
-		int currentframe = grid.GetGrid2D()->GetFrame(t);
-		float layer_time = grid.GetGrid2D()->GetLayerTime(t);
+		int currentframe = grid->GetGrid2D()->GetFrame(t);
+		float layer_time = grid->GetGrid2D()->GetLayerTime(t);
 
 		if (currentframe != lastframe)
 		{
@@ -117,7 +131,7 @@ int main(int argc, char **argv)
 			i = 0;
 		}
 
-		grid.Prepare(t);
+		grid->Prepare(t);
 		solver->UpdateBoundaries();
 		solver->TimeStep((FTYPE)dt, Config::num_global, Config::num_local);
 		solver->SetGridBoundaries();
@@ -141,6 +155,8 @@ int main(int argc, char **argv)
 	delete solver;
 	delete [] resVel;
 	delete [] resT;
+
+	delete grid;
 
 	return 0;
 }
