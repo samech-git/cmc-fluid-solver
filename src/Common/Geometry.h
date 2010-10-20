@@ -61,9 +61,23 @@ namespace Common
 		Vec3D(FTYPE _x, FTYPE _y, FTYPE _z) : x(_x), y(_y), z(_z) { }
 		Vec3D(Vec3D &vec) : x(vec.x), y(vec.y), z(vec.z) { }
 
+		Vec3D operator += (const Vec3D &vec)
+		{
+			x += vec.x;
+			y += vec.y;
+			z += vec.z;
+			return (*this);
+		}
+
 		Vec3D operator * (const FTYPE t)
 		{
 			return Vec3D(x*t, y*t, z*t);
+		}
+
+		Vec3D operator / (const FTYPE t)
+		{
+			FTYPE s = 1/t;
+			return Vec3D(x*s, y*s, z*s);
 		}
 
 		Vec3D operator + (const Vec3D &vec)

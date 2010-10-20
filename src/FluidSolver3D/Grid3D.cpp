@@ -405,6 +405,27 @@ namespace FluidSolver3D
         }
 	}
 
+	void Grid3D::RasterLine(Vec3D p1, Vec3D p2, Vec3D v1, Vec3D v2, NodeType color)
+    {
+		Vec3D dir = p2 - p1;
+		int steps = (int)max(abs(dir.x), max(abs(dir.y), abs(dir.z))) + 1;
+        Vec3D dp = dir / (FTYPE)steps;
+		
+		Vec3D p = p1;
+		
+		// go through the whole segment
+        for (int i = 0; i <= steps; i++) 
+        {
+            int x = (int)p.x;
+            int y = (int)p.y;
+			int z = (int)p.z;
+			
+			SetType(x, y, z, color);
+
+			p += dp;
+        }
+	}
+
 	void Grid3D::FloodFill(int start[3], NodeType color, int n, const int *neighborPos)
     {
 		int *queue = new int[dimx * dimy * dimz * 3];
@@ -467,21 +488,17 @@ namespace FluidSolver3D
 					RasterPolygon(frame.Shapes[s].Vertices[i1], frame.Shapes[s].Vertices[i2], frame.Shapes[s].Vertices[i3],
 								  frame.Shapes[s].Velocities[i1], frame.Shapes[s].Velocities[i2], frame.Shapes[s].Velocities[i3],
 								  NODE_BOUND);
-				}
-		
-		// patching
-		//SetType(94, 74, 21, NODE_BOUND);
-		//SetType(71, 26, 32, NODE_BOUND);
-		//SetType(22, 51, 99, NODE_BOUND);
 
+					// additionally rasterize all edges to cover holes
+					RasterLine(frame.Shapes[s].Vertices[i1], frame.Shapes[s].Vertices[i2], frame.Shapes[s].Velocities[i1], frame.Shapes[s].Velocities[i2], NODE_BOUND);
+					RasterLine(frame.Shapes[s].Vertices[i1], frame.Shapes[s].Vertices[i3], frame.Shapes[s].Velocities[i1], frame.Shapes[s].Velocities[i3], NODE_BOUND);
+					RasterLine(frame.Shapes[s].Vertices[i3], frame.Shapes[s].Vertices[i2], frame.Shapes[s].Velocities[i3], frame.Shapes[s].Velocities[i2], NODE_BOUND);
+				}
+
+		// detect all outside nodes by running wave algorithm
 		const int neighborPos[18] = { -1, 0, 0,  1, 0, 0,  0, -1, 0,  0, 1, 0,  0, 0, -1,  0, 0, 1 };
-		
-		//int start[3] = { 0, 0, 0 };
-		//FloodFill(start, NODE_OUT, 6, neighborPos); 
-		for (int k = 0; k < dimz; k++) {
-			int start[3] = { 0, 0, k };
-			FloodFill(start, NODE_OUT, 4, neighborPos); 
-		}
+		int start[3] = { 0, 0, 0 };
+		FloodFill(start, NODE_OUT, 6, neighborPos); 
 		
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
