@@ -293,6 +293,38 @@ namespace FluidSolver3D
 		return fp/f0;
 	}
 
+	Vec2D GetIntersectHorizon(Vec2D p1, Vec2D p2, Vec2D p)
+	{
+		Vec2D res;
+		res.y = p.y;
+		if (fabs(p1.y - p2.y) < COMP_EPS) 
+			res.x = p.x;
+		else
+			res.x = p1.x + (p2.x - p1.x) * (res.y - p1.y) / (p2.y - p1.y);
+		return res;
+	}
+
+	// project the point back on the original 3D polygon and fill nodes
+	void Grid3D::ProjectPointOnPolygon(DirType dir, int i, int j, Vec2D testp, Vec3D n, FTYPE d)
+	{
+		int k;
+		switch( dir )
+		{
+		case X: 
+			k = (int)((-d-testp.dot(Vec2D(n.y, n.z)))/n.x); 
+			if( k >= 0 && k < dimx ) SetType(k, i, j, NODE_BOUND);
+			break;
+		case Y: 
+			k = (int)((-d-testp.dot(Vec2D(n.x, n.z)))/n.y); 
+			if( k >= 0 && k < dimy ) SetType(i, k, j, NODE_BOUND);
+			break;
+		case Z: 
+			k = (int)((-d-testp.dot(Vec2D(n.x, n.y)))/n.z); 
+			if( k >= 0 && k < dimz ) SetType(i, j, k, NODE_BOUND);
+			break;
+		}
+	}
+
 	void Grid3D::RasterPolygon(Vec3D p1, Vec3D p2, Vec3D p3, Vec3D v1, Vec3D v2, Vec3D v3, NodeType color)
     {
 		// if zero polygon then immediate exit
@@ -306,7 +338,7 @@ namespace FluidSolver3D
 		FTYPE d = -p1.dot(n);
 
 		// get max coordinate of the normal
-		enum Dir { X, Y, Z } dir;
+		DirType dir;
 		FTYPE maxv = max( fabs(n.x), max( fabs(n.y), fabs(n.z) ) );
 		if( fabs(maxv-fabs(n.x)) < COMP_EPS ) dir = X;
 		if( fabs(maxv-fabs(n.y)) < COMP_EPS ) dir = Y;
@@ -322,55 +354,68 @@ namespace FluidSolver3D
 		case Z: pp1 = Vec2D(p1.x, p1.y); pp2 = Vec2D(p2.x, p2.y); pp3 = Vec2D(p3.x, p3.y); pdimx = dimx; pdimy = dimy; break;
 		}
 
+		// sort points
+		Vec2D mid;
+		if( pp3.y < pp2.y ) { mid = pp3; pp3 = pp2; pp2 = mid; }
+		if( pp1.y > pp2.y ) { mid = pp1; pp1 = pp2; pp2 = mid; }
+		if( pp3.y < pp2.y ) { mid = pp3; pp3 = pp2; pp2 = mid; }
+		
 		// rasterize 2D triangle
-		for( int i = 0; i < pdimx; i++ )
-			for( int j = 0; j < pdimy; j++ )
-			{
-				Vec2D testp(i, j);
+		
+		// compute mid point
+		mid = GetIntersectHorizon(pp1, pp3, pp2);
 
-				// get barycentric coordinates
-				double ax = GetBarycentric(pp1, pp2, pp3, testp);
-				double ay = GetBarycentric(pp2, pp3, pp1, testp);
-				double az = GetBarycentric(pp3, pp1, pp2, testp);
-				
-				// test for the interior
-				if( ax < -COMP_EPS || (1-ax) < -COMP_EPS ) continue;
-				if( ay < -COMP_EPS || (1-ay) < -COMP_EPS ) continue;
-				if( az < -COMP_EPS || (1-az) < -COMP_EPS ) continue;
+		// compute slopes and steps
+		Vec2D dir1(mid.x - pp1.x, mid.y - pp1.y);
+		Vec2D dir2(pp3.x - mid.x, pp3.y - mid.y);
+		int steps1 = (int)max(abs(dir1.x), abs(dir1.y)) + 1;
+		int steps2 = (int)max(abs(dir2.x), abs(dir2.y)) + 1;
+        Vec2D dp1((dir1.x) / steps1, (dir1.y) / steps1);		
+		Vec2D dp2((dir2.x) / steps2, (dir2.y) / steps2);		
+		
+		Vec2D p = pp1;
+		int di = (mid.x < pp2.x) ? 1 : -1;
 
-				// project the point back on the original 3D polygon and fill nodes
-				int k;
-				switch( dir )
-				{
-				case X: 
-					k = (int)((-d-testp.dot(Vec2D(n.y, n.z)))/n.x); 
-					if( k >= 0 && k < dimx ) SetType(k, i, j, NODE_BOUND);
-					break;
-				case Y: 
-					k = (int)((-d-testp.dot(Vec2D(n.x, n.z)))/n.y); 
-					if( k >= 0 && k < dimy ) SetType(i, k, j, NODE_BOUND);
-					break;
-				case Z: 
-					k = (int)((-d-testp.dot(Vec2D(n.x, n.y)))/n.z); 
-					if( k >= 0 && k < dimz ) SetType(i, j, k, NODE_BOUND);
-					break;
-				}
-			}
+		// go through the segment (pp1 - mid)
+        for ( ; p.y < mid.y; ) 
+        {
+            int i = (int)p.x;
+            int j = (int)p.y;
+
+			int last_i = (int)GetIntersectHorizon(pp1, pp2, p).x;
+
+			for (int i = (int)p.x; i != last_i + di; i += di)
+				ProjectPointOnPolygon(dir, i, j, Vec2D(i, p.y), n, d);
+
+			p += dp1;			
+        }
+
+		// go through the segment (mid - pp3)
+        for ( ; p.y < pp3.y; ) 
+        {
+            int i = (int)p.x;
+            int j = (int)p.y;
+
+			int last_i = (int)GetIntersectHorizon(pp2, pp3, p).x;
+
+			for (int i = (int)p.x; i != last_i + di; i += di)
+				ProjectPointOnPolygon(dir, i, j, Vec2D(i, p.y), n, d);
+
+			p += dp2;			
+        }
 	}
 
-	void Grid3D::FloodFill(NodeType color)
+	void Grid3D::FloodFill(int start[3], NodeType color, int n, const int *neighborPos)
     {
 		int *queue = new int[dimx * dimy * dimz * 3];
 		int cur = -1;
 
-		const int neighborPos[6][3] = { {-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1} };
-
 		// we know that this cell is of our color type
 		int last = 0;
-		queue[0] = 0;
-		queue[1] = 0;
-		queue[2] = 0;
-		SetType(0, 0, 0, color);
+		queue[0] = start[0];
+		queue[1] = start[1];
+		queue[2] = start[2];
+		SetType(start[0], start[1], start[2], color);
 
 		// run wave
 		while (cur < last)
@@ -382,11 +427,11 @@ namespace FluidSolver3D
 			int k = queue[cur * 3 + 2];
 
 			// add neighbours
-			for (int t = 0; t < 6; t++)
+			for (int t = 0; t < n; t++)
 			{
-				int next_i = i + neighborPos[t][0];
-				int next_j = j + neighborPos[t][1];
-				int next_k = k + neighborPos[t][2];
+				int next_i = i + neighborPos[t * 3 + 0];
+				int next_j = j + neighborPos[t * 3 + 1];
+				int next_k = k + neighborPos[t * 3 + 2];
 
 				if ((next_i >= 0) && (next_i < dimx) && (next_j >= 0) && (next_j < dimy) && (next_k >= 0) && (next_k < dimz))
 					if (GetType(next_i, next_j, next_k) == NODE_IN) 
@@ -423,9 +468,21 @@ namespace FluidSolver3D
 								  frame.Shapes[s].Velocities[i1], frame.Shapes[s].Velocities[i2], frame.Shapes[s].Velocities[i3],
 								  NODE_BOUND);
 				}
-			
-		FloodFill(NODE_OUT); 
+		
+		// patching
+		//SetType(94, 74, 21, NODE_BOUND);
+		//SetType(71, 26, 32, NODE_BOUND);
+		//SetType(22, 51, 99, NODE_BOUND);
 
+		const int neighborPos[18] = { -1, 0, 0,  1, 0, 0,  0, -1, 0,  0, 1, 0,  0, 0, -1,  0, 0, 1 };
+		
+		//int start[3] = { 0, 0, 0 };
+		//FloodFill(start, NODE_OUT, 6, neighborPos); 
+		for (int k = 0; k < dimz; k++) {
+			int start[3] = { 0, 0, k };
+			FloodFill(start, NODE_OUT, 4, neighborPos); 
+		}
+		
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
 				for (int k = 0; k < dimz; k++)
@@ -515,10 +572,15 @@ namespace FluidSolver3D
 		fprintf(file, "%i %i %i\n", dimx, dimy, dimz);
 		for (int k = 0; k < dimz; k++)
 		{
+			fprintf(file, "%i\n", k);
 			for (int i = 0; i < dimx; i++)
 			{
 				for (int j = 0; j < dimy; j++)
 				{					
+					if( k == 55 && j == 2 && i == 0 ) { 
+						fprintf(file, "!"); 
+						continue;
+					}
 					NodeType t = GetType(i, j, k);
 					switch (t)
 					{
@@ -530,8 +592,65 @@ namespace FluidSolver3D
 				}
 				fprintf(file, "\n");
 			}
-			fprintf(file, "\n");
 		}
 		fclose(file);
+	}
+
+	void Grid3D::OutputImage(char *filename_base)
+	{
+		BitmapFileHeader bfh;
+		BitmapInfoHeader bih;
+		
+		memset(&bfh, sizeof(bfh), 0);
+		bfh.bfType = 0x4D42;
+		bfh.bfOffBits = sizeof(bfh) + sizeof(bih);
+		bfh.bfSize = bfh.bfOffBits + sizeof(char) * 3 * dimx * dimy + dimx * (dimy % 4);
+		
+		memset(&bih, sizeof(bih), 0);
+		bih.biSize = sizeof(bih);
+		bih.biBitCount = 24;
+		bih.biCompression = 0L;
+		bih.biHeight = dimx;
+		bih.biWidth = dimy;
+		bih.biPlanes = 1;
+
+		for (int k = 0; k < dimz; k++)
+		{
+			FILE *file = NULL;
+			string filename = filename_base;
+
+			filename.append("/");
+			filename.append(stringify(k));
+			filename.append(".bmp");
+			if( fopen_s(&file, filename.c_str(), "w") )
+			{
+				_mkdir(filename_base);
+				fopen_s(&file, filename.c_str(), "w");
+			}
+			
+			fwrite(&bfh, sizeof(bfh), 1, file);
+			fwrite(&bih, sizeof(bih), 1, file);
+
+			for (int i = dimx-1; i >= 0; i--)
+			{
+				char color[3];
+				for (int j = 0; j < dimy; j++)
+				{
+					NodeType t = GetType(i, j, k);
+					switch (t)
+					{
+					case NODE_IN: color[0] = (char)245; color[1] = (char)73; color[2] = (char)69; break;		// blue
+					case NODE_OUT: color[0] = (char)0; color[1] = (char)0; color[2] = (char)0; break;			// black
+					case NODE_BOUND: color[0] = (char)255; color[1] = (char)255; color[2] = (char)255; break;	// white
+					case NODE_VALVE: color[0] = (char)241; color[1] = (char)41; color[2] = (char)212; break;	// purple
+					}
+
+					fwrite(color, sizeof(char) * 3, 1, file);
+				}
+				fwrite(color, sizeof(char) * 3, dimy % 4, file);
+			}
+
+			fclose(file);
+		}
 	}
 }

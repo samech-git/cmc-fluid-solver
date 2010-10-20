@@ -9,6 +9,8 @@
 
 namespace Common
 {
+	enum DirType { X, Y, Z, Z_as_Y };
+
 	struct Vec2D
 	{
 		double x, y; 
@@ -17,9 +19,28 @@ namespace Common
 		Vec2D(double _x, double _y) : x(_x), y(_y) { }
 		Vec2D(Vec2D &vec) : x(vec.x), y(vec.y) { }
 
+		Vec2D operator += (const Vec2D &vec)
+		{
+			x += vec.x;
+			y += vec.y;
+			return (*this);
+		}
+
 		double dot(const Vec2D &vec)
 		{
 			return (x * vec.x + y * vec.y);
+		}
+
+		double length()
+		{
+			return sqrt(x*x + y*y);
+		}
+
+		void normalize()
+		{
+			double t = 1 / length();
+			x *= t;
+			y *= t;
 		}
 	};
 
@@ -423,24 +444,6 @@ namespace Common
 			pMax.x += wx * (FTYPE)BBOX_PADDING;
 			pMax.y += wy * (FTYPE)BBOX_PADDING;
 			pMax.z += wz * (FTYPE)BBOX_PADDING;
-		}
-
-		void ProjX(BBox2D &res)
-		{
-			res.pMin = Vec2D(pMin.y, pMin.z);
-			res.pMax = Vec2D(pMax.y, pMax.z);
-		}
-
-		void ProjY(BBox2D &res)
-		{
-			res.pMin = Vec2D(pMin.x, pMin.z);
-			res.pMax = Vec2D(pMax.x, pMax.z);
-		}
-
-		void ProjZ(BBox2D &res)
-		{
-			res.pMin = Vec2D(pMin.x, pMin.y);
-			res.pMax = Vec2D(pMax.x, pMax.y);
 		}
 
 		void Clear()

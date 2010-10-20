@@ -2,12 +2,47 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <direct.h>
+
 #include <string>
+#include <iostream>
+#include <sstream>
 
 #define MAX_STR_SIZE	255
 
 namespace Common
 {	
+	#pragma pack(push,2)
+	typedef struct tagBitmapFileHeader {
+        unsigned short		bfType;
+        unsigned long		bfSize;
+        unsigned short		bfReserved1;
+        unsigned short		bfReserved2;
+        unsigned long		bfOffBits;
+	} BitmapFileHeader;
+	#pragma pack(pop)
+
+	typedef struct tagBitmapInfoHeader {
+        unsigned long		biSize;
+        long				biWidth;
+        long				biHeight;
+        unsigned short      biPlanes;
+        unsigned short      biBitCount;
+        unsigned long		biCompression;
+        unsigned long		biSizeImage;
+		long			    biXPelsPerMeter;
+        long				biYPelsPerMeter;
+        unsigned long		biClrUsed;
+        unsigned long		biClrImportant;
+	} BitmapInfoHeader;
+
+	inline std::string stringify(int x)
+	{
+		std::ostringstream o;
+		o << x;
+		return o.str();
+	}
+
 	static void OutputResultHeader(const char *outputPath, BBox2D *bbox, int outdimx, int outdimy)
 	{
 		FILE *file = NULL;

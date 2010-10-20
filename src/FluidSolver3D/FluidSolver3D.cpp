@@ -71,15 +71,15 @@ int main(int argc, char **argv)
 		printf("Grid = %i x %i x %i\n", grid->dimx, grid->dimy, grid->dimz);
 	grid->Prepare(0.0);
 
-	sprintf_s(gridPath, "%s_grid_3d.txt", argv[2]);
-	grid->TestPrint(gridPath);
+	sprintf_s(gridPath, "%s_grid_3d", argv[2]);
+	grid->OutputImage(gridPath);
 
 	if( grid->GetGrid2D() != NULL )
 	{
 		sprintf_s(gridPath, "%s_grid_2d.bmp", argv[2]);
 		grid->GetGrid2D()->OutputImage(gridPath);
 	}
-
+	
 	FluidParams *params;
 	if (Config::useNormalizedParams) params = new FluidParams(Config::Re, Config::Pr, Config::lambda);
 		else params = new FluidParams(Config::viscosity, Config::density, Config::R_specific, Config::k, Config::cv);

@@ -1,9 +1,6 @@
 #include "Grid2D.h"
 #include "IO.h"
 
-// used only for BMP output
-#include <windows.h>
-
 namespace FluidSolver2D
 {
 	Grid2D::Grid2D(double _dx, double _dy, double _startT, bool _bc_noslip, double _bc_strength) : dx(_dx), dy(_dy), startT(_startT), bc_noslip(_bc_noslip), bc_strength(_bc_strength), curData(NULL), nextData(NULL) {	}
@@ -549,8 +546,8 @@ namespace FluidSolver2D
 
 	void Grid2D::OutputImage(char *filename)
 	{
-		BITMAPFILEHEADER bfh;
-		BITMAPINFOHEADER bih;
+		BitmapFileHeader bfh;
+		BitmapInfoHeader bih;
 		
 		memset(&bfh, sizeof(bfh), 0);
 		bfh.bfType = 0x4D42;
@@ -560,7 +557,6 @@ namespace FluidSolver2D
 		memset(&bih, sizeof(bih), 0);
 		bih.biSize = sizeof(bih);
 		bih.biBitCount = 24;
-		bih.biCompression = BI_RGB;
 		bih.biHeight = dimx;
 		bih.biWidth = dimy;
 		bih.biPlanes = 1;

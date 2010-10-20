@@ -14,7 +14,6 @@ using namespace Common;
 namespace FluidSolver3D
 {
 	enum VarType { type_U, type_V, type_W, type_T };
-	enum DirType { X, Y, Z, Z_as_Y };
 
 	struct Segment3D
 	{

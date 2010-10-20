@@ -76,6 +76,7 @@ namespace FluidSolver3D
 		void Prepare(double time);
 
 		void TestPrint(char *filename);
+		void OutputImage(char *filename_base);
 
 	protected:
 		BackendType backend;
@@ -99,8 +100,9 @@ namespace FluidSolver3D
 		void Build(FrameInfo3D &frame);
 		void RasterPolygon(Vec3D p1, Vec3D p2, Vec3D p3, Vec3D v1, Vec3D v2, Vec3D v3, NodeType color);
 		double GetBarycentric(Vec2D v1, Vec2D v2, Vec2D v0, Vec2D p);
-		void FloodFill(NodeType color);
-
+		void ProjectPointOnPolygon(DirType dir, int i, int j, Vec2D testp, Vec3D n, FTYPE d);
+		void FloodFill(int start[3], NodeType color, int n, const int *neighborPos);
+		
 		// helper function for 2D shape update
 		void Prepare2D(double time);
 
