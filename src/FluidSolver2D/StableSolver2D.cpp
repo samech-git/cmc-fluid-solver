@@ -11,14 +11,14 @@ namespace FluidSolver2D
 
 		params = _params;
 
-		cur = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-		next = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
+		cur = new TimeLayer2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
+		next = new TimeLayer2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
 		
-		temp = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-		next_w = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-		q[0] = new ScalarField2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-		q[1] = new ScalarField2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-		div = new ScalarField2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
+		temp = new TimeLayer2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
+		next_w = new TimeLayer2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
+		q[0] = new ScalarField2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
+		q[1] = new ScalarField2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
+		div = new ScalarField2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
 
 		int maxInner = dimx * dimy;
 		int maxBound = dimx * dimy;
@@ -37,7 +37,7 @@ namespace FluidSolver2D
 		cur->CopyAllto(grid, temp);
 	}
 
-	void StableSolver2D::SolveU(double dt, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next)
+	void StableSolver2D::SolveU(FTYPE dt, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next)
 	{
 		// eval new layer
 		for (int ind = 0; ind < numInner; ind++)
@@ -51,7 +51,7 @@ namespace FluidSolver2D
 		}
 	}
 
-	void StableSolver2D::SolveV(double dt, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next)
+	void StableSolver2D::SolveV(FTYPE dt, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next)
 	{
 		// eval new layer
 		for (int ind = 0; ind < numInner; ind++)
@@ -65,7 +65,7 @@ namespace FluidSolver2D
 		}
 	}
 
-	void StableSolver2D::Project(double dt, TimeLayer2D *w, TimeLayer2D *proj)
+	void StableSolver2D::Project(FTYPE dt, TimeLayer2D *w, TimeLayer2D *proj)
 	{
 		div->ClearZero();
 		
@@ -104,15 +104,15 @@ namespace FluidSolver2D
 				int j = boundIndices[ind * 2 + 1];
 			
 				// newman conditions
-				if (grid->GetType(i-1, j) == IN) i0 = q[cur]->U(i-1, j); else i0 = q[cur]->U(i+1, j);
-				if (grid->GetType(i+1, j) == IN) i1 = q[cur]->U(i+1, j); else i1 = q[cur]->U(i-1, j);
-				if (grid->GetType(i, j-1) == IN) j0 = q[cur]->U(i, j-1); else j0 = q[cur]->U(i, j+1);
-				if (grid->GetType(i, j+1) == IN) j1 = q[cur]->U(i, j+1); else j1 = q[cur]->U(i, j-1);
+				if (grid->GetType(i-1, j) == NODE_IN) i0 = q[cur]->U(i-1, j); else i0 = q[cur]->U(i+1, j);
+				if (grid->GetType(i+1, j) == NODE_IN) i1 = q[cur]->U(i+1, j); else i1 = q[cur]->U(i-1, j);
+				if (grid->GetType(i, j-1) == NODE_IN) j0 = q[cur]->U(i, j-1); else j0 = q[cur]->U(i, j+1);
+				if (grid->GetType(i, j+1) == NODE_IN) j1 = q[cur]->U(i, j+1); else j1 = q[cur]->U(i, j-1);
 	
 				double q_new = rcp_dxdy2 * ((i0 + i1) * dy2 + (j0 + j1) * dx2 - div->U(i, j) * dx2 * dy2);		
 				double cur_err = abs((q_new - q[cur]->U(i, j)) / q_new);
 				err = max(cur_err, err);
-				q[cur]->U(i, j) = q_new;
+				q[cur]->U(i, j) = (FTYPE)q_new;
 			}
 
 			// inner cells
@@ -129,7 +129,7 @@ namespace FluidSolver2D
 				double q_new = rcp_dxdy2 * ((i0 + i1) * dy2 + (j0 + j1) * dx2 - div->U(i, j) * dx2 * dy2);		
 				double cur_err = abs((q_new - q[cur]->U(i, j)) / q_new);
 				err = max(cur_err, err);
-				q[cur]->U(i, j) = q_new;
+				q[cur]->U(i, j) = (FTYPE)q_new;
 			}
 
 		} while (err >= POISSON_ERR_THRESHOLD);	// exit only when the error is small enough
@@ -156,13 +156,13 @@ namespace FluidSolver2D
 			{
 				switch (grid->GetType(i, j))
 				{
-				case IN:
+				case NODE_IN:
 					innerIndices[numInner * 2 + 0] = i;
 					innerIndices[numInner * 2 + 1] = j;
 					numInner++; 
 					break;
-				case BOUND:
-				case VALVE:
+				case NODE_BOUND:
+				case NODE_VALVE:
 					boundIndices[numBound * 2 + 0] = i;
 					boundIndices[numBound * 2 + 1] = j;
 					numBound++; 
@@ -171,7 +171,7 @@ namespace FluidSolver2D
 			}
 	}
 
-	void StableSolver2D::TimeStep(double dt, int num_global, int num_local)
+	void StableSolver2D::TimeStep(FTYPE dt, int num_global, int num_local)
 	{
 		cur->CopyAllto(grid, temp);
 
@@ -193,7 +193,7 @@ namespace FluidSolver2D
 			err = next->EvalDivError(grid);
 			
 			// update non-linear parameters
-			next->MergeAllto(grid, temp, IN);
+			next->MergeAllto(grid, temp, NODE_IN);
 			
 			if (it > MAX_GLOBAL_ITERS) 
 			{

@@ -27,7 +27,7 @@ namespace FluidSolver2D
 		delete[] frames;
 	}
 
-	inline CellType Grid2D::GetType(int x, int y)
+	inline NodeType Grid2D::GetType(int x, int y)
 	{
 		return curData[x * dimy + y].cell;
 	}
@@ -37,7 +37,7 @@ namespace FluidSolver2D
 		return curData[x * dimy + y];
 	}
 
-	inline void Grid2D::SetType(int x, int y, CellType t)
+	inline void Grid2D::SetType(int x, int y, NodeType t)
 	{
 		curData[x * dimy + y].cell = t;
 	}
@@ -54,13 +54,13 @@ namespace FluidSolver2D
 
 	VecTN Grid2D::GetTangentNormal(Vec2D vector, Vec2D orientation)
 	{
-		double l = (vector.x * orientation.x + vector.y * orientation.y) / (orientation.x * orientation.x + orientation.y * orientation.y);
+		FTYPE l = (FTYPE)(vector.x * orientation.x + vector.y * orientation.y) / (orientation.x * orientation.x + orientation.y * orientation.y);
 		Vec2D t(orientation.x * l, orientation.y * l);
 		Vec2D n(vector.x - t.x, vector.y - t.y);
 		return VecTN(t, n);
 	}
 
-#define PROCESS(ij) {if (nextData[ij].cell != CELL_OUT) { v.x += nextData[ij].vel.x; v.y += nextData[ij].vel.y; k++; }}
+#define PROCESS(ij) {if (nextData[ij].cell != NODE_OUT) { v.x += nextData[ij].vel.x; v.y += nextData[ij].vel.y; k++; }}
 
 	Vec2D Grid2D::GetBounfVelocity(int x, int y)
 	{
@@ -86,14 +86,14 @@ namespace FluidSolver2D
 		return v;
 	}
 
-	void Grid2D::RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color)
+	void Grid2D::RasterLine(Vec2D p1, Vec2D p2, Vec2D v1, Vec2D v2, NodeType color)
     {
 		Vec2D orientation(p2.x - p1.x, p2.y - p1.y);
 		int steps = (int)max(abs(orientation.x), abs(orientation.y)) + 1;
-        Point2D dp((orientation.x) / steps, (orientation.y) / steps);		// divide a segment into parts
+        Vec2D dp((orientation.x) / steps, (orientation.y) / steps);		// divide a segment into parts
 		Vec2D dv((v2.x - v1.x) / steps, (v2.y - v1.y) / steps);		// divide a segment into parts
 		
-		Point2D p = p1;
+		Vec2D p = p1;
 		Vec2D v = v1;
 
 		// go through the whole segment
@@ -106,16 +106,12 @@ namespace FluidSolver2D
 			VecTN vtn = GetTangentNormal(v, orientation);
 			VecTN btn = GetTangentNormal(bv, orientation);
 
-			double l = sqrt(v.x*v.x + v.y*v.y);
+			FTYPE l = sqrt(v.x*v.x + v.y*v.y);
 
-			//bc_strength;
 			if (bc_noslip)
-				SetData(x, y, CondData2D(COND_NOSLIP, color, Vec2D(v.x, v.y), startT));
+				SetData(x, y, CondData2D(BC_NOSLIP, color, Vec2D(v.x, v.y), (FTYPE)startT));
 			else
-				SetData(x, y, CondData2D(COND_NOSLIP, color, 
-						Vec2D(vtn.normal.x + (btn.tangent.x*bc_strength + vtn.tangent.x*(1-bc_strength)), 
-							  vtn.normal.y + (btn.tangent.y*bc_strength + vtn.tangent.y*(1-bc_strength))), 
-						startT));
+				SetData(x, y, CondData2D(BC_NOSLIP, color, vtn.normal + btn.tangent * (FTYPE)bc_strength + vtn.tangent * (1 - (FTYPE)bc_strength), (FTYPE)startT));
 
 			p.x += dp.x;
             p.y += dp.y;
@@ -133,11 +129,11 @@ namespace FluidSolver2D
 				double y = bbox.pMin.y + j*dy;
 				Vec2D v = field.GetVelocity(x, y);
 				if (v.x != 0 || v.y != 0)
-					SetData(i, j, CondData2D(COND_NOSLIP, CELL_BOUND, v, startT));
+					SetData(i, j, CondData2D(BC_NOSLIP, NODE_BOUND, v, (FTYPE)startT));
 			};
 	}
 
-	void Grid2D::FloodFill(CellType color)
+	void Grid2D::FloodFill(NodeType color)
     {
 		int *queue = new int[dimx * dimy * 2];
 		int cur = -1;
@@ -165,7 +161,7 @@ namespace FluidSolver2D
 				int next_j = j + neighborPos[k][1];
 
 				if ((next_i >= 0) && (next_i < dimx) && (next_j >= 0) && (next_j < dimy))
-					if (GetType(next_i, next_j) == CELL_IN) 
+					if (GetType(next_i, next_j) == NODE_IN) 
 					{
 						last++;
 						queue[last * 2 + 0] = next_i;
@@ -195,8 +191,8 @@ namespace FluidSolver2D
 		for (int i=0; i<size; i++)
 		{
 			nextData[i].T = 0;
-			nextData[i].type = COND_NONE;
-			nextData[i].cell = CELL_OUT;
+			nextData[i].type = BC_NOSLIP;
+			nextData[i].cell = NODE_OUT;
 			nextData[i].vel.x = 0;
 			nextData[i].vel.y = 0;
 		}
@@ -206,8 +202,8 @@ namespace FluidSolver2D
 			for (int i = 0; i < frames[j].NumShapes; i++)
 				for (int k = 0; k < frames[j].Shapes[i].NumPoints; k++)
 				{
-					frames[j].Shapes[i].Points[k].x = (frames[j].Shapes[i].Points[k].x - bbox.pMin.x) / dx;
-					frames[j].Shapes[i].Points[k].y = (frames[j].Shapes[i].Points[k].y - bbox.pMin.y) / dy;
+					frames[j].Shapes[i].Points[k].x = (frames[j].Shapes[i].Points[k].x - bbox.pMin.x) / (FTYPE)dx;
+					frames[j].Shapes[i].Points[k].y = (frames[j].Shapes[i].Points[k].y - bbox.pMin.y) / (FTYPE)dy;
 				}
 
 	}
@@ -217,7 +213,7 @@ namespace FluidSolver2D
 		// mark all cells as inner 
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
-				SetType(i, j, CELL_IN);
+				SetType(i, j, NODE_IN);
      
 		// rasterize lines (VALVE)
 		for (int j=0; j<frame.NumShapes; j++)
@@ -225,7 +221,7 @@ namespace FluidSolver2D
 				if( frame.Shapes[j].Active )
 					RasterLine(frame.Shapes[j].Points[i], frame.Shapes[j].Points[i+1],
 							   frame.Shapes[j].Velocities[i], frame.Shapes[j].Velocities[i+1],
-							   CELL_VALVE);
+							   NODE_VALVE);
 		
 		// rasterize lines (BOUND)
 		for (int j=0; j<frame.NumShapes; j++)
@@ -233,18 +229,18 @@ namespace FluidSolver2D
 				if( !frame.Shapes[j].Active )
 					RasterLine(frame.Shapes[j].Points[i], frame.Shapes[j].Points[i+1],
 							   frame.Shapes[j].Velocities[i], frame.Shapes[j].Velocities[i+1],
-							   CELL_BOUND);
+							   NODE_BOUND);
 			
-        FloodFill(CELL_OUT); 
+        FloodFill(NODE_OUT); 
 		RasterField(frame.Field);
 
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
 			{
-				CellType c = GetType(i, j);
+				NodeType c = GetType(i, j);
 				switch (c)
 				{
-					case CELL_IN: case CELL_OUT: SetData(i, j, CondData2D(COND_NONE, c, Vec2D(0, 0), startT)); break; 
+					case NODE_IN: case NODE_OUT: SetData(i, j, CondData2D(BC_NOSLIP, c, Vec2D(0, 0), (FTYPE)startT)); break; 
 				}
 			}
 	}
@@ -259,7 +255,7 @@ namespace FluidSolver2D
 		}
 
 		fscanf_s(file, "%i", &num_frames);	// currently not used
-		Point2D p;
+		Vec2D p;
 		int temp;
 		frames = new FrameInfo2D[num_frames];
 		
@@ -366,28 +362,12 @@ namespace FluidSolver2D
 			if (!frames[frame].Shapes[i].Active)
 				for (int k=0; k<frames[frame].Shapes[i].NumPoints; k++)
 				{
-					frames[nextframe].Shapes[i].Velocities[k].x = 
-						(frames[nextframe].Shapes[i].Points[k].x - frames[frame].Shapes[i].Points[k].x) * m;
-					frames[nextframe].Shapes[i].Velocities[k].y = 
-						(frames[nextframe].Shapes[i].Points[k].y - frames[frame].Shapes[i].Points[k].y) * m;
-
-					//double x = frames[nextframe].Shapes[i].Velocities[k].x;
-					//double y = frames[nextframe].Shapes[i].Velocities[k].y;
-					//double l = sqrt(x*x + y*y);
-					//if (l > maxl) maxl = l;//!!!!!!
+					frames[nextframe].Shapes[i].Velocities[k] = (frames[nextframe].Shapes[i].Points[k] - frames[frame].Shapes[i].Points[k]) * (FTYPE)m;
 				}
 			else
 				for (int k=0; k<frames[frame].Shapes[i].NumPoints; k++)
 				{
-					frames[nextframe].Shapes[i].Velocities[k].x += 
-						(frames[frame].Shapes[i].Points[k].x - frames[nextframe].Shapes[i].Points[k].x) * m;
-					frames[nextframe].Shapes[i].Velocities[k].y += 
-						(frames[frame].Shapes[i].Points[k].y - frames[nextframe].Shapes[i].Points[k].y) * m;
-
-					//double x = frames[nextframe].Shapes[i].Velocities[k].x;
-					//double y = frames[nextframe].Shapes[i].Velocities[k].y;
-					//double l = sqrt(x*x + y*y);
-					//if (l > maxl) maxl = l;//!!!!!!
+					frames[nextframe].Shapes[i].Velocities[k] += (frames[frame].Shapes[i].Points[k] - frames[nextframe].Shapes[i].Points[k]) * (FTYPE)m;
 				}
 	}
 
@@ -407,15 +387,11 @@ namespace FluidSolver2D
 			res.Shapes[i].Init(frames[frame].Shapes[i].NumPoints);
 			for (int k=0; k<res.Shapes[i].NumPoints; k++)
 			{
-				res.Shapes[i].Points[k].x = frames[frame].Shapes[i].Points[k].x * isubstep + 
-											frames[framep1].Shapes[i].Points[k].x * substep;
-				res.Shapes[i].Points[k].y = frames[frame].Shapes[i].Points[k].y * isubstep + 
-											frames[framep1].Shapes[i].Points[k].y * substep;
-
-				res.Shapes[i].Velocities[k].x = frames[frame].Shapes[i].Velocities[k].x * isubstep + 
-												frames[framep1].Shapes[i].Velocities[k].x * substep;
-				res.Shapes[i].Velocities[k].y = frames[frame].Shapes[i].Velocities[k].y * isubstep + 
-												frames[framep1].Shapes[i].Velocities[k].y * substep;
+				res.Shapes[i].Points[k] = frames[frame].Shapes[i].Points[k] * (FTYPE)isubstep + 
+											frames[framep1].Shapes[i].Points[k] * (FTYPE)substep;
+				
+				res.Shapes[i].Velocities[k] = frames[frame].Shapes[i].Velocities[k] * (FTYPE)isubstep + 
+												frames[framep1].Shapes[i].Velocities[k] * (FTYPE)substep;
 				
 				res.Shapes[i].Active = frames[frame].Shapes[i].Active;
 			}
@@ -445,7 +421,7 @@ namespace FluidSolver2D
 						y = y1 * isubstep + y2 * substep;
 					}
 
-					res.Field.Data[t] = Vec2D(x, y);
+					res.Field.Data[t] = Vec2D((FTYPE)x, (FTYPE)y);
 				};
 		}
 
@@ -530,13 +506,13 @@ namespace FluidSolver2D
 		{
 			for (int j = 0; j < dimy; j++)
 			{
-				CellType t = GetType(i, j);
+				NodeType t = GetType(i, j);
 				switch (t)
 				{
-				case CELL_IN: fprintf(file, " "); break;
-				case CELL_OUT: fprintf(file, "."); break;
-				case CELL_BOUND: fprintf(file, "#"); break;
-				case CELL_VALVE: fprintf(file, "+"); break;
+				case NODE_IN: fprintf(file, " "); break;
+				case NODE_OUT: fprintf(file, "."); break;
+				case NODE_BOUND: fprintf(file, "#"); break;
+				case NODE_VALVE: fprintf(file, "+"); break;
 				}
 			}
 			fprintf(file, "\n");
@@ -571,13 +547,13 @@ namespace FluidSolver2D
 			char color[3];
 			for (int j = 0; j < dimy; j++)
 			{
-				CellType t = GetType(i, j);
+				NodeType t = GetType(i, j);
 				switch (t)
 				{
-				case CELL_IN: color[0] = (char)245; color[1] = (char)73; color[2] = (char)69; break;		// blue
-				case CELL_OUT: color[0] = (char)0; color[1] = (char)0; color[2] = (char)0; break;			// black
-				case CELL_BOUND: color[0] = (char)255; color[1] = (char)255; color[2] = (char)255; break;	// white
-				case CELL_VALVE: color[0] = (char)241; color[1] = (char)41; color[2] = (char)212; break;	// purple
+				case NODE_IN: color[0] = (char)245; color[1] = (char)73; color[2] = (char)69; break;		// blue
+				case NODE_OUT: color[0] = (char)0; color[1] = (char)0; color[2] = (char)0; break;			// black
+				case NODE_BOUND: color[0] = (char)255; color[1] = (char)255; color[2] = (char)255; break;	// white
+				case NODE_VALVE: color[0] = (char)241; color[1] = (char)41; color[2] = (char)212; break;	// purple
 				}
 
 				fwrite(color, sizeof(char) * 3, 1, file);

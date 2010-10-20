@@ -11,21 +11,21 @@ namespace FluidSolver2D
 
 		params = _params;
 
-		cur = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-		half = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-		next = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
+		cur = new TimeLayer2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
+		half = new TimeLayer2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
+		next = new TimeLayer2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
 
-		temp = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
-		next_local = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
+		temp = new TimeLayer2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
+		next_local = new TimeLayer2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
 
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
 				switch(grid->GetType(i, j))
 				{
-				case IN:
-				case BOUND:
-				case VALVE:
-				case OUT:
+				case NODE_IN:
+				case NODE_BOUND:
+				case NODE_VALVE:
+				case NODE_OUT:
 					cur->U(i, j) = grid->GetData(i, j).vel.x;
 					cur->V(i, j) = grid->GetData(i, j).vel.y;
 					cur->T(i, j) = grid->GetData(i, j).T;
@@ -33,7 +33,7 @@ namespace FluidSolver2D
 				}
 	}
 
-	void AdiSolver2D::UpdateSegment(double *x, Segment2D seg, VarType var, TimeLayer2D *layer)
+	void AdiSolver2D::UpdateSegment(FTYPE *x, Segment2D seg, VarType var, TimeLayer2D *layer)
 	{
 		int i = seg.posx;
 		int j = seg.posy;
@@ -55,12 +55,11 @@ namespace FluidSolver2D
 		}
 	}
 
-	void AdiSolver2D::ApplyBC0(int i, int j, VarType var, double &b0, double &c0, double &d0)
+	void AdiSolver2D::ApplyBC0(int i, int j, VarType var, FTYPE &b0, FTYPE &c0, FTYPE &d0)
 	{
 		switch (grid->GetData(i, j).type)
 		{
-		case NONE: 
-		case NOSLIP: 
+		case BC_NOSLIP: 
 			b0 = 1.0; 
 			c0 = 0.0; 
 			switch (var)
@@ -70,7 +69,7 @@ namespace FluidSolver2D
 			case type_T: d0 = grid->GetData(i, j).T; break;
 			}
 			break;
-		case FREE: 
+		case BC_FREE: 
 			b0 = 1.0; 
 			c0 = -1.0; 
 			d0 = 0.0; 
@@ -78,12 +77,11 @@ namespace FluidSolver2D
 		}
 	}
 
-	void AdiSolver2D::ApplyBC1(int i, int j, VarType var, double &a1, double &b1, double &d1)
+	void AdiSolver2D::ApplyBC1(int i, int j, VarType var, FTYPE &a1, FTYPE &b1, FTYPE &d1)
 	{
 		switch (grid->GetData(i, j).type)
 		{
-		case NONE:
-		case NOSLIP: 
+		case BC_NOSLIP: 
 			a1 = 0.0; 
 			b1 = 1.0; 
 			switch (var)
@@ -93,7 +91,7 @@ namespace FluidSolver2D
 			case type_T: d1 = grid->GetData(i, j).T; break;
 			}
 			break;
-		case FREE: 
+		case BC_FREE: 
 			a1 = 1.0; 
 			b1 = -1.0; 
 			d1 = 0.0;
@@ -101,13 +99,13 @@ namespace FluidSolver2D
 		}
 	}
 
-	void AdiSolver2D::BuildMatrix(double dt, int i, int j, VarType var, DirType dir, double *a, double *b, double *c, double *d, int n, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *temp_local)
+	void AdiSolver2D::BuildMatrix(FTYPE dt, int i, int j, VarType var, DirType dir, FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int n, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *temp_local)
 	{
-		double v_vis_dx2 = params.v_vis / (grid->dx * grid->dx);
-		double t_vis_dx2 = params.t_vis / (grid->dx * grid->dx);
+		FTYPE v_vis_dx2 = (FTYPE)params.v_vis / ((FTYPE)grid->dx * (FTYPE)grid->dx);
+		FTYPE t_vis_dx2 = (FTYPE)params.t_vis / ((FTYPE)grid->dx * (FTYPE)grid->dx);
 
-		double v_vis_dy2 = params.v_vis / (grid->dy * grid->dy);
-		double t_vis_dy2 = params.t_vis / (grid->dy * grid->dy);
+		FTYPE v_vis_dy2 = (FTYPE)params.v_vis / ((FTYPE)grid->dy * (FTYPE)grid->dy);
+		FTYPE t_vis_dy2 = (FTYPE)params.t_vis / ((FTYPE)grid->dy * (FTYPE)grid->dy);
 
 		for (int p = 1; p < n-1; p++)
 		{
@@ -117,21 +115,21 @@ namespace FluidSolver2D
 				switch (var)	
 				{
 				case type_U:
-					a[p] = - temp_local->U(i+p, j) / (2 * grid->dx) - v_vis_dx2; 
+					a[p] = - temp_local->U(i+p, j) / (2 * (FTYPE)grid->dx) - v_vis_dx2; 
 					b[p] = 1 / dt  +  2 * v_vis_dx2; 
-					c[p] = temp_local->U(i+p, j) / (2 * grid->dx) - v_vis_dx2; 
+					c[p] = temp_local->U(i+p, j) / (2 * (FTYPE)grid->dx) - v_vis_dx2; 
 					d[p] = cur->U(i+p, j) / dt - params.v_T * temp_local->Tx(i+p, j);
 					break;
 				case type_V:
-					a[p] = - temp_local->U(i+p, j) / (2 * grid->dx) - v_vis_dx2; 
+					a[p] = - temp_local->U(i+p, j) / (2 * (FTYPE)grid->dx) - v_vis_dx2; 
 					b[p] = 1 / dt  +  2 * v_vis_dx2; 
-					c[p] = temp_local->U(i+p, j) / (2 * grid->dx) - v_vis_dx2; 
+					c[p] = temp_local->U(i+p, j) / (2 * (FTYPE)grid->dx) - v_vis_dx2; 
 					d[p] = cur->V(i+p, j) / dt;
 					break;
 				case type_T:
-					a[p] = - temp_local->U(i+p, j) / (2 * grid->dx) - t_vis_dx2; 
+					a[p] = - temp_local->U(i+p, j) / (2 * (FTYPE)grid->dx) - t_vis_dx2; 
 					b[p] = 1 / dt  +  2 * t_vis_dx2; 
-					c[p] = temp_local->U(i+p, j) / (2 * grid->dx) - t_vis_dx2; 
+					c[p] = temp_local->U(i+p, j) / (2 * (FTYPE)grid->dx) - t_vis_dx2; 
 					d[p] = cur->T(i+p, j) / dt + params.t_phi * temp_local->DissFuncX(i+p, j);
 					break;
 				}
@@ -140,21 +138,21 @@ namespace FluidSolver2D
 				switch (var)	
 				{
 				case type_U:
-					a[p] = - temp_local->V(i, j+p) / (2 * grid->dy) - v_vis_dy2; 
+					a[p] = - temp_local->V(i, j+p) / (2 * (FTYPE)grid->dy) - v_vis_dy2; 
 					b[p] = 1 / dt  +  2 * v_vis_dy2; 
-					c[p] = temp_local->V(i, j+p) / (2 * grid->dy) - v_vis_dy2; 
+					c[p] = temp_local->V(i, j+p) / (2 * (FTYPE)grid->dy) - v_vis_dy2; 
 					d[p] = cur->U(i, j+p) / dt;
 					break;
 				case type_V:
-					a[p] = - temp_local->V(i, j+p) / (2 * grid->dy) - v_vis_dy2; 
+					a[p] = - temp_local->V(i, j+p) / (2 * (FTYPE)grid->dy) - v_vis_dy2; 
 					b[p] = 1 / dt  +  2 * v_vis_dy2; 
-					c[p] = temp_local->V(i, j+p) / (2 * grid->dy) - v_vis_dy2; 
+					c[p] = temp_local->V(i, j+p) / (2 * (FTYPE)grid->dy) - v_vis_dy2; 
 					d[p] = cur->V(i, j+p) / dt - params.v_T * temp_local->Ty(i, j+p);
 					break;
 				case type_T:
-					a[p] = - temp_local->V(i, j+p) / (2 * grid->dy) - t_vis_dy2; 
+					a[p] = - temp_local->V(i, j+p) / (2 * (FTYPE)grid->dy) - t_vis_dy2; 
 					b[p] = 1 / dt  +  2 * t_vis_dy2; 
-					c[p] = temp_local->V(i, j+p) / (2 * grid->dy) - t_vis_dy2; 
+					c[p] = temp_local->V(i, j+p) / (2 * (FTYPE)grid->dy) - t_vis_dy2; 
 					d[p] = cur->T(i, j+p) / dt + params.t_phi * temp_local->DissFuncY(i, j+p);
 					break;
 				}
@@ -163,15 +161,15 @@ namespace FluidSolver2D
 		}
 	}
 
-	void AdiSolver2D::SolveSegment(double dt, Segment2D seg, VarType var, DirType dir, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *temp_local, TimeLayer2D *next_local)
+	void AdiSolver2D::SolveSegment(FTYPE dt, Segment2D seg, VarType var, DirType dir, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *temp_local, TimeLayer2D *next_local)
 	{		
 		int n = seg.size;
 
-		a = new double[n];
-		b = new double[n];
-		c = new double[n];
-		d = new double[n];
-		x = new double[n];
+		a = new FTYPE[n];
+		b = new FTYPE[n];
+		c = new FTYPE[n];
+		d = new FTYPE[n];
+		x = new FTYPE[n];
 
 		ApplyBC0(seg.posx, seg.posy, var, b[0], c[0], d[0]);
 		BuildMatrix(dt, seg.posx, seg.posy, var, dir, a, b, c, d, n, cur, temp, temp_local);
@@ -186,9 +184,9 @@ namespace FluidSolver2D
 		delete [] x;
 	}
 
-	void AdiSolver2D::SolveDirection(double dt, int num_local, vector<Segment2D> &list, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next)
+	void AdiSolver2D::SolveDirection(FTYPE dt, int num_local, vector<Segment2D> &list, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next)
 	{
-		TimeLayer2D *temp_local = new TimeLayer2D(grid->dimx, grid->dimy, grid->dx, grid->dy);
+		TimeLayer2D *temp_local = new TimeLayer2D(grid->dimx, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dy);
 		temp->CopyAllto(grid, temp_local);
 
 		DirType dir = list[0].dir;
@@ -202,12 +200,12 @@ namespace FluidSolver2D
 			}
 
 			// update non-linear
-			if (it == 0) next_local->CopyAllto(grid, temp_local, IN);
-				else next_local->MergeAllto(grid, temp_local, IN);
+			if (it == 0) next_local->CopyAllto(grid, temp_local, NODE_IN);
+				else next_local->MergeAllto(grid, temp_local, NODE_IN);
 		}
 
-		temp_local->CopyAllto(grid, temp, IN);
-		next_local->CopyAllto(grid, next, IN);
+		temp_local->CopyAllto(grid, temp, NODE_IN);
+		next_local->CopyAllto(grid, next, NODE_IN);
 		delete temp_local;
 	}
 
@@ -221,14 +219,14 @@ namespace FluidSolver2D
 			seg.dir = Y;
 
 			int j = 0;
-			while (j < dimy && grid->GetType(i, j) == OUT) j++;
-			while (j+1 < dimy && grid->GetType(i, j+1) != IN) j++;
+			while (j < dimy && grid->GetType(i, j) == NODE_OUT) j++;
+			while (j+1 < dimy && grid->GetType(i, j+1) != NODE_IN) j++;
 			if (j+1 >= dimy) continue;
 			seg.posy = j;
 
 			j = dimy-1;
-			while (j >= 0 && grid->GetType(i, j) == OUT) j--;
-			while (j-1 >= 0 && grid->GetType(i, j-1) != IN) j--;
+			while (j >= 0 && grid->GetType(i, j) == NODE_OUT) j--;
+			while (j-1 >= 0 && grid->GetType(i, j-1) != NODE_IN) j--;
 			seg.size = j - seg.posy + 1;
 			
 			seg.endx = i;
@@ -245,14 +243,14 @@ namespace FluidSolver2D
 			seg.dir = X;
 
 			int i = 0;
-			while (i < dimx && grid->GetType(i, j) == OUT) i++;
-			while (i+1 < dimx && grid->GetType(i+1, j) != IN) i++;
+			while (i < dimx && grid->GetType(i, j) == NODE_OUT) i++;
+			while (i+1 < dimx && grid->GetType(i+1, j) != NODE_IN) i++;
 			if (i+1 >= dimx) continue;
 			seg.posx = i;
 
 			i = dimx-1;
-			while (i >= 0 && grid->GetType(i, j) == OUT) i--;
-			while (i-1 >= 0 && grid->GetType(i-1, j) != IN) i--;
+			while (i >= 0 && grid->GetType(i, j) == NODE_OUT) i--;
+			while (i-1 >= 0 && grid->GetType(i-1, j) != NODE_IN) i--;
 			seg.size = i - seg.posx + 1;
 
 			seg.endx = i;
@@ -262,7 +260,7 @@ namespace FluidSolver2D
 		}
 	}
 
-	void AdiSolver2D::TimeStep(double dt, int num_global, int num_local)
+	void AdiSolver2D::TimeStep(FTYPE dt, int num_global, int num_local)
 	{
 		CreateSegments();
 
@@ -283,8 +281,8 @@ namespace FluidSolver2D
 			err = next->EvalDivError(grid);
 			
 			// update non-linear parameters
-			if (it == 0) next->CopyAllto(grid, temp, IN);
-				else next->MergeAllto(grid, temp, IN);
+			if (it == 0) next->CopyAllto(grid, temp, NODE_IN);
+				else next->MergeAllto(grid, temp, NODE_IN);
 			
 			if (it > MAX_GLOBAL_ITERS) 
 			{

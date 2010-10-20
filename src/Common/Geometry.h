@@ -9,14 +9,28 @@
 
 namespace Common
 {
+	enum BackendType { CPU, GPU };
+
+	enum NodeType { 
+		NODE_IN, 
+		NODE_OUT, 
+		NODE_BOUND, 
+		NODE_VALVE 
+	};
+	
+	enum BCtype { 
+		BC_NOSLIP, 
+		BC_FREE 
+	};
+
 	enum DirType { X, Y, Z, Z_as_Y };
 
 	struct Vec2D
 	{
-		double x, y; 
+		FTYPE x, y; 
 
 		Vec2D() : x(0.0), y(0.0) { }
-		Vec2D(double _x, double _y) : x(_x), y(_y) { }
+		Vec2D(FTYPE _x, FTYPE _y) : x(_x), y(_y) { }
 		Vec2D(Vec2D &vec) : x(vec.x), y(vec.y) { }
 
 		Vec2D operator += (const Vec2D &vec)
@@ -26,31 +40,37 @@ namespace Common
 			return (*this);
 		}
 
-		double dot(const Vec2D &vec)
+		Vec2D operator * (const FTYPE t)
+		{
+			return Vec2D(x*t, y*t);
+		}
+
+		Vec2D operator + (const Vec2D &vec)
+		{
+			return Vec2D(x + vec.x, y + vec.y);
+		}
+
+		Vec2D operator - (const Vec2D &vec)
+		{
+			return Vec2D(x - vec.x, y - vec.y);
+		}
+
+		FTYPE dot(const Vec2D &vec)
 		{
 			return (x * vec.x + y * vec.y);
 		}
 
-		double length()
+		FTYPE length()
 		{
 			return sqrt(x*x + y*y);
 		}
 
 		void normalize()
 		{
-			double t = 1 / length();
+			FTYPE t = 1 / length();
 			x *= t;
 			y *= t;
 		}
-	};
-
-	struct Point2D 
-	{ 
-		double x, y; 
-
-		Point2D() : x(0.0), y(0.0) { }
-		Point2D(double _x, double _y) : x(_x), y(_y) { }
-		Point2D(Vec2D &vec) : x(vec.x), y(vec.y) { }
 	};
 
 	struct Vec3D
@@ -128,12 +148,12 @@ namespace Common
 		VecTN() : tangent(0,0), normal(0,0) { }
 		VecTN(Vec2D _x, Vec2D _y) : tangent(_x), normal(_y) { }
 		VecTN(VecTN &vec) : tangent(vec.tangent), normal(vec.normal) { }
-		VecTN(double x1, double y1, double x2, double y2) : tangent(x1, y1), normal(x2, y2) { }
+		VecTN(FTYPE x1, FTYPE y1, FTYPE x2, FTYPE y2) : tangent(x1, y1), normal(x2, y2) { }
 	};
 
 	struct Shape2D
 	{
-		Point2D* Points;
+		Vec2D* Points;
 		Vec2D* Velocities;
 		int NumPoints;
 		bool Active;
@@ -141,7 +161,7 @@ namespace Common
 		void Init(int num)
 		{
 			NumPoints = num;
-			Points = new Point2D[num];
+			Points = new Vec2D[num];
 			Velocities = new Vec2D[num];
 		}
 
@@ -257,8 +277,8 @@ namespace Common
 
 			int t = itx + ity*Nx;
 			
-			double rx = Data[t].x;
-			double ry = Data[t].y;
+			FTYPE rx = Data[t].x;
+			FTYPE ry = Data[t].y;
 
 			return Vec2D(rx, ry);
 		}
@@ -380,21 +400,16 @@ namespace Common
 
 	struct BBox2D
 	{
-		Point2D pMin, pMax;
+		Vec2D pMin, pMax;
 
 		BBox2D() { Clear(); }
 		
-		void AddPoint(Point2D p)
+		void AddPoint(Vec2D p)
 		{
 			if (p.x < pMin.x) pMin.x = p.x;
 			if (p.y < pMin.y) pMin.y = p.y;
 			if (p.x > pMax.x) pMax.x = p.x;
 			if (p.y > pMax.y) pMax.y = p.y;
-		}
-
-		void AddPoint(Vec2D p)
-		{
-			AddPoint(Point2D(p.x, p.y));
 		}
 
 		void Build(int num_frames, FrameInfo2D* frames)
@@ -405,14 +420,14 @@ namespace Common
 					for (int k = 0; k < frames[j].Shapes[i].NumPoints; k++)
 						AddPoint(frames[j].Shapes[i].Points[k]);
 
-			double wx = pMax.x - pMin.x;
-			double wy = pMax.y - pMin.y;
+			FTYPE wx = pMax.x - pMin.x;
+			FTYPE wy = pMax.y - pMin.y;
 			
-			pMin.x -= wx * BBOX_PADDING;
-			pMin.y -= wy * BBOX_PADDING;
+			pMin.x -= wx * (FTYPE)BBOX_PADDING;
+			pMin.y -= wy * (FTYPE)BBOX_PADDING;
 			
-			pMax.x += wx * BBOX_PADDING;
-			pMax.y += wy * BBOX_PADDING;
+			pMax.x += wx * (FTYPE)BBOX_PADDING;
+			pMax.y += wy * (FTYPE)BBOX_PADDING;
 		}
 
 		void Clear()

@@ -216,9 +216,9 @@ namespace Common
 				{
 					float vx, vy, t;
 					fscanf_s(file, "%f %f %f", &vx, &vy, &t);
-					v[i * dimy + j].x = (double)vx;
-					v[i * dimy + j].y = (double)vy;
-					T[i * dimy + j] = (double)t;
+					v[i * dimy + j].x = (FTYPE)vx;
+					v[i * dimy + j].y = (FTYPE)vy;
+					T[i * dimy + j] = (FTYPE)t;
 				}
 			
 			fclose(file);
@@ -298,7 +298,7 @@ namespace Common
 		}
 	}
 
-	static void ReadPoint2D(FILE *file, Point2D &p)
+	static void ReadPoint2D(FILE *file, Vec2D &p)
 	{
 		std::string str = "";
 		char c;	
@@ -327,9 +327,9 @@ namespace Common
 		std::string s1 = str.substr(0, found);
 		std::string s2 = str.substr(found+1, std::string::npos);
 
-		// convert to doubles
-		p.x = atof(s1.c_str());
-		p.y = atof(s2.c_str());
+		// convert to fp
+		p.x = (FTYPE)atof(s1.c_str());
+		p.y = (FTYPE)atof(s2.c_str());
 	}
 
 	static void ReadPoint3D(FILE *file, Vec3D &p)

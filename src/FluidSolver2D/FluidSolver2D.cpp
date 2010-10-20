@@ -12,11 +12,8 @@ int main(int argc, char **argv)
 	char configPath[MAX_PATH];
 	char fieldPath[MAX_PATH];
 
-	//FindFile(inputPath, argv[1]);
-	//FindFile(outputPath, argv[2], false);
-	//FindFile(configPath, argv[3]);
 	if (argc == 2)
-		LoadProject(argv[1], inputPath, fieldPath, outputPath, configPath, MAX_PATH);
+		LoadProject(argv[1], inputPath, fieldPath, outputPath, configPath);
 	else
 		if (argc > 4)
 		{
@@ -108,7 +105,7 @@ int main(int argc, char **argv)
 
 		grid.Prepare(t);
 		solver->UpdateBoundaries();
-		solver->TimeStep(dt, Config::num_global, Config::num_local);
+		solver->TimeStep((FTYPE)dt, Config::num_global, Config::num_local);
 		solver->SetGridBoundaries();
 
 		timer.stop();

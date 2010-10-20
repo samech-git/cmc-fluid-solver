@@ -7,24 +7,24 @@ namespace FluidSolver2D
 	struct ScalarField2D
 	{
 		int dimx, dimy;
-		double dx, dy;
+		FTYPE dx, dy;
 		
-		double& U(int i, int j)
+		FTYPE& U(int i, int j)
 		{
 			return u[i * dimy + j];
 		}
 
 		// U derivatives
-		inline double Ux(int i, int j)	{ return (U(i+1, j) - U(i-1, j)) / (2 * dx); }
-		inline double Uy(int i, int j)	{ return (U(i, j+1) - U(i, j-1)) / (2 * dy); }
-		inline double Uxx(int i, int j) { return (U(i+1, j) - 2 * U(i, j) + U(i-1, j)) / (dx * dx); }
-		inline double Uyy(int i, int j) { return (U(i, j+1) - 2 * U(i, j) + U(i, j-1)) / (dy * dy); }
+		inline FTYPE Ux(int i, int j)	{ return (U(i+1, j) - U(i-1, j)) / (2 * dx); }
+		inline FTYPE Uy(int i, int j)	{ return (U(i, j+1) - U(i, j-1)) / (2 * dy); }
+		inline FTYPE Uxx(int i, int j) { return (U(i+1, j) - 2 * U(i, j) + U(i-1, j)) / (dx * dx); }
+		inline FTYPE Uyy(int i, int j) { return (U(i, j+1) - 2 * U(i, j) + U(i, j-1)) / (dy * dy); }
 		
 		inline Vec2D grad(int i, int j) { return Vec2D(Ux(i, j), Uy(i, j)); }
 
-		ScalarField2D(int _dimx, int _dimy, double _dx, double _dy) : dimx(_dimx), dimy(_dimy), dx(_dx), dy(_dy)
+		ScalarField2D(int _dimx, int _dimy, FTYPE _dx, FTYPE _dy) : dimx(_dimx), dimy(_dimy), dx(_dx), dy(_dy)
 		{
-			u = new double[dimx * dimy];
+			u = new FTYPE[dimx * dimy];
 		}
 
 		void ClearZero()
@@ -38,6 +38,6 @@ namespace FluidSolver2D
 			delete [] u;
 		}
 	private:	
-		double *u;
+		FTYPE *u;
 	};
 }

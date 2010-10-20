@@ -1,5 +1,6 @@
 #pragma once
 
+#include "..\Common\Geometry.h"
 #include "..\Common\Algorithms.h"
 
 #include "Solver2D.h"
@@ -24,7 +25,7 @@ namespace FluidSolver2D
 	{
 	public:
 		void Init(Grid2D* _grid, FluidParams &_params);
-		void TimeStep(double dt, int num_global, int num_local);
+		void TimeStep(FTYPE dt, int num_global, int num_local);
 
 		AdiSolver2D();
 		~AdiSolver2D();
@@ -33,17 +34,17 @@ namespace FluidSolver2D
 		vector<Segment2D> listX, listY;
 
 		TimeLayer2D *temp, *half, *next_local;
-		double *a, *b, *c, *d, *x;
+		FTYPE *a, *b, *c, *d, *x;
 
-		void BuildMatrix(double dt, int i, int j, VarType var, DirType dir, double *a, double *b, double *c, double *d, int n, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *temp_local);
-		void ApplyBC0(int i, int j, VarType var, double &b0, double &c0, double &d0);
-		void ApplyBC1(int i, int j, VarType var, double &a1, double &b1, double &d1);
+		void BuildMatrix(FTYPE dt, int i, int j, VarType var, DirType dir, FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int n, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *temp_local);
+		void ApplyBC0(int i, int j, VarType var, FTYPE &b0, FTYPE &c0, FTYPE &d0);
+		void ApplyBC1(int i, int j, VarType var, FTYPE &a1, FTYPE &b1, FTYPE &d1);
 		
 		void CreateSegments();	
-		void SolveSegment(double dt, Segment2D seg, VarType var, DirType dir, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *temp_local, TimeLayer2D *next_local);
-		void UpdateSegment(double *x, Segment2D seg, VarType var, TimeLayer2D *layer);
+		void SolveSegment(FTYPE dt, Segment2D seg, VarType var, DirType dir, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *temp_local, TimeLayer2D *next_local);
+		void UpdateSegment(FTYPE *x, Segment2D seg, VarType var, TimeLayer2D *layer);
 		
-		void SolveDirection(double dt, int num_local, vector<Segment2D> &list, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
+		void SolveDirection(FTYPE dt, int num_local, vector<Segment2D> &list, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
 
 		void FreeMemory();
 	};

@@ -239,7 +239,7 @@ namespace FluidSolver3D
 			for (int j = 0; j < dimy; j++)
 			{
 				int ind;
-				if (grid2D->GetType(i, j) == FluidSolver2D::CELL_OUT)
+				if (grid2D->GetType(i, j) == NODE_OUT)
 				{
 					for (int k = 0; k < dimz; k++)
 					{
@@ -262,17 +262,17 @@ namespace FluidSolver3D
 						ind = i * dimy * dimz + j * dimz + k;
 						switch (grid2D->GetType(i, j))
 						{
-						case FluidSolver2D::CELL_BOUND:
+						case NODE_BOUND:
 							nodes[ind].SetBound(BC_NOSLIP, BC_FREE, Vec3D((FTYPE)grid2D->GetData(i, j).vel.x, (FTYPE)grid2D->GetData(i, j).vel.y, 0.0), (FTYPE)grid2D->GetData(i, j).T);
 							break;
-						case FluidSolver2D::CELL_VALVE:
+						case NODE_VALVE:
 							if( grid2D->GetData(i, j).vel.x == 0 && grid2D->GetData(i, j).vel.y == 0 )
 								nodes[ind].SetBound(BC_FREE, BC_FREE, Vec3D((FTYPE)grid2D->GetData(i, j).vel.x, (FTYPE)grid2D->GetData(i, j).vel.y, 0.0), (FTYPE)grid2D->GetData(i, j).T);
 							else
 								nodes[ind].SetBound(BC_NOSLIP, BC_NOSLIP, Vec3D((FTYPE)grid2D->GetData(i, j).vel.x, (FTYPE)grid2D->GetData(i, j).vel.y, 0.0), (FTYPE)grid2D->GetData(i, j).T);
 							nodes[ind].type = NODE_VALVE;
 							break;
-						case FluidSolver2D::CELL_IN:
+						case NODE_IN:
 							nodes[ind].type = NODE_IN;
 							nodes[ind].T = (FTYPE)baseT;
 							break;
@@ -385,7 +385,7 @@ namespace FluidSolver3D
 			int last_i = (int)GetIntersectHorizon(pp1, pp2, p).x;
 
 			for (int i = (int)p.x; i != last_i + di; i += di)
-				ProjectPointOnPolygon(dir, i, j, Vec2D(i, p.y), n, d);
+				ProjectPointOnPolygon(dir, i, j, Vec2D((FTYPE)i, p.y), n, d);
 
 			p += dp1;			
         }
@@ -399,7 +399,7 @@ namespace FluidSolver3D
 			int last_i = (int)GetIntersectHorizon(pp2, pp3, p).x;
 
 			for (int i = (int)p.x; i != last_i + di; i += di)
-				ProjectPointOnPolygon(dir, i, j, Vec2D(i, p.y), n, d);
+				ProjectPointOnPolygon(dir, i, j, Vec2D((FTYPE)i, p.y), n, d);
 
 			p += dp2;			
         }

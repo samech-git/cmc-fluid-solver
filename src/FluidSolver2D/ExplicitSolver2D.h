@@ -11,7 +11,7 @@ namespace FluidSolver2D
 	{
 	public:
 		void Init(Grid2D* _grid, FluidParams &_params);
-		void TimeStep(double dt, int num_global, int num_local);
+		void TimeStep(FTYPE dt, int num_global, int num_local);
 
 		ExplicitSolver2D();
 		~ExplicitSolver2D();
@@ -19,9 +19,9 @@ namespace FluidSolver2D
 	private:
 		TimeLayer2D *temp, *next_local;
 
-		void SolveU(double dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
-		void SolveV(double dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
-		void SolveT(double dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
+		void SolveU(FTYPE dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
+		void SolveV(FTYPE dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
+		void SolveT(FTYPE dt, int num_local, TimeLayer2D *cur, TimeLayer2D *temp, TimeLayer2D *next);
 
 		void FreeMemory();
 	};

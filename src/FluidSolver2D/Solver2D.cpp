@@ -25,7 +25,7 @@ namespace FluidSolver2D
 				{
 					cur->U(i, j) = v[i * dimy + j].x;
 					cur->V(i, j) = v[i * dimy + j].y;
-					cur->T(i, j) = T[i * dimy + j];
+					cur->T(i, j) = (FTYPE)T[i * dimy + j];
 				}		
 	}
 
@@ -35,15 +35,15 @@ namespace FluidSolver2D
 			for (int j = 0; j < dimy; j++)
 				switch(grid->GetType(i, j))
 				{
-				case BOUND:
-				case VALVE:
+				case NODE_BOUND:
+				case NODE_VALVE:
 					cur->U(i, j) = grid->GetData(i, j).vel.x;
 					cur->V(i, j) = grid->GetData(i, j).vel.y;
 					cur->T(i, j) = grid->GetData(i, j).T;
 					break;
 				}
-		cur->CopyAllto(grid, next, BOUND);
-		cur->CopyAllto(grid, next, VALVE);
+		cur->CopyAllto(grid, next, NODE_BOUND);
+		cur->CopyAllto(grid, next, NODE_VALVE);
 	}
 
 	void Solver2D::SetGridBoundaries()
@@ -60,11 +60,11 @@ namespace FluidSolver2D
 	{
 		for (int i = 0; i < dimx; i++)
 			for (int j = 0; j < dimy; j++)
-				if (grid->GetType(i, j) == OUT)
+				if (grid->GetType(i, j) == NODE_OUT)
 				{
 					next->U(i, j) = 0.0;
 					next->V(i, j) = 0.0;
-					next->T(i, j) = grid->startT;
+					next->T(i, j) = (FTYPE)grid->startT;
 				}
 	}
 }

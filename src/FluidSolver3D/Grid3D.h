@@ -11,20 +11,6 @@ using namespace Common;
 
 namespace FluidSolver3D
 {
-	enum BackendType { CPU, GPU };
-
-	enum NodeType { 
-		NODE_IN, 
-		NODE_OUT, 
-		NODE_BOUND, 
-		NODE_VALVE 
-	};
-	
-	enum BCtype { 
-		BC_NOSLIP, 
-		BC_FREE 
-	};
-
 	struct Node
 	{
 		NodeType type;

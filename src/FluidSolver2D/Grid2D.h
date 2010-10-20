@@ -15,18 +15,16 @@ using namespace Common;
 
 namespace FluidSolver2D
 {
-	enum CellType { CELL_IN, CELL_OUT, CELL_BOUND, CELL_VALVE };
-	enum CondType { COND_NONE, COND_NOSLIP, COND_FREE };
-
 	struct CondData2D
 	{
-		CellType cell;
-		CondType type;
+		NodeType cell;
+		BCtype type;
+		
 		Vec2D vel;
-		double T;
+		FTYPE T;
 
-		CondData2D() : type(COND_NONE), vel(Vec2D(0.0, 0.0)), T(0.0) { }
-		CondData2D(CondType _type, CellType _cell, Vec2D _vel, double _T) : type(_type), vel(_vel), T(_T), cell(_cell) { }
+		CondData2D() : vel(Vec2D(0.0, 0.0)), T(0.0) { }
+		CondData2D(BCtype _type, NodeType _cell, Vec2D _vel, FTYPE _T) : type(_type), vel(_vel), T(_T), cell(_cell) { }
 	};
 
 	struct Grid2D
@@ -38,7 +36,7 @@ namespace FluidSolver2D
 		int dimx, dimy;
 		double dx, dy;
 
-		CellType GetType(int x, int y);
+		NodeType GetType(int x, int y);
 		CondData2D GetData(int x, int y);
 		void SetFieldData(int x, int y, CondData2D d);
 		
@@ -75,13 +73,13 @@ namespace FluidSolver2D
 
 		VecTN GetTangentNormal(Vec2D vector, Vec2D orientation);
 		Vec2D GetBounfVelocity(int x, int y);
-		void RasterLine(Point2D p1, Point2D p2, Vec2D v1, Vec2D v2, CellType color);
+		void RasterLine(Vec2D p1, Vec2D p2, Vec2D v1, Vec2D v2, NodeType color);
 		void RasterField(Field2D field);
-		void FloodFill(CellType color);
+		void FloodFill(NodeType color);
 		
 		void Build(FrameInfo2D frame);
 		
-		void SetType(int x, int y, CellType t);
+		void SetType(int x, int y, NodeType t);
 		void SetData(int x, int y, CondData2D d);
 	};
 }

@@ -9,7 +9,7 @@ namespace FluidSolver2D
 	{
 	public:
 		virtual void Init(Grid2D* grid, FluidParams &params) = 0;
-		virtual void TimeStep(double dt, int num_global, int num_local) = 0;
+		virtual void TimeStep(FTYPE dt, int num_global, int num_local) = 0;
 		
 		void GetLayer(Vec2D *v, double *T, int outdimx = 0, int outdimy = 0);
 		void SetLayer(Vec2D *v, double *T);
