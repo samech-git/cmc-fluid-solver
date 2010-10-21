@@ -1,4 +1,0 @@
-..\..\data\2D\test_field\test_ns.txt
-..\..\data\2D\test_field\test_field.txt
-..\..\data\2D\test_field\test_res.txt
-..\..\data\2D\test_field\test_config.txt
