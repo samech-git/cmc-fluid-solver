@@ -14,6 +14,7 @@ calc_subframes 	5000
 out_subframes 	100
 out_gridx	100
 out_gridy 	80
+out_fmt		MultiVox
 
 solver		Stable
 num_global 	2

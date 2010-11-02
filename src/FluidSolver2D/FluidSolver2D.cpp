@@ -69,37 +69,45 @@ int main(int argc, char **argv)
 	double dt = length / (frames * Config::calc_subframes);
 	double finaltime = length * Config::cycles;
 
-	strcpy_s(curOutFile, outputPath);
+	OutputNetCDFHeader2D(outputPath, &grid.bbox, dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy);
+
 	printf("dt = %f\n", dt);
 	int lastframe = -1;
 	int currentcycle = 0;
 	double t = dt;
 	for (int i=0; t < finaltime; t+=dt, i++)
 	{
-		int curentframe = grid.GetFrame(t);
+		int currentframe = grid.GetFrame(t);
 		float layer_time = grid.GetLayerTime(t);
 
-		if (curentframe != lastframe)
+		if (currentframe != lastframe)
 		{
-			if (curentframe == 0) //new cicle
+			if (currentframe == 0) //new cycle
 			{
 				currentcycle++;
 
-				if (currentcycle > 0)
+				if( Config::outfmt == MultiVox )
 				{
-					char add[MAX_PATH];
-					sprintf_s(add, MAX_STR_SIZE, "_%i", currentcycle);
-					ExtendFileName(outputPath, curOutFile, add);
+					if (currentcycle > 0)
+					{
+						char add[MAX_PATH];
+						sprintf_s(add, MAX_STR_SIZE, "_%i", currentcycle);
+						ExtendFileName(outputPath, curOutFile, add);
+					}
+					
+					OutputResultHeader(curOutFile, &grid.bbox, Config::outdimx, Config::outdimy);
 				}
-
-				OutputResultHeader(curOutFile, &grid.bbox, Config::outdimx, Config::outdimy);
 			}
 
-			FILE *resFile = NULL;
-			fopen_s(&resFile, curOutFile, "a");
-			fprintf(resFile, "Frame %i\n", curentframe);
-			fclose(resFile);
-			lastframe = curentframe;
+			if( Config::outfmt == MultiVox )
+			{
+				FILE *resFile = NULL;
+				fopen_s(&resFile, curOutFile, "a");
+				fprintf(resFile, "Frame %i\n", currentframe);
+				fclose(resFile);
+			}
+
+			lastframe = currentframe;
 			i = 0;
 		}
 
@@ -109,7 +117,7 @@ int main(int argc, char **argv)
 		solver->SetGridBoundaries();
 
 		timer.stop();
-		PrintTimeStepInfo(curentframe, i, t, finaltime, timer.elapsed_sec());
+		PrintTimeStepInfo(currentframe, i, t, finaltime, timer.elapsed_sec());
 
 		if ((i % Config::out_subframes) == 0)
 		{
@@ -117,7 +125,12 @@ int main(int argc, char **argv)
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy);
-			OutputResult(curOutFile, resVel, resT, Config::outdimx, Config::outdimy, dur);
+				
+			if( Config::outfmt == MultiVox )
+				OutputResult(curOutFile, resVel, resT, Config::outdimx, Config::outdimy, dur);
+			else
+				OutputNetCDF2D_U(outputPath, resVel, resT, Config::outdimx, Config::outdimy,  
+								(i + Config::out_subframes >= Config::calc_subframes) && (currentframe == frames-1) && (currentcycle == Config::cycles-1));
 		}
 	}
 	printf("\n");

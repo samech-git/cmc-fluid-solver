@@ -6,9 +6,10 @@
 
 namespace Common
 {
-	enum solver { Explicit, ADI, Stable };
-	enum dimension { _2D, _3D, unknown };
-	enum mode { _depthZ, _poly };
+	enum solver { Explicit, ADI, Stable, _unknownSolver };
+	enum dimension { _2D, _3D, _unknownDim };
+	enum mode { _depthZ, _poly, _unknownMode };
+	enum format { NetCDF, MultiVox, _unknownFmt };
 	
 	class Config
 	{
@@ -39,6 +40,7 @@ namespace Common
 		static int cycles, calc_subframes, out_subframes;
 
 		// output grid
+		static format outfmt;
 		static int outdimx, outdimy, outdimz;
 
 		// solver params
@@ -66,12 +68,14 @@ namespace Common
 			out_subframes = 10;
 			outdimx = outdimy = outdimz = 50;
 
-			solverID = Stable;
 			num_global = 2;
 			num_local = 1;
 
 			// must specify 
-			problem_dim = unknown;
+			problem_dim = _unknownDim;
+			outfmt = _unknownFmt;
+			solverID = _unknownSolver;
+			test_mode = _unknownMode;
 			dx = -1;
 			dy = -1;
 			dz = -1;
@@ -123,6 +127,14 @@ namespace Common
 				else test_mode = _poly;
 		}
 
+		static void ReadFormat(FILE *file)
+		{
+			char dimStr[MAX_STR_SIZE];
+			fscanf_s(file, "%s", dimStr, MAX_STR_SIZE);
+			if (!strcmp(dimStr, "NetCDF")) outfmt = NetCDF;
+				else outfmt = MultiVox;
+		}
+
 		static void LoadFromFile(char *filename)
 		{
 			FILE *file = NULL;
@@ -160,7 +172,8 @@ namespace Common
 				if (!strcmp(str, "out_gridx")) ReadInt(file, outdimx);
 				if (!strcmp(str, "out_gridy")) ReadInt(file, outdimy);
 				if (!strcmp(str, "out_gridz")) ReadInt(file, outdimz);
-
+				if (!strcmp(str, "out_fmt")) ReadFormat(file);
+				
 				if (!strcmp(str, "depth")) ReadDouble(file, depth);		
 
 				if (!strcmp(str, "solver")) ReadSolver(file);
@@ -171,16 +184,22 @@ namespace Common
 			fclose(file);
 
 			// checking		
-			if (problem_dim == unknown) { printf("must specify problem dimension!\n"); exit(0); }
+			if (problem_dim == _unknownDim) { printf("must specify problem dimension!\n"); exit(0); }
+			if (solverID == _unknownSolver) { printf("must specify solver!\n"); exit(0); }
+			if (outfmt == _unknownFmt) { printf("must specify output format!\n"); exit(0); }
+			
 			if (dx < 0) { printf("cannot find dx!\n"); exit(0); }
 			if (dy < 0) { printf("cannot find dy!\n"); exit(0); }
+			
 			if (problem_dim == _3D)
 			{
+				if (test_mode == _unknownMode) { printf("must specify mode for 3D!\n"); exit(0); }			
 				if (dz < 0) { printf("cannot find dz!\n"); exit(0); }
 				if (test_mode == _depthZ)
 				{
 					if (depth < 0) { printf("cannot find depth!\n"); exit(0); }
 				}
+				if (outfmt == MultiVox) { printf("MultiVox output format is not supported for 3D modes\n"); exit(0); }
 			}
 			if (useNormalizedParams && (Re < 0 || Pr < 0 || lambda < 0)) { printf("must specify Re, Pr and lambda!\n"); exit(0); }
 		}
@@ -188,6 +207,7 @@ namespace Common
 
 	dimension Config::problem_dim;
 	mode Config::test_mode;
+	format Config::outfmt;
 
 	double Config::dx, Config::dy, Config::dz;
 

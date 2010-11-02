@@ -15,6 +15,7 @@ calc_subframes 	10
 out_subframes 	10
 out_gridx	100
 out_gridy 	100
+out_fmt		NetCDF
 
 solver		ADI
 num_global 	4

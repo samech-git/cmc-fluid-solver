@@ -19,6 +19,7 @@ out_subframes 	1
 out_gridx	104
 out_gridy 	104
 out_gridz	104
+out_fmt		NetCDF
 
 solver		ADI
 num_global 	4

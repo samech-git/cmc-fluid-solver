@@ -90,7 +90,7 @@ namespace Common
 		fclose(file);
 	}
 
-	static void OutputNetCDFHeader(const char *outputPath, BBox2D *bbox, double depth, double timestep, double time, int outdimx, int outdimy, int outdimz)
+	static void OutputNetCDFHeader3D(const char *outputPath, BBox2D *bbox, double depth, double timestep, double time, int outdimx, int outdimy, int outdimz)
 	{
 		FILE *file = NULL;
 		fopen_s(&file, outputPath, "w");
@@ -174,7 +174,79 @@ namespace Common
 		fclose(file);
 	}
 
-	static void OutputNetCDF_U(const char *outputPath, Vec3D *v, double *T, int dimx, int dimy, int dimz, bool finish)
+	static void OutputNetCDFHeader2D(const char *outputPath, BBox2D *bbox, double timestep, double time, int outdimx, int outdimy)
+	{
+		FILE *file = NULL;
+		fopen_s(&file, outputPath, "w");
+
+		fprintf(file, "netcdf 2d_scalar_time_array {\n");
+	
+		// --- dimensions ---
+		fprintf(file, "dimensions:\n");
+		fprintf(file, "\tx = %i ;\n", outdimx);
+		fprintf(file, "\ty = %i ;\n", outdimy);
+		fprintf(file, "\ttime = UNLIMITED ;\n");
+	
+		// --- variables ---
+		fprintf(file, "variables:\n");
+		
+		fprintf(file, "\tfloat x(x) ;\n");
+		fprintf(file, "\t\tx:units = \"metres\" ;\n");
+		fprintf(file, "\t\tx:actual_range = %.2ff, %.2ff ;\n", bbox->pMin.x, bbox->pMax.x);
+		fprintf(file, "\t\tx:long_name = \"X coordinate\" ;\n");
+
+		fprintf(file, "\tfloat y(y) ;\n");
+		fprintf(file, "\t\ty:units = \"metres\" ;\n");
+		fprintf(file, "\t\ty:actual_range = %.2ff, %.2ff ;\n", bbox->pMin.y, bbox->pMax.y);
+		fprintf(file, "\t\ty:long_name = \"Y coordinate\" ;\n");
+
+		fprintf(file, "\tdouble time(time) ;\n");
+		fprintf(file, "\t\ttime:units = \"s\" ;\n");
+		fprintf(file, "\t\ttime:actual_range = 0.f, %.2ff ;\n", time);
+		fprintf(file, "\t\ttime:long_name = \"Time\" ;\n");
+
+		fprintf(file, "\tdouble u(time, x, y) ;\n");
+		fprintf(file, "\t\tu:units = \"m/s\" ;\n");
+		fprintf(file, "\t\tu:actual_range = 0.f, 1.f ;\n");
+		fprintf(file, "\t\tu:valid_range = 0.f, 1.f ;\n");
+		fprintf(file, "\t\tu:long_name = \"U velocity\" ;\n");
+		fprintf(file, "\t\tu:scale_factor =  1.f ;\n");
+		fprintf(file, "\t\tu:var_desc = \"U velocity\",\n\t\t\t\"U\" ; \n");
+
+		fprintf(file, "\t// global attributes\n");
+		fprintf(file, "\t:Conventions = \"COARDS\" ;\n");
+		fprintf(file, "\t:title = \"2D Time U velocity data from FluidSolver2D (http://code.google.com/p/cmc-fluid-solver/)\" ;\n");
+		fprintf(file, "\t:history = \"created by using FluidSolver2D library\" ;\n");
+		fprintf(file, "\t:description = \"Test data\" ;\n");
+		fprintf(file, "\t:platform = \"Model\" ;\n");
+
+		// --- data ---
+		fprintf(file, "data:\n");
+
+		float ddx = (float)(bbox->pMax.x - bbox->pMin.x) / outdimx;
+		float ddy = (float)(bbox->pMax.y - bbox->pMin.y) / outdimy;
+
+		fprintf(file, "x = ");
+		for (int i = 0; i < outdimx-1; i++)
+			fprintf(file, "%.2f, ", bbox->pMin.x + ddx * i);
+		fprintf(file, "%.2f ;\n", bbox->pMin.x + ddx * outdimx);
+
+		fprintf(file, "y = ");
+		for (int i = 0; i < outdimy-1; i++)
+			fprintf(file, "%.2f, ", bbox->pMin.y + ddy * i);
+		fprintf(file, "%.2f ;\n", bbox->pMin.y + ddy * outdimy);
+		
+		fprintf(file, "time = ");
+		for (float cur = 0; cur < time; cur += (float)timestep)
+			fprintf(file, "%.2f, ", cur);
+		fprintf(file, "%.2f ;\n", time);
+
+		fprintf(file, "u = \n");
+
+		fclose(file);
+	}
+
+	static void OutputNetCDF3D_U(const char *outputPath, Vec3D *v, double *T, int dimx, int dimy, int dimz, bool finish)
 	{
 		FILE *file = NULL;
 		fopen_s(&file, outputPath, "a");
@@ -190,6 +262,26 @@ namespace Common
 							else fprintf(file, ", ");
 					}
 					fprintf(file, "\n");
+				}
+				fprintf(file, "\n");
+			}
+
+		if (finish) fprintf(file, "}");
+		fclose(file);
+	}
+
+	static void OutputNetCDF2D_U(const char *outputPath, Vec2D *v, double *T, int dimx, int dimy, bool finish)
+	{
+		FILE *file = NULL;
+		fopen_s(&file, outputPath, "a");
+		
+			for (int i = 0; i < dimx; i++)
+			{
+				for (int j = 0; j < dimy; j++)
+				{	
+					fprintf(file, "%.3f", v[i * dimy + j].x);
+					if (finish && (i == dimx-1) && (j == dimy-1)) fprintf(file, " ; ");
+						else fprintf(file, ", ");	
 				}
 				fprintf(file, "\n");
 			}
