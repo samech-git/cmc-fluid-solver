@@ -389,9 +389,13 @@ namespace FluidSolver2D
 			{
 				res.Shapes[i].Points[k] = frames[frame].Shapes[i].Points[k] * (FTYPE)isubstep + 
 											frames[framep1].Shapes[i].Points[k] * (FTYPE)substep;
+				res.Shapes[i].Points[k].y = frames[frame].Shapes[i].Points[k].y * (FTYPE)isubstep + 
+											frames[framep1].Shapes[i].Points[k].y * (FTYPE)substep;
 				
-				res.Shapes[i].Velocities[k] = frames[frame].Shapes[i].Velocities[k] * (FTYPE)isubstep + 
-												frames[framep1].Shapes[i].Velocities[k] * (FTYPE)substep;
+				res.Shapes[i].Velocities[k].x = frames[frame].Shapes[i].Velocities[k].x * (FTYPE)isubstep + 
+												frames[framep1].Shapes[i].Velocities[k].x * (FTYPE)substep;
+				res.Shapes[i].Velocities[k].y = frames[frame].Shapes[i].Velocities[k].y * (FTYPE)isubstep + 
+												frames[framep1].Shapes[i].Velocities[k].y * (FTYPE)substep;
 				
 				res.Shapes[i].Active = frames[frame].Shapes[i].Active;
 			}
