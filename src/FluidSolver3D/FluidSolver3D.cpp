@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 	double finaltime = length * Config::cycles;
 
 	sprintf_s(outputPath, MAX_STR_SIZE, "%s_res.txt", argv[2]);
-	OutputNetCDFHeader(outputPath, &grid->GetGrid2D()->bbox, Config::depth, dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+	OutputNetCDFHeader3D(outputPath, &grid->GetGrid2D()->bbox, Config::depth, dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
 	
 	// allocate result arrays
 	Vec3D *resVel = new Vec3D[Config::outdimx * Config::outdimy * Config::outdimz];
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz);
-			OutputNetCDF_U(outputPath, resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, 
+			OutputNetCDF3D_U(outputPath, resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, 
 							(i + Config::out_subframes >= Config::calc_subframes) && (currentframe == frames-1));
 		}
 	}
