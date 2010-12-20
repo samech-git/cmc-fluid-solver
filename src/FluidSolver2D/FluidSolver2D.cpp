@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 				OutputResult(curOutFile, resVel, resT, Config::outdimx, Config::outdimy, dur);
 			else
 				OutputNetCDF2D_U(outputPath, resVel, resT, Config::outdimx, Config::outdimy,  
-								(i + Config::out_subframes >= Config::calc_subframes) && (currentframe == frames-1) && (currentcycle == Config::cycles-1));
+								(i + Config::out_subframes >= Config::calc_subframes) && (currentframe == frames-1) && (currentcycle == Config::cycles));
 		}
 	}
 	printf("\n");
