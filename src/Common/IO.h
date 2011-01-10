@@ -396,12 +396,12 @@ namespace Common
 		char c;	
 
 		// read line
-		fscanf_s(file, "%c", &c);
-		while (c == '\n' || c == ' ') fscanf_s(file, "%c", &c);
+		fscanf_s(file, "%c", &c, 1);
+		while (c == '\n' || c == ' ') fscanf_s(file, "%c", &c, 1);
 		while (c != '\n')
 		{
 			str += c;	
-			fscanf_s(file, "%c", &c);
+			fscanf_s(file, "%c", &c, 1);
 		}
 
 		// replace ',' with '.' if necessary
@@ -431,15 +431,15 @@ namespace Common
 		char c;	
 
 		// read line
-		fscanf_s(file, "%c", &c);
-		while (c == '\n' || c == ' ') fscanf_s(file, "%c", &c);
+		fscanf_s(file, "%c", &c, 1);
+		while (c == '\n' || c == ' ') fscanf_s(file, "%c", &c, 1);
 		
 		for (int i = 0; i < 3; i++)
 		{
 			while (c != '\n' && c != ' ')
 			{
 				str[i] += c;	
-				fscanf_s(file, "%c", &c);
+				fscanf_s(file, "%c", &c, 1);
 			}
 
 			// replace ',' with '.' if necessary
@@ -447,7 +447,7 @@ namespace Common
 			if ((found = str[i].find(',', 0)) != std::string::npos)
 				str[i].replace(found, 1, 1, '.');
 
-			while (c == ' ') fscanf_s(file, "%c", &c);
+			while (c == ' ') fscanf_s(file, "%c", &c, 1);
 		}
 
 		// convert to doubles

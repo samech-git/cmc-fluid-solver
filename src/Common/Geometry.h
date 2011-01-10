@@ -269,7 +269,7 @@ namespace Common
 			double tx = (x - MinX) / Dx;
 			double ty = (y - MinY) / Dy;
 			
-			if (tx<0 || ty<0 || tx>=Nx-1 || ty>=Ny-1)
+			if (tx<0 || ty<0 || tx>=Nx-1 || ty>=Ny-1 || x==0)
 				return Vec2D(0, 0);
 
 			int itx = (int)tx;
