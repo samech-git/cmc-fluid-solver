@@ -6,6 +6,7 @@
 #define INF				1e10
 #define COMP_EPS		1e-8
 #define BBOX_PADDING	0.02
+#define MISSING_VALUE	0
 
 namespace Common
 {

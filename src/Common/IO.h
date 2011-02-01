@@ -192,12 +192,12 @@ namespace Common
 		fprintf(file, "variables:\n");
 		
 		fprintf(file, "\tfloat x(x) ;\n");
-		fprintf(file, "\t\tx:units = \"metres\" ;\n");
+		fprintf(file, "\t\tx:units = \"degree_north\" ;\n");
 		fprintf(file, "\t\tx:actual_range = %.2ff, %.2ff ;\n", bbox->pMin.x, bbox->pMax.x);
 		fprintf(file, "\t\tx:long_name = \"X coordinate\" ;\n");
 
 		fprintf(file, "\tfloat y(y) ;\n");
-		fprintf(file, "\t\ty:units = \"metres\" ;\n");
+		fprintf(file, "\t\ty:units = \"degree_east\" ;\n");
 		fprintf(file, "\t\ty:actual_range = %.2ff, %.2ff ;\n", bbox->pMin.y, bbox->pMax.y);
 		fprintf(file, "\t\ty:long_name = \"Y coordinate\" ;\n");
 
@@ -216,7 +216,7 @@ namespace Common
 		fprintf(file, "\t\tu:actual_range = -1.f, 1.f ;\n");
 		fprintf(file, "\t\tu:valid_range = -1.f, 1.f ;\n");
 		fprintf(file, "\t\tu:long_name = \"U velocity\" ;\n");
-		fprintf(file, "\t\tu:scale_factor =  1.f ;\n");
+		fprintf(file, "\t\tu:missing_value = %.0f ;\n", MISSING_VALUE);
 		fprintf(file, "\t\tu:var_desc = \"U velocity\",\n\t\t\t\"U\" ; \n");
 
 		fprintf(file, "\t// global attributes\n");
