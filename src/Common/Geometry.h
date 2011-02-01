@@ -398,6 +398,23 @@ namespace Common
 		}
 	};
 
+	struct DepthInfo3D 
+	{
+		int dimx, dimy;
+		float *depth;
+
+		DepthInfo3D(int nx, int ny)
+		{
+			dimx = nx; dimy = ny;
+			depth = new float[nx * ny];
+		};
+
+		~DepthInfo3D()
+		{
+			delete [] depth;
+		}
+	};
+
 	struct BBox2D
 	{
 		Vec2D pMin, pMax;

@@ -6,6 +6,10 @@
 #include "..\FluidSolver2D\Grid2D.h"
 
 #include <cuda_runtime.h>
+#include <netcdf.h>
+
+#define NETCDF_FRAME_TIME	50.0
+#define NETCDF_VELOCITY		1.0
 
 using namespace Common;
 
@@ -36,9 +40,11 @@ namespace FluidSolver3D
 
 		double baseT;
 
-		Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend);		// 2D with constant depth
-		Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend);					// polygons
+		Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend, bool useNetCDF = false);			// 2D shape with constant depth
+		Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend, bool useNetCDF = false);						// 3D shape, polygons
 		~Grid3D();
+
+		BBox3D GetBBox();
 
 		NodeType GetType(int i, int j, int k);
 		BCtype GetBC_vel(int i, int j, int k);
@@ -47,7 +53,7 @@ namespace FluidSolver3D
 		FTYPE GetT(int i, int j, int k);
 
 		void SetType(int i, int j, int k, NodeType type);
-		void SetData(int i, int j, int k, BCtype bc_vel, BCtype bc_T, Vec3D vel, FTYPE T);
+		void SetData(int i, int j, int k, BCtype bc_vel, BCtype bc_T, const Vec3D &vel, FTYPE T);
 
 		// return all nodes info as an array
 		Node *GetNodesCPU();							 
@@ -55,7 +61,13 @@ namespace FluidSolver3D
 
 		void SetNodeVel(int i, int j, int k, Vec3D new_v);
 
+		// frame stuff
 		double GetFrameTime();
+		int GetFramesNum();
+		double GetCycleLength();
+		int GetFrame(double time);
+		float GetLayerTime(double time);
+
 		FluidSolver2D::Grid2D *GetGrid2D();
 		
 		bool LoadFromFile(char *filename, bool align = false);
@@ -72,14 +84,25 @@ namespace FluidSolver3D
 		Node*		d_nodesT;	// transposed nodes on GPU
 
 		bool use3Dshape;
+		bool useNetCDF;
 
 		BBox3D bbox;
+
+		// input data
 		FrameInfo3D* frames;
 		int num_frames;
 
+		// static by now
+		DepthInfo3D *depthInfo;
+
+		// support for different input formats
+		bool LoadNetCDF(char *filename, bool align);
+		bool Load3DShape(char *filename, bool align);
+
 		// helper functions for 3D shape update
 		void Init(bool align);
-		void Prepare3D(double time);
+		void Prepare3D_Shape(double time);
+		void Prepare3D_NetCDF(double time);
 
 		void ComputeSubframeInfo(int frame, FTYPE substep, FrameInfo3D &res);
 		void Build(FrameInfo3D &frame);

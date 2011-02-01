@@ -2,14 +2,14 @@
 
 namespace FluidSolver3D
 {
-	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend) : 
-		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend), use3Dshape(false)
+	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend, bool useNetCDF) : 
+		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend), use3Dshape(false), frames(NULL), depthInfo(NULL)
 	{
 		grid2D = new FluidSolver2D::Grid2D(dx, dy, baseT, true, 0.0);
 	}
 
-	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend) : 
-		dx(_dx), dy(_dy), dz(_dz), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend), use3Dshape(true)
+	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend, bool _useNetCDF) : 
+		dx(_dx), dy(_dy), dz(_dz), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend), use3Dshape(true), useNetCDF(_useNetCDF), frames(NULL), depthInfo(NULL)
 	{
 		grid2D = NULL;
 	}
@@ -20,6 +20,13 @@ namespace FluidSolver3D
 		if (d_nodes != NULL) cudaFree(d_nodes);
 		if (d_nodesT != NULL) cudaFree(d_nodesT);
 		if (grid2D != NULL) delete grid2D;
+		if (frames != NULL) delete [] frames;
+		if (depthInfo != NULL) delete depthInfo;
+	}
+
+	BBox3D Grid3D::GetBBox()
+	{
+		return bbox;
 	}
 
 	NodeType Grid3D::GetType(int i, int j, int k)
@@ -62,7 +69,7 @@ namespace FluidSolver3D
 		nodes[i * dimy * dimz + j * dimz + k].type = _type;
 	}
 
-	void Grid3D::SetData(int i, int j, int k, BCtype _bc_vel, BCtype _bc_T, Vec3D _vel, FTYPE _T)
+	void Grid3D::SetData(int i, int j, int k, BCtype _bc_vel, BCtype _bc_T, const Vec3D &_vel, FTYPE _T)
 	{
 		int index = i * dimy * dimz + j * dimz + k;
 		nodes[index].bc_vel = _bc_vel;
@@ -78,6 +85,35 @@ namespace FluidSolver3D
 		return (length / frames);
 	}
 
+	int Grid3D::GetFramesNum()
+	{
+		return num_frames;
+	}
+
+	double Grid3D::GetCycleLength()
+	{
+		if( use3Dshape )
+			return NETCDF_FRAME_TIME;
+		else
+			return grid2D->GetCycleLenght();
+	}
+
+	int Grid3D::GetFrame(double time)
+	{
+		if( use3Dshape )
+			return 0;
+		else
+			return grid2D->GetFrame(time);
+	}
+	
+	float Grid3D::GetLayerTime(double time)
+	{
+		if( use3Dshape )
+			return NETCDF_FRAME_TIME;
+		else
+			return grid2D->GetLayerTime(time);
+	}
+
 	FluidSolver2D::Grid2D *Grid3D::GetGrid2D()
 	{
 		return grid2D;
@@ -90,8 +126,6 @@ namespace FluidSolver3D
 
 	void Grid3D::Init(bool align)
 	{
-		bbox.Build(num_frames, frames);
-	
 		dimx = ((int)ceil((bbox.pMax.x - bbox.pMin.x) / dx) + 1);
 		dimy = ((int)ceil((bbox.pMax.y - bbox.pMin.y) / dy) + 1);
 		dimz = ((int)ceil((bbox.pMax.z - bbox.pMin.z) / dz) + 1);
@@ -113,6 +147,58 @@ namespace FluidSolver3D
 			nodes[i].v = Vec3D(0.0, 0.0, 0.0);
 			nodes[i].T = 0;
 		}
+	}
+
+	bool Grid3D::Load3DShape(char *filename, bool align)
+	{
+		// load 3D poly model
+		FILE *file = NULL;
+		if (fopen_s(&file, filename, "r") != 0)
+		{
+			printf("Error: cannot open file \"%s\" \n", filename);
+			return false;
+		}
+
+		fscanf_s(file, "%i", &num_frames);	
+		Vec3D p;
+		int temp;
+		frames = new FrameInfo3D[num_frames];
+	
+		for (int j=0; j<num_frames; j++)
+		{
+			// use only 1 shape for now
+			frames[j].Init(1);
+
+			for (int i = 0; i<frames[j].NumShapes; i++)
+			{
+				fscanf_s(file, "%i", &temp);
+				frames[j].Shapes[i].InitVerts(temp);
+				for (int k=0; k<frames[j].Shapes[i].NumVertices; k++)
+				{
+					ReadPoint3D(file, p);
+					frames[j].Shapes[i].Vertices[k] = p * GRID_SCALE_FACTOR;
+					
+					ReadPoint3D(file, p);
+					frames[j].Shapes[i].Velocities[k] = p;
+				}
+
+				fscanf_s(file, "%i", &temp);
+				frames[j].Shapes[i].InitInds(temp);
+				for (int k=0; k<frames[j].Shapes[i].NumIndices*3; k++)
+				{
+					fscanf_s(file, "%i", &temp);
+					frames[j].Shapes[i].Indices[k] = temp;
+				}
+
+				frames[j].Shapes[i].Active = false;
+				frames[j].Duration = 1.0 / 75;			// 75 fps
+			}
+		}
+		fclose(file);
+
+		bbox.Build(num_frames, frames);
+		
+		Init(align);
 
 		// convert physical coordinates to the grid coordinates
 		for (int j = 0; j < num_frames; j++)
@@ -123,61 +209,69 @@ namespace FluidSolver3D
 					frames[j].Shapes[i].Vertices[k].y = (frames[j].Shapes[i].Vertices[k].y - bbox.pMin.y) / (FTYPE)dy;
 					frames[j].Shapes[i].Vertices[k].z = (frames[j].Shapes[i].Vertices[k].z - bbox.pMin.z) / (FTYPE)dz;
 				}
+		
+		return true;
+	}
 
+	bool Grid3D::LoadNetCDF(char *filename, bool align)
+	{
+		int status;
+
+		// open netcdf
+		int ncid;
+		status = nc_open(filename, NC_NOWRITE, &ncid);
+
+		// read dimensions
+		int latid, lonid;
+		nc_inq_dimid(ncid, "_lat_subset", &latid);
+		nc_inq_dimid(ncid, "_lon_subset", &lonid);
+
+		size_t nx, ny;
+		nc_inq_dimlen(ncid, latid, &nx);
+		nc_inq_dimlen(ncid, lonid, &ny);
+
+		double *lats = new double[nx];
+		nc_get_var(ncid, latid, lats);
+
+		double *lons = new double[ny];
+		nc_get_var(ncid, lonid, lons);
+
+		// read depths
+		int varid;
+		nc_inq_varid(ncid, "z", &varid);
+
+		depthInfo = new DepthInfo3D(nx, ny);
+		nc_get_var(ncid, varid, depthInfo->depth);
+
+		// build bbox
+		bbox.AddPoint(Vec3D((float)lats[0], (float)lons[0], 0.0f));
+		bbox.AddPoint(Vec3D((float)lats[nx-1], (float)lons[ny-1], 0.0f));
+		for (int j = 0; j < (int)ny; j++)
+			for (int i = 0; i < (int)nx; i++)
+			{
+				float z = depthInfo->depth[i + j * nx];
+				if( z < bbox.pMin.z ) bbox.pMin.z = z;
+			}		
+		bbox.pMin.z -= (float)dz;
+
+		delete [] lats;
+		delete [] lons;
+
+		Init(align);
+
+		num_frames = 1;
+
+		return true;
 	}
 
 	bool Grid3D::LoadFromFile(char *filename, bool align)
 	{
 		if (use3Dshape)
 		{
-			// load 3D poly model
-			FILE *file = NULL;
-			if (fopen_s(&file, filename, "r") != 0)
-			{
-				printf("Error: cannot open file \"%s\" \n", filename);
-				return false;
-			}
-
-			fscanf_s(file, "%i", &num_frames);	
-			Vec3D p;
-			int temp;
-			frames = new FrameInfo3D[num_frames];
-		
-			for (int j=0; j<num_frames; j++)
-			{
-				// use only 1 shape for now
-				frames[j].Init(1);
-
-				for (int i = 0; i<frames[j].NumShapes; i++)
-				{
-					fscanf_s(file, "%i", &temp);
-					frames[j].Shapes[i].InitVerts(temp);
-					for (int k=0; k<frames[j].Shapes[i].NumVertices; k++)
-					{
-						ReadPoint3D(file, p);
-						frames[j].Shapes[i].Vertices[k] = p * GRID_SCALE_FACTOR;
-						
-						ReadPoint3D(file, p);
-						frames[j].Shapes[i].Velocities[k] = p;
-					}
-
-					fscanf_s(file, "%i", &temp);
-					frames[j].Shapes[i].InitInds(temp);
-					for (int k=0; k<frames[j].Shapes[i].NumIndices*3; k++)
-					{
-						fscanf_s(file, "%i", &temp);
-						frames[j].Shapes[i].Indices[k] = temp;
-					}
-
-					frames[j].Shapes[i].Active = false;
-					frames[j].Duration = 1.0 / 75;			// 75 fps
-				}
-			}
-			fclose(file);
-			
-			Init(align);
-			
-			return true;
+			if (useNetCDF) 
+				return LoadNetCDF(filename, align);
+			else 
+				return Load3DShape(filename, align);
 		}
 		else
 		{
@@ -189,6 +283,7 @@ namespace FluidSolver3D
 				active_dimz = (int)ceil(depth / dz) + 1;
 				dimz = align ? AlignBy32(active_dimz) : active_dimz;
 				nodes = new Node[dimx * dimy * dimz];
+				num_frames = grid2D->GetFramesNum();
 				if( backend == GPU ) 
 				{
 					cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
@@ -204,7 +299,10 @@ namespace FluidSolver3D
 	void Grid3D::Prepare(double time)
 	{
 		if (use3Dshape) 
-			Prepare3D(time);
+		{
+			if (useNetCDF) Prepare3D_NetCDF(time);
+				else Prepare3D_Shape(time);
+		}
 		else
 			Prepare2D(time);
 		
@@ -562,7 +660,7 @@ namespace FluidSolver3D
 		}
 	}
 
-	void Grid3D::Prepare3D(double time)
+	void Grid3D::Prepare3D_Shape(double time)
 	{
 		double* a = new double[num_frames + 1];
 		a[0] = 0;
@@ -579,6 +677,96 @@ namespace FluidSolver3D
 		FrameInfo3D info;
 		ComputeSubframeInfo(frame % num_frames, (FTYPE)substep, info);
 		Build(info);
+	}
+
+	void Grid3D::Prepare3D_NetCDF(double time)
+	{
+		// mark all cells as inner 
+		for (int i = 0; i < dimx; i++)
+			for (int j = 0; j < dimy; j++)
+				for (int k = 0; k < dimz; k++)
+				{
+					SetType(i, j, k, NODE_OUT);
+					SetData(i, j, k, BC_NOSLIP, BC_NOSLIP, Vec3D(0, 0, 0), (FTYPE)baseT); 
+				}
+     
+		// mark sea cells (depth < 0)
+		for (int i = 0; i < dimx; i++)
+			for (int j = 0; j < dimy; j++)
+			{
+				// compute corresponding input location
+				int di = i * depthInfo->dimx / dimx;
+				int dj = j * depthInfo->dimy / dimy;
+
+				// compute sea depth
+				float z = depthInfo->depth[dj + di * depthInfo->dimy];
+
+				if (z < 0.0f)
+				{
+					int bound_k = (int)(dimz * z / bbox.pMin.z);
+					for (int k = 1; k < bound_k; k++)
+					{
+						int ind = i * dimy * dimz + j * dimz + k;
+						nodes[ind].type = NODE_IN;
+					}
+				}
+			}
+
+		// compute boundaries
+		for (int i = 1; i < dimx-1; i++)
+			for (int j = 1; j < dimy-1; j++)
+				for (int k = 1; k < dimz-1; k++)
+					if (GetType(i, j, k) == NODE_IN)
+					{
+						bool bound = (GetType(i-1, j, k) == NODE_OUT) || (GetType(i+1, j, k) == NODE_OUT) ||
+									 (GetType(i, j-1, k) == NODE_OUT) || (GetType(i, j+1, k) == NODE_OUT) ||
+									 (GetType(i, j, k-1) == NODE_OUT) || (GetType(i, j, k+1) == NODE_OUT);
+						if( bound ) 
+						{
+							int ind = i * dimy * dimz + j * dimz + k;
+							nodes[ind].SetBound(BC_NOSLIP, BC_NOSLIP, Vec3D(0.0f, 0.0f, 0.0f), (float)baseT);
+						}
+					}
+
+		int num = 0;
+		int *indices = new int[(dimx * dimy + dimy * dimz + dimz * dimx) * 2];
+
+		for (int i = 1; i < dimx-1; i++)
+			for (int j = 1; j < dimy-1; j++)
+				for (int k = 1; k < dimz-1; k++)
+					if (GetType(i, j, k) == NODE_OUT)
+					{
+						bool bound = (GetType(i-1, j, k) == NODE_BOUND) || (GetType(i+1, j, k) == NODE_BOUND) ||
+									 (GetType(i, j-1, k) == NODE_BOUND) || (GetType(i, j+1, k) == NODE_BOUND) ||
+									 (GetType(i, j, k-1) == NODE_BOUND) || (GetType(i, j, k+1) == NODE_BOUND);
+						if( bound ) 
+						{
+							int ind = i * dimy * dimz + j * dimz + k;
+							indices[num++] = ind;
+						}
+					}
+
+		for (int i = 0; i < num; i++)
+			nodes[indices[i]].SetBound(BC_NOSLIP, BC_NOSLIP, Vec3D(0.0f, 0.0f, 0.0f), (float)baseT);
+		delete [] indices;
+
+		static const Vec3D startVel = Vec3D(-NETCDF_VELOCITY, -NETCDF_VELOCITY, 0.0f);
+
+		// set input stream on quad boundaries (special for sea test)
+		for (int i = 0; i < dimx; i++)
+			for (int k = 0; k < dimz; k++)
+				if (GetType(i, dimy-1, k) == NODE_IN) 
+				{
+					SetType(i, dimy-1, k, NODE_VALVE);
+					SetData(i, dimy-1, k, BC_NOSLIP, BC_NOSLIP, startVel, (float)baseT);
+				}
+		for (int j = 0; j < dimy; j++)
+			for (int k = 0; k < dimz; k++)
+				if (GetType(dimx-1, j, k) == NODE_IN) 
+				{
+					SetType(dimx-1, j, k, NODE_VALVE);
+					SetData(dimx-1, j, k, BC_NOSLIP, BC_NOSLIP, startVel, (float)baseT);
+				}
 	}
 
 	void Grid3D::TestPrint(char *filename)

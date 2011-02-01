@@ -55,15 +55,20 @@ int main(int argc, char **argv)
 
 	//--------------------------------------- Initializing ---------------------------------------
 	Grid3D *grid = NULL;
-	if( Config::test_mode == _poly ) 
+	if( Config::in_fmt == Shape3D ) 
 	{
 		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::startT, backend);
 		printf("Geometry: 3D polygons\n", grid->dimx, grid->dimy, grid->dimz);
 	}
-	else 
+	else if( Config::in_fmt == Shape2D )
 	{
 		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::depth, Config::startT, backend);
 		printf("Geometry: extruded 2D shape\n");
+	}
+	else
+	{
+		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::startT, backend, true);
+		printf("Geometry: depths from NetCDF\n");
 	}
 
 	printf("Grid options:\n  align %s\n", align ? "ON" : "OFF");
@@ -102,13 +107,16 @@ int main(int argc, char **argv)
 
 	int startFrame = 0;
 	
-	int frames = grid->GetGrid2D()->GetFramesNum();
-	double length = grid->GetGrid2D()->GetCycleLenght();
+	int frames = grid->GetFramesNum();
+	double length = grid->GetCycleLength();
 	double dt = length / (frames * Config::calc_subframes);
 	double finaltime = length * Config::cycles;
 
 	sprintf_s(outputPath, MAX_STR_SIZE, "%s_res.txt", argv[2]);
-	OutputNetCDFHeader3D(outputPath, &grid->GetGrid2D()->bbox, Config::depth, dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+	if( Config::in_fmt == Shape2D )
+		OutputNetCDFHeader3D(outputPath, &grid->GetGrid2D()->bbox, Config::depth, dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+	else
+		OutputNetCDFHeader3D(outputPath, &grid->GetBBox(), dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
 	
 	// allocate result arrays
 	Vec3D *resVel = new Vec3D[Config::outdimx * Config::outdimy * Config::outdimz];
@@ -122,8 +130,8 @@ int main(int argc, char **argv)
 	double t = dt;
 	for (int i=0; t < finaltime; t+=dt, i++)
 	{
-		int currentframe = grid->GetGrid2D()->GetFrame(t);
-		float layer_time = grid->GetGrid2D()->GetLayerTime(t);
+		int currentframe = grid->GetFrame(t);
+		float layer_time = grid->GetLayerTime(t);
 
 		if (currentframe != lastframe)
 		{

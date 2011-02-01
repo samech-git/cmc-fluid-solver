@@ -1,6 +1,6 @@
 dimension	3D
 
-mode		depthZ
+in_fmt		Shape2D
 depth		1.0
 
 Re		200.0
@@ -9,17 +9,17 @@ lambda		1.4
 
 bc_type		NoSlip
 
-grid_dx		0.01
-grid_dy		0.01
-grid_dz		0.01
+grid_dx		0.02
+grid_dy		0.02
+grid_dz		0.02
 
 cycles 		1
 calc_subframes 	10
 
 out_subframes 	10
-out_gridx	104
-out_gridy 	104
-out_gridz	102
+out_gridx	54
+out_gridy 	54
+out_gridz	52
 out_fmt		NetCDF
 
 solver		ADI

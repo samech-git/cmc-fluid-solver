@@ -10,7 +10,9 @@ namespace FluidSolver3D
 	void Solver3D::UpdateBoundaries()
 	{
 		cur->CopyFromGrid(grid, NODE_BOUND);
+		cur->CopyFromGrid(grid, NODE_VALVE);
 		cur->CopyLayerTo(grid, next, NODE_BOUND);
+		cur->CopyLayerTo(grid, next, NODE_VALVE);
 	}
 
 	void Solver3D::SetGridBoundaries()

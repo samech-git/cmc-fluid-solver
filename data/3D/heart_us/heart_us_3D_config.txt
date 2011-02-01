@@ -1,6 +1,6 @@
 dimension	3D
 
-mode		poly
+in_fmt		Shape3D
 
 Re		200.0
 Pr		0.72

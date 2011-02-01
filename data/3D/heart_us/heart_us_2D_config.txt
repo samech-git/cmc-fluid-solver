@@ -1,6 +1,6 @@
 dimension	3D
 
-mode		depthZ
+in_fmt		Shape2D
 depth		1.0
 
 Re		200.0

@@ -34,6 +34,7 @@
 			/>
 			<Tool
 				Name="Cudart Build Rule"
+				Include="..\NetCDF"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -47,11 +48,12 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="$(CUDA_PATH_V3_2)/include"
+				AdditionalIncludeDirectories="$(CUDA_PATH_V3_2)/include;..\NetCDF"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
+				OpenMP="false"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
@@ -67,9 +69,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="cudart.lib"
+				AdditionalDependencies="cudart.lib netcdf.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="$(CUDA_PATH_V3_2)/lib/$(PlatformName)"
+				AdditionalLibraryDirectories="$(CUDA_PATH_V3_2)/lib/$(PlatformName);..\NetCDF"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -112,6 +114,7 @@
 			/>
 			<Tool
 				Name="Cudart Build Rule"
+				Include="..\NetCDF"
 				Arch1="11"
 				Arch2="13"
 				Arch3="20"
@@ -129,7 +132,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="$(CUDA_PATH_V3_2)/include"
+				AdditionalIncludeDirectories="$(CUDA_PATH_V3_2)/include;..\NetCDF"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;GPU_BACKEND"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -149,9 +152,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="cudart.lib"
+				AdditionalDependencies="cudart.lib netcdf.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="$(CUDA_PATH_V3_2)/lib/$(PlatformName)"
+				AdditionalLibraryDirectories="$(CUDA_PATH_V3_2)/lib/$(PlatformName);..\NetCDF"
 				IgnoreAllDefaultLibraries="false"
 				GenerateDebugInformation="false"
 				SubSystem="1"

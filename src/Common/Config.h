@@ -8,15 +8,17 @@ namespace Common
 {
 	enum solver { Explicit, ADI, Stable, _unknownSolver };
 	enum dimension { _2D, _3D, _unknownDim };
-	enum mode { _depthZ, _poly, _unknownMode };
-	enum format { NetCDF, MultiVox, _unknownFmt };
+	enum inFormat { Shape2D, Shape3D, SeaNetCDF, _unknownInFmt };
+	enum outFormat { NetCDF, MultiVox, _unknownOutFmt };
 	
 	class Config
 	{
 	public:
 
 		static dimension problem_dim;
-		static mode test_mode;
+
+		// input format
+		static inFormat in_fmt;
 
 		// grid size
 		static double dx, dy, dz;
@@ -40,7 +42,7 @@ namespace Common
 		static int cycles, calc_subframes, out_subframes;
 
 		// output grid
-		static format outfmt;
+		static outFormat out_fmt;
 		static int outdimx, outdimy, outdimz;
 
 		// solver params
@@ -73,9 +75,9 @@ namespace Common
 
 			// must specify 
 			problem_dim = _unknownDim;
-			outfmt = _unknownFmt;
+			in_fmt = _unknownInFmt;
+			out_fmt = _unknownOutFmt;
 			solverID = _unknownSolver;
-			test_mode = _unknownMode;
 			dx = -1;
 			dy = -1;
 			dz = -1;
@@ -119,20 +121,21 @@ namespace Common
 				else problem_dim = _3D;
 		}
 
-		static void ReadMode(FILE *file)
+		static void ReadInFormat(FILE *file)
 		{
 			char dimStr[MAX_STR_SIZE];
 			fscanf_s(file, "%s", dimStr, MAX_STR_SIZE);
-			if (!strcmp(dimStr, "depthZ")) test_mode = _depthZ;
-				else test_mode = _poly;
+			if (!strcmp(dimStr, "Shape2D")) in_fmt = Shape2D;
+			else if (!strcmp(dimStr, "Shape3D")) in_fmt = Shape3D;
+			else if (!strcmp(dimStr, "SeaNetCDF")) in_fmt = SeaNetCDF;
 		}
 
-		static void ReadFormat(FILE *file)
+		static void ReadOutFormat(FILE *file)
 		{
 			char dimStr[MAX_STR_SIZE];
 			fscanf_s(file, "%s", dimStr, MAX_STR_SIZE);
-			if (!strcmp(dimStr, "NetCDF")) outfmt = NetCDF;
-				else outfmt = MultiVox;
+			if (!strcmp(dimStr, "NetCDF")) out_fmt = NetCDF;
+				else out_fmt = MultiVox;
 		}
 
 		static void LoadFromFile(char *filename)
@@ -149,7 +152,7 @@ namespace Common
 				if (ret <= 0) break;
 
 				if (!strcmp(str, "dimension")) ReadDim(file);
-				if (!strcmp(str, "mode")) ReadMode(file);
+				if (!strcmp(str, "in_fmt")) ReadInFormat(file);
 
 				if (!strcmp(str, "viscosity")) ReadDouble(file, viscosity);
 				if (!strcmp(str, "density")) ReadDouble(file, density);
@@ -172,7 +175,7 @@ namespace Common
 				if (!strcmp(str, "out_gridx")) ReadInt(file, outdimx);
 				if (!strcmp(str, "out_gridy")) ReadInt(file, outdimy);
 				if (!strcmp(str, "out_gridz")) ReadInt(file, outdimz);
-				if (!strcmp(str, "out_fmt")) ReadFormat(file);
+				if (!strcmp(str, "out_fmt")) ReadOutFormat(file);
 				
 				if (!strcmp(str, "depth")) ReadDouble(file, depth);		
 
@@ -186,28 +189,29 @@ namespace Common
 			// checking		
 			if (problem_dim == _unknownDim) { printf("must specify problem dimension!\n"); exit(0); }
 			if (solverID == _unknownSolver) { printf("must specify solver!\n"); exit(0); }
-			if (outfmt == _unknownFmt) { printf("must specify output format!\n"); exit(0); }
+			if (out_fmt == _unknownOutFmt) { printf("must specify output format!\n"); exit(0); }
 			
 			if (dx < 0) { printf("cannot find dx!\n"); exit(0); }
 			if (dy < 0) { printf("cannot find dy!\n"); exit(0); }
 			
+			if (problem_dim == _2D) in_fmt = Shape2D;
 			if (problem_dim == _3D)
 			{
-				if (test_mode == _unknownMode) { printf("must specify mode for 3D!\n"); exit(0); }			
+				if (in_fmt == _unknownInFmt) { printf("must specify input format!\n"); exit(0); }
 				if (dz < 0) { printf("cannot find dz!\n"); exit(0); }
-				if (test_mode == _depthZ)
+				if (in_fmt == Shape2D)
 				{
 					if (depth < 0) { printf("cannot find depth!\n"); exit(0); }
 				}
-				if (outfmt == MultiVox) { printf("MultiVox output format is not supported for 3D modes\n"); exit(0); }
+				if (out_fmt == MultiVox) { printf("MultiVox output format is not supported for 3D modes\n"); exit(0); }
 			}
 			if (useNormalizedParams && (Re < 0 || Pr < 0 || lambda < 0)) { printf("must specify Re, Pr and lambda!\n"); exit(0); }
 		}
 	};
 
 	dimension Config::problem_dim;
-	mode Config::test_mode;
-	format Config::outfmt;
+	inFormat Config::in_fmt;
+	outFormat Config::out_fmt;
 
 	double Config::dx, Config::dy, Config::dz;
 
