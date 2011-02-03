@@ -8,7 +8,7 @@
 #include <cuda_runtime.h>
 #include <netcdf.h>
 
-#define NETCDF_FRAME_TIME	50.0
+#define NETCDF_FRAME_TIME	1.0
 #define NETCDF_VELOCITY		1.0
 
 using namespace Common;

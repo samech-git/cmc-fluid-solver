@@ -216,7 +216,7 @@ namespace Common
 		fprintf(file, "\t\tu:actual_range = -1.f, 1.f ;\n");
 		fprintf(file, "\t\tu:valid_range = -1.f, 1.f ;\n");
 		fprintf(file, "\t\tu:long_name = \"U velocity\" ;\n");
-		fprintf(file, "\t\tu:missing_value = %.0f ;\n", MISSING_VALUE);
+		fprintf(file, "\t\tu:missing_value = %.3f ;\n", MISSING_VALUE);
 		fprintf(file, "\t\tu:var_desc = \"U velocity\",\n\t\t\t\"U\" ; \n");
 
 		fprintf(file, "\t// global attributes\n");

@@ -261,6 +261,12 @@ namespace FluidSolver3D
 
 		num_frames = 1;
 
+		if( backend == GPU ) 
+		{
+			cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
+			cudaMalloc(&d_nodesT, sizeof(Node) * dimx * dimy * dimz);
+		}
+
 		return true;
 	}
 

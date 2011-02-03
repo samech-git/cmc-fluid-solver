@@ -7,17 +7,17 @@ lambda		1.4
 
 bc_type		NoSlip
 
-grid_dx		0.04
-grid_dy		0.1
+grid_dx		0.07
+grid_dy		0.2
 grid_dz		4.0
 
 cycles 		1
-calc_subframes 	5000
+calc_subframes 	100
 
-out_subframes 	100
-out_gridx	100
-out_gridy 	100
-out_gridz	100
+out_subframes 	10
+out_gridx	96
+out_gridy 	64
+out_gridz	64
 out_fmt		NetCDF
 
 solver		ADI
