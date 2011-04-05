@@ -758,20 +758,21 @@ namespace FluidSolver3D
 
 		static const Vec3D startVel = Vec3D(-NETCDF_VELOCITY, -NETCDF_VELOCITY, 0.0f);
 
-		// set input stream on quad boundaries (special for sea test)
+		// set input/output streams on quad boundaries (special for sea test)
+		// currently upper stream is in, lower stream is out
 		for (int i = 0; i < dimx; i++)
 			for (int k = 0; k < dimz; k++)
 				if (GetType(i, dimy-1, k) == NODE_IN) 
 				{
 					SetType(i, dimy-1, k, NODE_VALVE);
-					SetData(i, dimy-1, k, BC_NOSLIP, BC_NOSLIP, startVel, (float)baseT);
+					SetData(i, dimy-1, k, BC_NOSLIP, BC_NOSLIP, ( k < dimz/2 ) ? startVel : Vec3D()-startVel, (float)baseT);
 				}
 		for (int j = 0; j < dimy; j++)
 			for (int k = 0; k < dimz; k++)
 				if (GetType(dimx-1, j, k) == NODE_IN) 
 				{
 					SetType(dimx-1, j, k, NODE_VALVE);
-					SetData(dimx-1, j, k, BC_NOSLIP, BC_NOSLIP, startVel, (float)baseT);
+					SetData(dimx-1, j, k, BC_NOSLIP, BC_NOSLIP, ( k < dimz/2 ) ? startVel : Vec3D()-startVel, (float)baseT);
 				}
 	}
 

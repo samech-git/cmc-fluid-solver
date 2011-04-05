@@ -172,6 +172,9 @@ namespace FluidSolver3D
 			next->MergeLayerTo(grid, temp, NODE_IN);
 			prof.StopEvent("MergeLayer");
 		}
+		
+		// smooth results
+		temp->Smooth(grid, next, NODE_IN);
 
 		// compute error
 		prof.StartEvent();

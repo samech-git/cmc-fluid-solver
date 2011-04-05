@@ -134,6 +134,37 @@ namespace FluidSolver3D
 			}
 		}
 
+		void Smooth(Node *nodes, ScalarField3D *dest, NodeType type)
+		{
+			switch( hw )
+			{
+			case CPU:
+				{
+					#pragma omp parallel default(none) firstprivate(type) shared(nodes, dest)
+					{
+						#pragma omp for
+						for (int i = 0; i < dimx; i++)
+							for (int j = 0; j < dimy; j++)
+								for (int k = 0; k < dimz; k++)
+								{
+									int id = i * dimy * dimz + j * dimz + k;
+									if (nodes[id].type == type)
+										dest->elem(i, j, k) = (elem(i, j, k) + elem(i+1, j, k) + elem(i-1, j, k) + 
+															   elem(i, j-1, k) + elem(i, j+1, k) + 
+															   elem(i, j, k-1) + elem(i, j, k+1)) / 7;
+								}
+					}
+					break;
+				}
+			case GPU:
+				{
+					printf("not implemented yet!\n");
+					//MergeFieldTo_GPU(dimx, dimy, dimz, u, dest->getArray(), nodes, type);
+					break;
+				}
+			}
+		}
+
 		void Transpose(ScalarField3D *dest)
 		{
 			switch( hw )
@@ -257,6 +288,16 @@ namespace FluidSolver3D
 			delete W_cpu;
 
 			return err / count;
+		}
+
+		void Smooth(Grid3D *grid, TimeLayer3D *dest, NodeType type)
+		{
+			Node *nodes = ( hw == CPU ) ? grid->GetNodesCPU() : grid->GetNodesGPU(false);
+
+			U->Smooth( nodes, dest->U, type );
+			V->Smooth( nodes, dest->V, type );
+			W->Smooth( nodes, dest->W, type );
+			T->Smooth( nodes, dest->T, type );
 		}
 
 		void MergeLayerTo(Grid3D *grid, TimeLayer3D *dest, NodeType type, bool transposed = false)
