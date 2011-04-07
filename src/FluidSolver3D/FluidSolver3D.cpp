@@ -71,6 +71,9 @@ int main(int argc, char **argv)
 		printf("Geometry: depths from NetCDF\n");
 	}
 
+	grid->SetFrameTime( Config::frame_time );
+	grid->SetStartVel( Config::bc_inV );
+
 	printf("Grid options:\n  align %s\n", align ? "ON" : "OFF");
 	if (grid->LoadFromFile(inputPath, align))
 		printf("Grid = %i x %i x %i\n", grid->dimx, grid->dimy, grid->dimz);
@@ -106,17 +109,17 @@ int main(int argc, char **argv)
 	solver->Init(backend, csv, grid, *params);
 
 	int startFrame = 0;
-	
+
 	int frames = grid->GetFramesNum();
 	double length = grid->GetCycleLength();
-	double dt = length / (frames * Config::calc_subframes);
+	double dt = length / (frames * Config::time_steps);
 	double finaltime = length * Config::cycles;
 
 	sprintf_s(outputPath, MAX_STR_SIZE, "%s_res.txt", argv[2]);
 	if( Config::in_fmt == Shape2D )
-		OutputNetCDFHeader3D(outputPath, &grid->GetGrid2D()->bbox, Config::depth, dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+		OutputNetCDFHeader3D(outputPath, &grid->GetGrid2D()->bbox, Config::depth, dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
 	else
-		OutputNetCDFHeader3D(outputPath, &grid->GetBBox(), dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+		OutputNetCDFHeader3D(outputPath, &grid->GetBBox(), dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
 	
 	// allocate result arrays
 	Vec3D *resVel = new Vec3D[Config::outdimx * Config::outdimy * Config::outdimz];
@@ -147,14 +150,14 @@ int main(int argc, char **argv)
 		timer.stop();
 		PrintTimeStepInfo(currentframe, i, t, finaltime, timer.elapsed_sec());
 
-		if ((i % Config::out_subframes) == 0)
+		if ((i % Config::out_time_steps) == 0)
 		{
-			float dur = (float)dt * Config::out_subframes;
+			float dur = (float)dt * Config::out_time_steps;
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz);
 			OutputNetCDF3D_U(outputPath, resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, 
-							(i + Config::out_subframes >= Config::calc_subframes) && (currentframe == frames-1));
+							(i + Config::out_time_steps >= Config::time_steps) && (currentframe == frames-1));
 		}
 	}
 	timer.stop();

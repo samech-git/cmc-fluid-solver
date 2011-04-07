@@ -174,7 +174,7 @@ namespace FluidSolver3D
 		}
 		
 		// smooth results
-		temp->Smooth(grid, next, NODE_IN);
+		//temp->Smooth(grid, next, NODE_IN);
 
 		// compute error
 		prof.StartEvent();
@@ -477,14 +477,14 @@ namespace FluidSolver3D
 		if ((var == type_T && grid->GetBC_temp(i, j, k) == BC_FREE) ||
 			(var != type_T && grid->GetBC_vel(i, j, k) == BC_FREE))
 		{
-			// free
-			b0 = 1.0; 
+			// free: f(0) = 2 * f(1) - f(2)
+			b0 = 2.0; 
 			c0 = -1.0; 
 			d0 = 0.0; 
 		}
 		else
 		{
-			// no-slip
+			// no-slip: f(0) = f(1)
 			b0 = 1.0; 
 			c0 = 0.0; 
 			switch (var)
@@ -502,14 +502,14 @@ namespace FluidSolver3D
 		if ((var == type_T && grid->GetBC_temp(i, j, k) == BC_FREE) ||
 			(var != type_T && grid->GetBC_vel(i, j, k) == BC_FREE))
 		{
-			// free
-			a1 = 1.0; 
-			b1 = -1.0; 
+			// free: f(N) = 2 * f(N-1) - f(N-2)
+			a1 = -1.0; 
+			b1 = 2.0; 
 			d1 = 0.0;
 		}
 		else
 		{
-			// no-slip
+			// no-slip: f(N) = f(N-1)
 			a1 = 0.0; 
 			b1 = 1.0; 
 			switch (var)

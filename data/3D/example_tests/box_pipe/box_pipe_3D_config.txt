@@ -13,9 +13,9 @@ grid_dy		0.01
 grid_dz		0.01
 
 cycles 		1
-calc_subframes 	10
+time_steps	10
 
-out_subframes 	10
+out_time_steps 	10
 out_gridx	100
 out_gridy 	100
 out_gridz	100

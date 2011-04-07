@@ -8,9 +8,6 @@
 #include <cuda_runtime.h>
 #include <netcdf.h>
 
-#define NETCDF_FRAME_TIME	1.0
-#define NETCDF_VELOCITY		1.0
-
 using namespace Common;
 
 namespace FluidSolver3D
@@ -67,6 +64,8 @@ namespace FluidSolver3D
 		double GetCycleLength();
 		int GetFrame(double time);
 		float GetLayerTime(double time);
+		void SetFrameTime(double time);
+		void SetStartVel(const Vec3D &vec);
 
 		FluidSolver2D::Grid2D *GetGrid2D();
 		
@@ -91,6 +90,8 @@ namespace FluidSolver3D
 		// input data
 		FrameInfo3D* frames;
 		int num_frames;
+		double frame_time;
+		Vec3D init_vel;
 
 		// static by now
 		DepthInfo3D *depthInfo;

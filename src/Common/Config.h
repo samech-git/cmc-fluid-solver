@@ -31,6 +31,7 @@ namespace Common
 		// boundary conditions
 		static bool bc_noslip;
 		static double bc_strength;			// [0..1] if 0 - noslip, if 1 - slip
+		static Vec3D bc_inV;
 
 		// depth of our 3D object (along Z direction)
 		static double depth;				
@@ -38,8 +39,9 @@ namespace Common
 		// thermodynamic params
 		static double R_specific, k, cv, startT;		 
 
-		// animation params
-		static int cycles, calc_subframes, out_subframes;
+		// time params
+		static int cycles, time_steps, out_time_steps;
+		static double frame_time;
 
 		// output grid
 		static outFormat out_fmt;
@@ -59,6 +61,7 @@ namespace Common
 
 			bc_noslip = true;	
 			bc_strength = 0.5;
+			bc_inV = Vec3D(0.0f, 0.0f, 0.0f);
 
 			useNormalizedParams = false;
 			viscosity = 0.05;
@@ -66,8 +69,8 @@ namespace Common
 			Re = Pr = lambda = -1;
 
 			cycles = 1;
-			calc_subframes = 50;
-			out_subframes = 10;
+			time_steps = 50;
+			out_time_steps = 10;
 			outdimx = outdimy = outdimz = 50;
 
 			num_global = 2;
@@ -78,6 +81,7 @@ namespace Common
 			in_fmt = _unknownInFmt;
 			out_fmt = _unknownOutFmt;
 			solverID = _unknownSolver;
+			frame_time = -1;
 			dx = -1;
 			dy = -1;
 			dz = -1;
@@ -86,9 +90,16 @@ namespace Common
 
 		static void ReadDouble(FILE *file, double &value)
 		{
+			float f;
+			ReadFloat(file, f);
+			value = (double)f;
+		}
+
+		static void ReadFloat(FILE *file, float &value)
+		{
 			float f = 0.0f;
 			fscanf_s(file, "%f", &f);
-			value = (double)f;
+			value = f;
 		}
 
 		static void ReadInt(FILE *file, int &value)
@@ -163,15 +174,17 @@ namespace Common
 
 				if (!strcmp(str, "bc_type")) ReadBC(file);
 				if (!strcmp(str, "bc_strenght")) ReadDouble(file, bc_strength);
+				if (!strcmp(str, "bc_initv")) { ReadFloat(file, bc_inV.x); ReadFloat(file, bc_inV.y); ReadFloat(file, bc_inV.z); }
 
 				if (!strcmp(str, "grid_dx")) ReadDouble(file, dx);
 				if (!strcmp(str, "grid_dy")) ReadDouble(file, dy);
 				if (!strcmp(str, "grid_dz")) ReadDouble(file, dz);
 
 				if (!strcmp(str, "cycles")) ReadInt(file, cycles);
-				if (!strcmp(str, "calc_subframes")) ReadInt(file, calc_subframes);
+				if (!strcmp(str, "frame_time")) ReadDouble(file, frame_time);
+				if (!strcmp(str, "time_steps")) ReadInt(file, time_steps);
 
-				if (!strcmp(str, "out_subframes")) ReadInt(file, out_subframes);
+				if (!strcmp(str, "out_time_steps")) ReadInt(file, out_time_steps);
 				if (!strcmp(str, "out_gridx")) ReadInt(file, outdimx);
 				if (!strcmp(str, "out_gridy")) ReadInt(file, outdimy);
 				if (!strcmp(str, "out_gridz")) ReadInt(file, outdimz);
@@ -191,6 +204,7 @@ namespace Common
 			if (solverID == _unknownSolver) { printf("must specify solver!\n"); exit(0); }
 			if (out_fmt == _unknownOutFmt) { printf("must specify output format!\n"); exit(0); }
 			
+			if (frame_time < 0 && in_fmt == SeaNetCDF) { printf("must specify frame time!\n"); exit(0); }
 			if (dx < 0) { printf("cannot find dx!\n"); exit(0); }
 			if (dy < 0) { printf("cannot find dy!\n"); exit(0); }
 			
@@ -220,14 +234,15 @@ namespace Common
 	double Config::Re, Config::Pr, Config::lambda;	
 
 	bool Config::bc_noslip;
-
 	double Config::bc_strength;
+	Vec3D Config::bc_inV;
 
 	double Config::depth;
 
 	double Config::R_specific, Config::k, Config::cv, Config::startT;		 
 
-	int Config::cycles, Config::calc_subframes, Config::out_subframes;
+	int Config::cycles, Config::time_steps, Config::out_time_steps;
+	double Config::frame_time;
 
 	int Config::outdimx, Config::outdimy, Config::outdimz;
 

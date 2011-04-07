@@ -93,9 +93,19 @@ namespace FluidSolver3D
 	double Grid3D::GetCycleLength()
 	{
 		if( use3Dshape )
-			return NETCDF_FRAME_TIME;
+			return frame_time;
 		else
 			return grid2D->GetCycleLenght();
+	}
+
+	void Grid3D::SetFrameTime(double time)
+	{
+		frame_time = time;
+	}
+
+	void Grid3D::SetStartVel(const Vec3D &vec)
+	{
+		init_vel = vec;
 	}
 
 	int Grid3D::GetFrame(double time)
@@ -109,7 +119,7 @@ namespace FluidSolver3D
 	float Grid3D::GetLayerTime(double time)
 	{
 		if( use3Dshape )
-			return NETCDF_FRAME_TIME;
+			return (float)frame_time;
 		else
 			return grid2D->GetLayerTime(time);
 	}
@@ -756,24 +766,38 @@ namespace FluidSolver3D
 			nodes[indices[i]].SetBound(BC_NOSLIP, BC_NOSLIP, Vec3D(0.0f, 0.0f, 0.0f), (float)baseT);
 		delete [] indices;
 
-		static const Vec3D startVel = Vec3D(-NETCDF_VELOCITY, -NETCDF_VELOCITY, 0.0f);
-
 		// set input/output streams on quad boundaries (special for sea test)
 		// currently upper stream is in, lower stream is out
-		for (int i = 0; i < dimx; i++)
+		int start, end;
+		for (int i = 0; i < dimx; i++) {
+			start = -1;
+			for (int k = 0; k < dimz; k++) 
+				if( GetType(i, dimy-1, k) == NODE_IN ) {
+					if( start < 0 ) start = k;
+					end = k;
+				}
 			for (int k = 0; k < dimz; k++)
 				if (GetType(i, dimy-1, k) == NODE_IN) 
 				{
 					SetType(i, dimy-1, k, NODE_VALVE);
-					SetData(i, dimy-1, k, BC_NOSLIP, BC_NOSLIP, ( k < dimz/2 ) ? startVel : Vec3D()-startVel, (float)baseT);
+					SetData(i, dimy-1, k, BC_NOSLIP, BC_NOSLIP, ( k < (start+end)/2 ) ? init_vel : Vec3D()-init_vel, (float)baseT);
 				}
-		for (int j = 0; j < dimy; j++)
+		}
+
+		for (int j = 0; j < dimy; j++) {
+			start = -1;
+			for (int k = 0; k < dimz; k++) 
+				if( GetType(dimx-1, j, k) == NODE_IN ) {
+					if( start < 0 ) start = k;
+					end = k;
+				}
 			for (int k = 0; k < dimz; k++)
 				if (GetType(dimx-1, j, k) == NODE_IN) 
 				{
 					SetType(dimx-1, j, k, NODE_VALVE);
-					SetData(dimx-1, j, k, BC_NOSLIP, BC_NOSLIP, ( k < dimz/2 ) ? startVel : Vec3D()-startVel, (float)baseT);
+					SetData(dimx-1, j, k, BC_NOSLIP, BC_NOSLIP, ( k < (start+end)/2 ) ? init_vel : Vec3D()-init_vel, (float)baseT);
 				}
+		}
 	}
 
 	void Grid3D::TestPrint(char *filename)
