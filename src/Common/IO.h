@@ -90,7 +90,7 @@ namespace Common
 		fclose(file);
 	}
 
-	static void OutputNetCDFHeader3D(const char *outputPath, BBox2D *bbox, double depth, double timestep, double time, int outdimx, int outdimy, int outdimz)
+	static void OutputNetCDFHeader3D(const char *outputPath, char var, BBox2D *bbox, double depth, double timestep, double time, int outdimx, int outdimy, int outdimz)
 	{
 		FILE *file = NULL;
 		fopen_s(&file, outputPath, "w");
@@ -127,17 +127,17 @@ namespace Common
 		fprintf(file, "\t\ttime:actual_range = 0.f, %.2ff ;\n", time);
 		fprintf(file, "\t\ttime:long_name = \"Time\" ;\n");
 
-		fprintf(file, "\tdouble u(time, x, y, z) ;\n");
+		fprintf(file, "\tdouble %c(time, x, y, z) ;\n", var);
 		fprintf(file, "\t\tu:units = \"m/s\" ;\n");
 		fprintf(file, "\t\tu:actual_range = 0.f, 1.f ;\n");
 		fprintf(file, "\t\tu:valid_range = 0.f, 1.f ;\n");
-		fprintf(file, "\t\tu:long_name = \"U velocity\" ;\n");
+		fprintf(file, "\t\tu:long_name = \"%c velocity\" ;\n", var);
 		fprintf(file, "\t\tu:scale_factor =  1.f ;\n");
-		fprintf(file, "\t\tu:var_desc = \"U velocity\",\n\t\t\t\"U\" ; \n");
+		fprintf(file, "\t\tu:var_desc = \"%c velocity\",\n\t\t\t\"%c\" ; \n", var, var);
 
 		fprintf(file, "\t// global attributes\n");
 		fprintf(file, "\t:Conventions = \"COARDS\" ;\n");
-		fprintf(file, "\t:title = \"3D Time U velocity data from FluidSolver3D (http://code.google.com/p/cmc-fluid-solver/)\" ;\n");
+		fprintf(file, "\t:title = \"3D Time %c velocity data from FluidSolver3D (http://code.google.com/p/cmc-fluid-solver/)\" ;\n", var);
 		fprintf(file, "\t:history = \"created by using FluidSolver3D library\" ;\n");
 		fprintf(file, "\t:description = \"Test data\" ;\n");
 		fprintf(file, "\t:platform = \"Model\" ;\n");
@@ -169,12 +169,12 @@ namespace Common
 			fprintf(file, "%.2f, ", cur);
 		fprintf(file, "%.2f ;\n", time);
 
-		fprintf(file, "u = \n");
+		fprintf(file, "%c = \n", var);
 
 		fclose(file);
 	}
 
-	static void OutputNetCDFHeader3D(const char *outputPath, BBox3D *bbox, double timestep, double time, int outdimx, int outdimy, int outdimz)
+	static void OutputNetCDFHeader3D(const char *outputPath, char var, BBox3D *bbox, double timestep, double time, int outdimx, int outdimy, int outdimz)
 	{
 		FILE *file = NULL;
 		fopen_s(&file, outputPath, "w");
@@ -211,17 +211,17 @@ namespace Common
 		fprintf(file, "\t\ttime:actual_range = 0.f, %.2ff ;\n", time);
 		fprintf(file, "\t\ttime:long_name = \"Time\" ;\n");
 
-		fprintf(file, "\tdouble u(time, x, y, z) ;\n");
-		fprintf(file, "\t\tu:units = \"m/s\" ;\n");
-		fprintf(file, "\t\tu:actual_range = -1.f, 1.f ;\n");
-		fprintf(file, "\t\tu:valid_range = -1.f, 1.f ;\n");
-		fprintf(file, "\t\tu:long_name = \"U velocity\" ;\n");
-		fprintf(file, "\t\tu:missing_value = %.3f ;\n", MISSING_VALUE);
-		fprintf(file, "\t\tu:var_desc = \"U velocity\",\n\t\t\t\"U\" ; \n");
+		fprintf(file, "\tdouble %c(time, x, y, z) ;\n", var);
+		fprintf(file, "\t\t%c:units = \"m/s\" ;\n", var);
+		fprintf(file, "\t\t%c:actual_range = -1.f, 1.f ;\n", var);
+		fprintf(file, "\t\t%c:valid_range = -1.f, 1.f ;\n", var);
+		fprintf(file, "\t\t%c:long_name = \"%c velocity\" ;\n", var, var);
+		fprintf(file, "\t\t%c:missing_value = %.3f ;\n", var, MISSING_VALUE);
+		fprintf(file, "\t\t%c:var_desc = \"%c velocity\",\n\t\t\t\"%c\" ; \n", var, var, var);
 
 		fprintf(file, "\t// global attributes\n");
 		fprintf(file, "\t:Conventions = \"COARDS\" ;\n");
-		fprintf(file, "\t:title = \"3D Time U velocity data from FluidSolver3D (http://code.google.com/p/cmc-fluid-solver/)\" ;\n");
+		fprintf(file, "\t:title = \"3D Time %c velocity data from FluidSolver3D (http://code.google.com/p/cmc-fluid-solver/)\" ;\n", var);
 		fprintf(file, "\t:history = \"created by using FluidSolver3D library\" ;\n");
 		fprintf(file, "\t:description = \"Test data\" ;\n");
 		fprintf(file, "\t:platform = \"Model\" ;\n");
@@ -253,7 +253,7 @@ namespace Common
 			fprintf(file, "%.2f, ", cur);
 		fprintf(file, "%.2f ;\n", time);
 
-		fprintf(file, "u = \n");
+		fprintf(file, "%c = \n", var);
 
 		fclose(file);
 	}
@@ -330,7 +330,7 @@ namespace Common
 		fclose(file);
 	}
 
-	static void OutputNetCDF3D_U(const char *outputPath, Vec3D *v, double *T, int dimx, int dimy, int dimz, bool finish)
+	static void OutputNetCDF3D_var(const char *outputPath, char var, Vec3D *v, double *T, int dimx, int dimy, int dimz, bool finish)
 	{
 		FILE *file = NULL;
 		fopen_s(&file, outputPath, "a");
@@ -341,7 +341,12 @@ namespace Common
 				{
 					for (int k = 0; k < dimz; k++)
 					{
-						fprintf(file, "%.3f", v[i * dimy * dimz + j * dimz + k].x);
+						switch( var ) {
+							case 'u': fprintf(file, "%.3f", v[i * dimy * dimz + j * dimz + k].x); break;
+							case 'v': fprintf(file, "%.3f", v[i * dimy * dimz + j * dimz + k].y); break;
+							case 'w': fprintf(file, "%.3f", v[i * dimy * dimz + j * dimz + k].z); break;
+							case 'T': fprintf(file, "%.3f", T[i * dimy * dimz + j * dimz + k]); break;
+						}
 						if (finish && (i == dimx-1) && (j == dimy-1) && (k == dimz-1)) fprintf(file, " ; ");
 							else fprintf(file, ", ");
 					}

@@ -1,22 +1,22 @@
 dimension	3D
 in_fmt		SeaNetCDF
 
-Re		150.0
+Re		200.0
 Pr		0.72
 lambda		1.4
 
 bc_type		NoSlip
-bc_initv	-0.1 -0.1 0.0
+bc_initv	-0.25 -0.25 0.0
 
-grid_dx		0.07
+grid_dx		0.035
 grid_dy		0.15
 grid_dz		3.0
 
-frame_time	1000.0
-time_steps 	10000
+frame_time	100.0
+time_steps 	5000
 
-out_time_steps 	100
-out_gridx	100
+out_time_steps 	250
+out_gridx	150
 out_gridy 	100
 out_gridz	100
 out_fmt		NetCDF

@@ -44,7 +44,8 @@ int main(int argc, char **argv)
 
 	char inputPath[MAX_STR_SIZE];
 	char configPath[MAX_STR_SIZE];
-	char outputPath[MAX_STR_SIZE];
+	char outputPathU[MAX_STR_SIZE];
+	char outputPathV[MAX_STR_SIZE];
 	char gridPath[MAX_STR_SIZE];
 
 	FindFile(inputPath, argv[1]);
@@ -115,11 +116,14 @@ int main(int argc, char **argv)
 	double dt = length / (frames * Config::time_steps);
 	double finaltime = length * Config::cycles;
 
-	sprintf_s(outputPath, MAX_STR_SIZE, "%s_res.txt", argv[2]);
+	sprintf_s(outputPathU, MAX_STR_SIZE, "%s_res_u.txt", argv[2]);
+	sprintf_s(outputPathV, MAX_STR_SIZE, "%s_res_v.txt", argv[2]);
 	if( Config::in_fmt == Shape2D )
-		OutputNetCDFHeader3D(outputPath, &grid->GetGrid2D()->bbox, Config::depth, dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
-	else
-		OutputNetCDFHeader3D(outputPath, &grid->GetBBox(), dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+		OutputNetCDFHeader3D(outputPathU, 'u', &grid->GetGrid2D()->bbox, Config::depth, dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+	else {
+		OutputNetCDFHeader3D(outputPathU, 'u', &grid->GetBBox(), dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+		OutputNetCDFHeader3D(outputPathV, 'v', &grid->GetBBox(), dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy, Config::outdimz);
+	}
 	
 	// allocate result arrays
 	Vec3D *resVel = new Vec3D[Config::outdimx * Config::outdimy * Config::outdimz];
@@ -156,7 +160,9 @@ int main(int argc, char **argv)
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz);
-			OutputNetCDF3D_U(outputPath, resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, 
+			OutputNetCDF3D_var(outputPathU, 'u', resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, 
+							(i + Config::out_time_steps >= Config::time_steps) && (currentframe == frames-1));
+			OutputNetCDF3D_var(outputPathV, 'v', resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, 
 							(i + Config::out_time_steps >= Config::time_steps) && (currentframe == frames-1));
 		}
 	}
