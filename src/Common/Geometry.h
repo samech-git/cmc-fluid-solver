@@ -460,6 +460,11 @@ namespace Common
 		Vec3D pMin, pMax;
 
 		BBox3D() { Clear(); }
+
+		BBox3D( const BBox2D &bb, FTYPE depth ) :
+			pMin( bb.pMin.x, bb.pMin.y, -depth ),
+			pMax( bb.pMax.x, bb.pMax.y, 0.0f )
+		{ }
 		
 		void AddPoint(Vec3D p)
 		{

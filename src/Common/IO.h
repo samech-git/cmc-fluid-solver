@@ -8,6 +8,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <NetCDF.h>
+
 #define MAX_STR_SIZE	255
 
 namespace Common
@@ -90,172 +92,127 @@ namespace Common
 		fclose(file);
 	}
 
-	static void OutputNetCDFHeader3D(const char *outputPath, char var, BBox2D *bbox, double depth, double timestep, double time, int outdimx, int outdimy, int outdimz)
+	static void OutputNetCDF3D_header(const char *outputPath, BBox3D *bbox, double timestep, double time, int outdimx, int outdimy, int outdimz, bool xy_degree_units)
 	{
-		FILE *file = NULL;
-		fopen_s(&file, outputPath, "w");
+		int status;
 
-		fprintf(file, "netcdf 3d_scalar_time_array {\n");
-	
-		// --- dimensions ---
-		fprintf(file, "dimensions:\n");
-		fprintf(file, "\tx = %i ;\n", outdimx);
-		fprintf(file, "\ty = %i ;\n", outdimy);
-		fprintf(file, "\tz = %i ;\n", outdimz);
-		fprintf(file, "\ttime = UNLIMITED ;\n");
-	
-		// --- variables ---
-		fprintf(file, "variables:\n");
+		const char* var_short[4] = { "u", "v", "w", "T" };
+		const char* var_long[4] = { "x-velocity", "y-velocity", "z-velocity", "temperature" };
 		
-		fprintf(file, "\tfloat x(x) ;\n");
-		fprintf(file, "\t\tx:units = \"metres\" ;\n");
-		fprintf(file, "\t\tx:actual_range = %.2ff, %.2ff ;\n", bbox->pMin.x, bbox->pMax.x);
-		fprintf(file, "\t\tx:long_name = \"X coordinate\" ;\n");
-
-		fprintf(file, "\tfloat y(y) ;\n");
-		fprintf(file, "\t\ty:units = \"metres\" ;\n");
-		fprintf(file, "\t\ty:actual_range = %.2ff, %.2ff ;\n", bbox->pMin.y, bbox->pMax.y);
-		fprintf(file, "\t\ty:long_name = \"Y coordinate\" ;\n");
-
-		fprintf(file, "\tfloat z(z) ;\n");
-		fprintf(file, "\t\tz:units = \"metres\" ;\n");
-		fprintf(file, "\t\tz:actual_range = %.2ff, 0.f ;\n", -depth);
-		fprintf(file, "\t\tz:long_name = \"Z coordinate\" ;\n");
-
-		fprintf(file, "\tdouble time(time) ;\n");
-		fprintf(file, "\t\ttime:units = \"s\" ;\n");
-		fprintf(file, "\t\ttime:actual_range = 0.f, %.2ff ;\n", time);
-		fprintf(file, "\t\ttime:long_name = \"Time\" ;\n");
-
-		fprintf(file, "\tdouble %c(time, x, y, z) ;\n", var);
-		fprintf(file, "\t\tu:units = \"m/s\" ;\n");
-		fprintf(file, "\t\tu:actual_range = 0.f, 1.f ;\n");
-		fprintf(file, "\t\tu:valid_range = 0.f, 1.f ;\n");
-		fprintf(file, "\t\tu:long_name = \"%c velocity\" ;\n", var);
-		fprintf(file, "\t\tu:scale_factor =  1.f ;\n");
-		fprintf(file, "\t\tu:var_desc = \"%c velocity\",\n\t\t\t\"%c\" ; \n", var, var);
-
-		fprintf(file, "\t// global attributes\n");
-		fprintf(file, "\t:Conventions = \"COARDS\" ;\n");
-		fprintf(file, "\t:title = \"3D Time %c velocity data from FluidSolver3D (http://code.google.com/p/cmc-fluid-solver/)\" ;\n", var);
-		fprintf(file, "\t:history = \"created by using FluidSolver3D library\" ;\n");
-		fprintf(file, "\t:description = \"Test data\" ;\n");
-		fprintf(file, "\t:platform = \"Model\" ;\n");
-
-		// --- data ---
-		fprintf(file, "data:\n");
-
-		float ddx = (float)(bbox->pMax.x - bbox->pMin.x) / outdimx;
-		float ddy = (float)(bbox->pMax.y - bbox->pMin.y) / outdimy;
-		float ddz = (float)depth / outdimz;
-
-		fprintf(file, "x = ");
-		for (int i = 0; i < outdimx-1; i++)
-			fprintf(file, "%.2f, ", bbox->pMin.x + ddx * i);
-		fprintf(file, "%.2f ;\n", bbox->pMin.x + ddx * outdimx);
-
-		fprintf(file, "y = ");
-		for (int i = 0; i < outdimy-1; i++)
-			fprintf(file, "%.2f, ", bbox->pMin.y + ddy * i);
-		fprintf(file, "%.2f ;\n", bbox->pMin.y + ddy * outdimy);
-
-		fprintf(file, "z = ");
-		for (int i = 0; i < outdimz-1; i++)
-			fprintf(file, "%.2f, ", ddz * i);
-		fprintf(file, "%.2f ;\n", ddz * outdimz);
+		// create netcdf
+		int ncid;
+		status = nc_create( outputPath, NC_NETCDF4, &ncid );
+		// enter define mode
 		
-		fprintf(file, "time = ");
-		for (float cur = 0; cur < time; cur += (float)timestep)
-			fprintf(file, "%.2f, ", cur);
-		fprintf(file, "%.2f ;\n", time);
+		// write dimensions
+		int dimx_id, dimy_id, dimz_id, dimt_id;
+		nc_def_dim( ncid, "x", outdimx, &dimx_id );
+		nc_def_dim( ncid, "y", outdimy, &dimy_id );
+		nc_def_dim( ncid, "z", outdimz, &dimz_id );
+		nc_def_dim( ncid, "t", NC_UNLIMITED, &dimt_id );
 
-		fprintf(file, "%c = \n", var);
+		// write variables
+		int varx_id, vary_id, varz_id, vart_id;
+		nc_def_var( ncid, "x", NC_FLOAT, 1, &dimx_id, &varx_id ); 
+		nc_def_var( ncid, "y", NC_FLOAT, 1, &dimy_id, &vary_id ); 
+		nc_def_var( ncid, "z", NC_FLOAT, 1, &dimz_id, &varz_id ); 
+		nc_def_var( ncid, "time", NC_DOUBLE, 1, &dimt_id, &vart_id ); 
+		const int dim_ids[] = { dimt_id, dimx_id, dimy_id, dimz_id };
+		int var_id[4];
+		for( int i = 0; i < 4; i++ )
+			nc_def_var( ncid, var_short[i], NC_DOUBLE, 4, dim_ids, &var_id[i] ); 
 
-		fclose(file);
-	}
-
-	static void OutputNetCDFHeader3D(const char *outputPath, char var, BBox3D *bbox, double timestep, double time, int outdimx, int outdimy, int outdimz)
-	{
-		FILE *file = NULL;
-		fopen_s(&file, outputPath, "w");
-
-		fprintf(file, "netcdf 3d_scalar_time_array {\n");
-	
-		// --- dimensions ---
-		fprintf(file, "dimensions:\n");
-		fprintf(file, "\tx = %i ;\n", outdimx);
-		fprintf(file, "\ty = %i ;\n", outdimy);
-		fprintf(file, "\tz = %i ;\n", outdimz);
-		fprintf(file, "\ttime = UNLIMITED ;\n");
-	
-		// --- variables ---
-		fprintf(file, "variables:\n");
+		// write attributes
+		float bb[2];
+		bb[0] = bbox->pMin.x;
+		bb[1] = bbox->pMax.x;
 		
-		fprintf(file, "\tfloat x(x) ;\n");
-		fprintf(file, "\t\tx:units = \"degree_north\" ;\n");
-		fprintf(file, "\t\tx:actual_range = %.2ff, %.2ff ;\n", bbox->pMin.x, bbox->pMax.x);
-		fprintf(file, "\t\tx:long_name = \"X coordinate\" ;\n");
+		nc_put_att_float( ncid, varx_id, "actual_range", NC_FLOAT, 2, bb );
+		nc_put_att_text( ncid, varx_id, "long_name", 7, "x coord" );
 
-		fprintf(file, "\tfloat y(y) ;\n");
-		fprintf(file, "\t\ty:units = \"degree_east\" ;\n");
-		fprintf(file, "\t\ty:actual_range = %.2ff, %.2ff ;\n", bbox->pMin.y, bbox->pMax.y);
-		fprintf(file, "\t\ty:long_name = \"Y coordinate\" ;\n");
-
-		fprintf(file, "\tfloat z(z) ;\n");
-		fprintf(file, "\t\tz:units = \"metres\" ;\n");
-		fprintf(file, "\t\tz:actual_range = %.2ff, %.2ff ;\n", bbox->pMin.z, bbox->pMax.z);
-		fprintf(file, "\t\tz:long_name = \"Z coordinate\" ;\n");
-
-		fprintf(file, "\tdouble time(time) ;\n");
-		fprintf(file, "\t\ttime:units = \"s\" ;\n");
-		fprintf(file, "\t\ttime:actual_range = 0.f, %.2ff ;\n", time);
-		fprintf(file, "\t\ttime:long_name = \"Time\" ;\n");
-
-		fprintf(file, "\tdouble %c(time, x, y, z) ;\n", var);
-		fprintf(file, "\t\t%c:units = \"m/s\" ;\n", var);
-		fprintf(file, "\t\t%c:actual_range = -1.f, 1.f ;\n", var);
-		fprintf(file, "\t\t%c:valid_range = -1.f, 1.f ;\n", var);
-		fprintf(file, "\t\t%c:long_name = \"%c velocity\" ;\n", var, var);
-		fprintf(file, "\t\t%c:missing_value = %.3f ;\n", var, MISSING_VALUE);
-		fprintf(file, "\t\t%c:var_desc = \"%c velocity\",\n\t\t\t\"%c\" ; \n", var, var, var);
-
-		fprintf(file, "\t// global attributes\n");
-		fprintf(file, "\t:Conventions = \"COARDS\" ;\n");
-		fprintf(file, "\t:title = \"3D Time %c velocity data from FluidSolver3D (http://code.google.com/p/cmc-fluid-solver/)\" ;\n", var);
-		fprintf(file, "\t:history = \"created by using FluidSolver3D library\" ;\n");
-		fprintf(file, "\t:description = \"Test data\" ;\n");
-		fprintf(file, "\t:platform = \"Model\" ;\n");
-
-		// --- data ---
-		fprintf(file, "data:\n");
-
-		float ddx = (float)(bbox->pMax.x - bbox->pMin.x) / outdimx;
-		float ddy = (float)(bbox->pMax.y - bbox->pMin.y) / outdimy;
-		float ddz = (float)(bbox->pMax.z - bbox->pMin.z) / outdimz;
-
-		fprintf(file, "x = ");
-		for (int i = 0; i < outdimx-1; i++)
-			fprintf(file, "%.2f, ", bbox->pMin.x + ddx * i);
-		fprintf(file, "%.2f ;\n", bbox->pMin.x + ddx * outdimx);
-
-		fprintf(file, "y = ");
-		for (int i = 0; i < outdimy-1; i++)
-			fprintf(file, "%.2f, ", bbox->pMin.y + ddy * i);
-		fprintf(file, "%.2f ;\n", bbox->pMin.y + ddy * outdimy);
-
-		fprintf(file, "z = ");
-		for (int i = 0; i < outdimz-1; i++)
-			fprintf(file, "%.2f, ", bbox->pMin.z + ddz * i);
-		fprintf(file, "%.2f ;\n", bbox->pMin.z + ddz * outdimz);
+		bb[0] = bbox->pMin.y;
+		bb[1] = bbox->pMax.y;
 		
-		fprintf(file, "time = ");
-		for (float cur = 0; cur < time; cur += (float)timestep)
-			fprintf(file, "%.2f, ", cur);
-		fprintf(file, "%.2f ;\n", time);
+		nc_put_att_float( ncid, vary_id, "actual_range", NC_FLOAT, 2, bb );
+		nc_put_att_text( ncid, vary_id, "long_name", 7, "y coord" );
 
-		fprintf(file, "%c = \n", var);
+		if( xy_degree_units ) {
+			nc_put_att_text( ncid, varx_id, "units", 12, "degree_north" );
+			nc_put_att_text( ncid, vary_id, "units", 11, "degree_east" );
+		}
+		else {
+			nc_put_att_text( ncid, varx_id, "units", 6, "metres" );
+			nc_put_att_text( ncid, vary_id, "units", 6, "metres" );
+		}
 
-		fclose(file);
+		bb[0] = bbox->pMin.z;
+		bb[1] = bbox->pMax.z;
+		nc_put_att_text( ncid, varz_id, "units", 6, "metres" );
+		nc_put_att_float( ncid, varz_id, "actual_range", NC_FLOAT, 2, bb );
+		nc_put_att_text( ncid, varz_id, "long_name", 7, "z coord" );
+
+		double tt[2];
+		tt[0] = 0.0;
+		tt[1] = time;
+		nc_put_att_text( ncid, vart_id, "units", 1, "s" );
+		nc_put_att_double( ncid, vart_id, "actual_range", NC_DOUBLE, 2, tt );
+		nc_put_att_text( ncid, vart_id, "long_name", 4, "time" );
+
+		tt[0] = -1.0;
+		tt[1] = 1.0;
+		bb[0] = MISSING_VALUE;
+		for( int i = 0; i < 4; i++ ) {
+			nc_put_att_text( ncid, var_id[i], "units", 3, var_short[i][0] == 'T' ? "tmp" : "m/s" );
+			nc_put_att_double( ncid, var_id[i], "actual_range", NC_DOUBLE, 2, tt );
+			nc_put_att_double( ncid, var_id[i], "valid_range", NC_DOUBLE, 2, tt );
+			nc_put_att_float( ncid, var_id[i], "missing_value", NC_FLOAT, 1, bb );
+			nc_put_att_text( ncid, var_id[i], "long_name", strlen( var_long[i] ), var_long[i] );
+			nc_put_att_text( ncid, var_id[i], "var_desc", strlen( var_short[i] ), var_short[i] );
+		}
+
+		// global attributes
+		// TODO : add grid desc, more info to output desc
+		nc_put_att_text( ncid, NC_GLOBAL, "Conventions", 6, "COARDS" );
+		nc_put_att_text( ncid, NC_GLOBAL, "title", 24, "cmc-fluid-solver results" );
+		nc_put_att_text( ncid, NC_GLOBAL, "history", 33, "created by using cmc-fluid-solver" );
+		nc_put_att_text( ncid, NC_GLOBAL, "description", 9, "Test data" );
+		nc_put_att_text( ncid, NC_GLOBAL, "platform", 5, "Model" );
+
+		nc_enddef( ncid );
+		// exit define mode
+
+		// write axis data
+		float ddx = (float)(bbox->pMax.x - bbox->pMin.x) / (outdimx);
+		float ddy = (float)(bbox->pMax.y - bbox->pMin.y) / (outdimy);
+		float ddz = (float)(bbox->pMax.z - bbox->pMin.z) / (outdimz);
+		
+		float *fp = new float[outdimx];
+		for( int i = 0; i < outdimx; i++ )
+			fp[i] = bbox->pMin.x + ddx * i;
+		nc_put_var_float( ncid, varx_id, fp );
+		delete [] fp;
+
+		fp = new float[outdimy];
+		for( int i = 0; i < outdimy; i++ )
+			fp[i] = bbox->pMin.y + ddy * i;
+		nc_put_var_float( ncid, vary_id, fp );
+		delete [] fp;
+
+		fp = new float[outdimz];
+		for( int i = 0; i < outdimz; i++ )
+			fp[i] = bbox->pMin.z + ddz * i;
+		nc_put_var_float( ncid, varz_id, fp );
+		delete [] fp;
+
+		const size_t start[1] = { 0 };
+		const size_t count[1] = { (int)(time/timestep) };
+		double* dp = new double[count[0]];
+		for( int i = 0; i < (int)count[0]; i++ ) 
+			dp[i] = i * timestep;
+		nc_put_vara_double( ncid, vart_id, start, count, dp );
+		delete [] fp;
+
+		nc_close( ncid );
 	}
 
 	static void OutputNetCDFHeader2D(const char *outputPath, BBox2D *bbox, double timestep, double time, int outdimx, int outdimy)
@@ -330,33 +287,43 @@ namespace Common
 		fclose(file);
 	}
 
-	static void OutputNetCDF3D_var(const char *outputPath, char var, Vec3D *v, double *T, int dimx, int dimy, int dimz, bool finish)
+	static void OutputNetCDF3D_layer(const char *outputPath, Vec3D *vel, double *T, int time, int dimx, int dimy, int dimz, bool finish)
 	{
-		FILE *file = NULL;
-		fopen_s(&file, outputPath, "a");
-		
-			for (int i = 0; i < dimx; i++)
-			{
-				for (int j = 0; j < dimy; j++)
-				{
-					for (int k = 0; k < dimz; k++)
-					{
-						switch( var ) {
-							case 'u': fprintf(file, "%.3f", v[i * dimy * dimz + j * dimz + k].x); break;
-							case 'v': fprintf(file, "%.3f", v[i * dimy * dimz + j * dimz + k].y); break;
-							case 'w': fprintf(file, "%.3f", v[i * dimy * dimz + j * dimz + k].z); break;
-							case 'T': fprintf(file, "%.3f", T[i * dimy * dimz + j * dimz + k]); break;
-						}
-						if (finish && (i == dimx-1) && (j == dimy-1) && (k == dimz-1)) fprintf(file, " ; ");
-							else fprintf(file, ", ");
-					}
-					fprintf(file, "\n");
-				}
-				fprintf(file, "\n");
-			}
+		int status;
 
-		if (finish) fprintf(file, "}");
-		fclose(file);
+		// open netcdf
+		int ncid;
+		status = nc_open( outputPath, NC_WRITE, &ncid );
+
+		const char* var_short[4] = { "u", "v", "w", "T" };
+		const size_t start[] = { time, 0, 0, 0 };
+		const size_t count[] = { 1, dimx, dimy, dimz };
+		double* dp = new double[dimx * dimy * dimz];
+			
+		for( int v = 0; v < 4; v++ ) {
+			// get var id
+			int varid;
+			nc_inq_varid( ncid, var_short[v], &varid );
+
+			// collect output values
+			for( int i = 0; i < dimx; i++ ) 
+				for( int j = 0; j < dimy; j++ ) 
+					for( int k = 0; k < dimz; k++ ) {
+						int idx = i * dimy * dimz + j * dimz + k;
+						switch( var_short[v][0] ) {
+							case 'u': dp[idx] = vel[idx].x; break;
+							case 'v': dp[idx] = vel[idx].y; break;
+							case 'w': dp[idx] = vel[idx].z; break;
+							case 'T': dp[idx] = T[idx]; break;
+						}
+					}
+
+			// add new data
+			nc_put_vara_double( ncid, varid, start, count, dp );
+		}
+
+		delete [] dp;
+		nc_close( ncid );	
 	}
 
 	static void OutputNetCDF2D_U(const char *outputPath, Vec2D *v, double *T, int dimx, int dimy, bool finish)
@@ -426,10 +393,6 @@ namespace Common
 
 	static void PrintTimeStepInfo(int frame, int subframe, double cur_time, double max_time, float elapsed_time)
 	{
-		//printf("elapsed sec: %.4f\n", elapsed_time);
-		//const int percent = frames * subframes * cycles;
-		//int step = (j + i * subframes) * 100;
-		//int perres = step / percent;
 		float perresf = (float)cur_time * 100 / (float)max_time;
 
 		if (perresf < 2)

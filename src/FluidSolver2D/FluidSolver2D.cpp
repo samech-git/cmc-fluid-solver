@@ -66,10 +66,10 @@ int main(int argc, char **argv)
 
 	int frames = grid.GetFramesNum();
 	double length = grid.GetCycleLenght();
-	double dt = length / (frames * Config::calc_subframes);
+	double dt = length / (frames * Config::time_steps);
 	double finaltime = length * Config::cycles;
 
-	OutputNetCDFHeader2D(outputPath, &grid.bbox, dt * Config::out_subframes, finaltime, Config::outdimx, Config::outdimy);
+	OutputNetCDFHeader2D(outputPath, &grid.bbox, dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy);
 
 	printf("dt = %f\n", dt);
 	int lastframe = -1;
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 			{
 				currentcycle++;
 
-				if( Config::outfmt == MultiVox )
+				if( Config::out_fmt == MultiVox )
 				{
 					if (currentcycle > 0)
 					{
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
 				}
 			}
 
-			if( Config::outfmt == MultiVox )
+			if( Config::out_fmt == MultiVox )
 			{
 				FILE *resFile = NULL;
 				fopen_s(&resFile, curOutFile, "a");
@@ -119,18 +119,18 @@ int main(int argc, char **argv)
 		timer.stop();
 		PrintTimeStepInfo(currentframe, i, t, finaltime, timer.elapsed_sec());
 
-		if ((i % Config::out_subframes) == 0)
+		if ((i % Config::out_time_steps) == 0)
 		{
-			float dur = (float)dt * Config::out_subframes;
+			float dur = (float)dt * Config::out_time_steps;
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy);
 				
-			if( Config::outfmt == MultiVox )
+			if( Config::out_fmt == MultiVox )
 				OutputResult(curOutFile, resVel, resT, Config::outdimx, Config::outdimy, dur);
 			else
 				OutputNetCDF2D_U(outputPath, resVel, resT, Config::outdimx, Config::outdimy,  
-								(i + Config::out_subframes >= Config::calc_subframes) && (currentframe == frames-1) && (currentcycle == Config::cycles));
+								(i + Config::out_time_steps >= Config::time_steps) && (currentframe == frames-1) && (currentcycle == Config::cycles));
 		}
 	}
 	printf("\n");
