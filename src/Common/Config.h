@@ -62,6 +62,7 @@ namespace Common
 		// output grid
 		static outFormat out_fmt;
 		static int outdimx, outdimy, outdimz;
+		static vector<string> out_vars;
 
 		// solver params
 		static solver solverID;		
@@ -88,6 +89,7 @@ namespace Common
 			time_steps = 50;
 			out_time_steps = 10;
 			outdimx = outdimy = outdimz = 50;
+			out_vars.clear();
 
 			num_global = 2;
 			num_local = 1;
@@ -165,6 +167,17 @@ namespace Common
 				else out_fmt = MultiVox;
 		}
 
+		static void ReadVars(FILE *file)
+		{
+			int num;
+			fscanf_s(file, "%i", &num);
+			for( int i = 0; i < num; i++ ) {
+				char str[MAX_STR_SIZE];
+				fscanf_s(file, "%s", str, MAX_STR_SIZE);
+				out_vars.push_back( str );
+			}
+		}
+
 		static void LoadFromFile(char *filename)
 		{
 			FILE *file = NULL;
@@ -200,6 +213,7 @@ namespace Common
 				if (!strcmp(str, "frame_time")) ReadDouble(file, frame_time);
 				if (!strcmp(str, "time_steps")) ReadInt(file, time_steps);
 
+				if (!strcmp(str, "out_vars")) ReadVars(file);
 				if (!strcmp(str, "out_time_steps")) ReadInt(file, out_time_steps);
 				if (!strcmp(str, "out_gridx")) ReadInt(file, outdimx);
 				if (!strcmp(str, "out_gridy")) ReadInt(file, outdimy);
@@ -227,6 +241,7 @@ namespace Common
 			if (problem_dim == _2D) in_fmt = Shape2D;
 			if (problem_dim == _3D)
 			{
+				if (out_vars.empty()) { printf("must output at least 1 var!\n"); exit(0); }
 				if (in_fmt == _unknownInFmt) { printf("must specify input format!\n"); exit(0); }
 				if (dz < 0) { printf("cannot find dz!\n"); exit(0); }
 				if (in_fmt == Shape2D)
@@ -261,6 +276,7 @@ namespace Common
 	double Config::frame_time;
 
 	int Config::outdimx, Config::outdimy, Config::outdimz;
+	vector<string> Config::out_vars;
 
 	solver Config::solverID;		
 	int Config::num_global, Config::num_local;

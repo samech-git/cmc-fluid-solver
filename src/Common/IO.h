@@ -23,10 +23,14 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <vector>
+#include <algorithm>
 
 #include <NetCDF.h>
 
 #define MAX_STR_SIZE	255
+
+using namespace std;
 
 namespace Common
 {	
@@ -108,16 +112,21 @@ namespace Common
 		fclose(file);
 	}
 
-	static void OutputNetCDF3D_header(const char *outputPath, BBox3D *bbox, double timestep, double time, int outdimx, int outdimy, int outdimz, bool xy_degree_units)
+	static void OutputNetCDF3D_header(const char *outputPath, BBox3D *bbox, DepthInfo3D *depths, double timestep, double time, int outdimx, int outdimy, int outdimz, const vector<string>& vars, bool xy_degree_units)
 	{
-		int status;
-
-		const char* var_short[4] = { "u", "v", "w", "T" };
-		const char* var_long[4] = { "x-velocity", "y-velocity", "z-velocity", "temperature" };
+		const int num_vars = 5;
+		const char* var_short[num_vars] = { "u", "v", "w", "T", "d" };
+		const char* var_long[num_vars] = { "x-velocity", "y-velocity", "z-velocity", "temperature", "depth" };
+		
+		vector<bool> use_var( num_vars, false );
+		for( int i = 0; i < num_vars; i++ ) {
+			vector<string>::const_iterator pos = find( vars.begin(), vars.end(), var_short[i] );
+			use_var[i] = ( pos != vars.end() );
+		}
 		
 		// create netcdf
 		int ncid;
-		status = nc_create( outputPath, NC_NETCDF4, &ncid );
+		nc_create( outputPath, NC_NETCDF4, &ncid );
 		// enter define mode
 		
 		// write dimensions
@@ -134,9 +143,12 @@ namespace Common
 		nc_def_var( ncid, "z", NC_FLOAT, 1, &dimz_id, &varz_id ); 
 		nc_def_var( ncid, "time", NC_DOUBLE, 1, &dimt_id, &vart_id ); 
 		const int dim_ids[] = { dimt_id, dimx_id, dimy_id, dimz_id };
-		int var_id[4];
-		for( int i = 0; i < 4; i++ )
-			nc_def_var( ncid, var_short[i], NC_DOUBLE, 4, dim_ids, &var_id[i] ); 
+		vector<int> var_id( num_vars );
+		for( int i = 0; i < num_vars; i++ ) 
+			if( use_var[i] ) {
+				if( i == num_vars-1 ) nc_def_var( ncid, var_short[i], NC_FLOAT, 2, &dim_ids[1], &var_id[i] ); 
+					else nc_def_var( ncid, var_short[i], NC_DOUBLE, 4, dim_ids, &var_id[i] ); 
+			}
 
 		// write attributes
 		float bb[2];
@@ -177,14 +189,19 @@ namespace Common
 		tt[0] = -1.0;
 		tt[1] = 1.0;
 		bb[0] = MISSING_VALUE;
-		for( int i = 0; i < 4; i++ ) {
-			nc_put_att_text( ncid, var_id[i], "units", 3, var_short[i][0] == 'T' ? "tmp" : "m/s" );
-			nc_put_att_double( ncid, var_id[i], "actual_range", NC_DOUBLE, 2, tt );
-			nc_put_att_double( ncid, var_id[i], "valid_range", NC_DOUBLE, 2, tt );
-			nc_put_att_float( ncid, var_id[i], "missing_value", NC_FLOAT, 1, bb );
-			nc_put_att_text( ncid, var_id[i], "long_name", strlen( var_long[i] ), var_long[i] );
-			nc_put_att_text( ncid, var_id[i], "var_desc", strlen( var_short[i] ), var_short[i] );
-		}
+		for( int i = 0; i < num_vars; i++ ) 
+			if( use_var[i] ) {
+				switch( var_short[i][0] ) {
+					case 'T': nc_put_att_text( ncid, var_id[i], "units", 3, "tmp" ); break;
+					case 'd': nc_put_att_text( ncid, var_id[i], "units", 1, "m" ); break;
+					default: nc_put_att_text( ncid, var_id[i], "units", 3, "m/s" ); break;
+				}
+				nc_put_att_double( ncid, var_id[i], "actual_range", NC_DOUBLE, 2, tt );
+				nc_put_att_double( ncid, var_id[i], "valid_range", NC_DOUBLE, 2, tt );
+				nc_put_att_float( ncid, var_id[i], "missing_value", NC_FLOAT, 1, bb );
+				nc_put_att_text( ncid, var_id[i], "long_name", strlen( var_long[i] ), var_long[i] );
+				nc_put_att_text( ncid, var_id[i], "var_desc", strlen( var_short[i] ), var_short[i] );
+			}
 
 		// global attributes
 		// TODO : add grid desc, more info to output desc
@@ -226,8 +243,14 @@ namespace Common
 		for( int i = 0; i < (int)count[0]; i++ ) 
 			dp[i] = i * timestep;
 		nc_put_vara_double( ncid, vart_id, start, count, dp );
-		delete [] fp;
+		delete [] dp;
 
+		// write depth data
+		if( use_var[num_vars-1] ) {
+			DepthInfo3D out_depths( outdimx, outdimy, depths );
+			nc_put_var_float( ncid, var_id[num_vars-1], out_depths.depth );
+		}
+		
 		nc_close( ncid );
 	}
 
@@ -303,7 +326,7 @@ namespace Common
 		fclose(file);
 	}
 
-	static void OutputNetCDF3D_layer(const char *outputPath, Vec3D *vel, double *T, int time, int dimx, int dimy, int dimz, bool finish)
+	static void OutputNetCDF3D_layer(const char *outputPath, Vec3D *vel, double *T, int time, int dimx, int dimy, int dimz, const vector<string>& vars)
 	{
 		int status;
 
@@ -311,22 +334,25 @@ namespace Common
 		int ncid;
 		status = nc_open( outputPath, NC_WRITE, &ncid );
 
-		const char* var_short[4] = { "u", "v", "w", "T" };
 		const size_t start[] = { time, 0, 0, 0 };
 		const size_t count[] = { 1, dimx, dimy, dimz };
 		double* dp = new double[dimx * dimy * dimz];
 			
-		for( int v = 0; v < 4; v++ ) {
+		for( int v = 0; v < (int)vars.size(); v++ ) {
+			
+			// depths were added in header
+			if( vars[v] == (string)"d" ) continue;
+
 			// get var id
 			int varid;
-			nc_inq_varid( ncid, var_short[v], &varid );
+			nc_inq_varid( ncid, vars[v].c_str(), &varid );
 
 			// collect output values
 			for( int i = 0; i < dimx; i++ ) 
 				for( int j = 0; j < dimy; j++ ) 
 					for( int k = 0; k < dimz; k++ ) {
 						int idx = i * dimy * dimz + j * dimz + k;
-						switch( var_short[v][0] ) {
+						switch( vars[v][0] ) {
 							case 'u': dp[idx] = vel[idx].x; break;
 							case 'v': dp[idx] = vel[idx].y; break;
 							case 'w': dp[idx] = vel[idx].z; break;

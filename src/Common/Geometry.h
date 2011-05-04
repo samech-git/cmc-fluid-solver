@@ -424,7 +424,21 @@ namespace Common
 		{
 			dimx = nx; dimy = ny;
 			depth = new float[nx * ny];
-		};
+		}
+
+		DepthInfo3D(int nx, int ny, DepthInfo3D *info)
+		{
+			dimx = nx; dimy = ny;
+			depth = new float[nx * ny];
+
+			// simple filter
+			for( int i = 0; i < nx; i++ )
+				for( int j = 0; j < ny; j++ ) {
+					int x = i * info->dimx / nx;
+					int y = j * info->dimy / ny;
+					depth[j + i * dimy] = info->depth[y + info->dimy * x];
+				}
+		}
 
 		~DepthInfo3D()
 		{

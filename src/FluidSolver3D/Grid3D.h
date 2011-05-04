@@ -84,6 +84,7 @@ namespace FluidSolver3D
 		void SetStartVel(const Vec3D &vec);
 
 		FluidSolver2D::Grid2D *GetGrid2D();
+		DepthInfo3D *GetDepthInfo();
 		
 		bool LoadFromFile(char *filename, bool align = false);
 		void Prepare(double time);

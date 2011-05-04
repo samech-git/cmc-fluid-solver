@@ -16,11 +16,12 @@ cycles 		1
 frame_time	1.0
 time_steps 	100
 
+out_fmt		NetCDF
 out_time_steps 	10
 out_gridx	96
 out_gridy 	64
 out_gridz	64
-out_fmt		NetCDF
+out_vars	4 u v T d
 
 solver		ADI
 num_global 	4

@@ -145,6 +145,11 @@ namespace FluidSolver3D
 		return grid2D;
 	}
 
+	DepthInfo3D *Grid3D::GetDepthInfo()
+	{
+		return depthInfo;
+	}
+
 	void Grid3D::SetNodeVel(int i, int j, int k, Vec3D new_v)
 	{
 		nodes[i * dimy * dimz + j * dimz + k].v = new_v;

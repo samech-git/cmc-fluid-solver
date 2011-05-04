@@ -136,7 +136,7 @@ int main(int argc, char **argv)
 	BBox3D *bbox = NULL;
 	if( Config::in_fmt == Shape2D ) bbox = new BBox3D( grid->GetGrid2D()->bbox, (float)Config::depth );
 		else bbox = &grid->GetBBox();
-	OutputNetCDF3D_header(outputPath, bbox, dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy, Config::outdimz, Config::in_fmt == SeaNetCDF );
+	OutputNetCDF3D_header(outputPath, bbox, grid->GetDepthInfo(), dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy, Config::outdimz, Config::out_vars, Config::in_fmt == SeaNetCDF );
 	
 	// allocate result arrays
 	Vec3D *resVel = new Vec3D[Config::outdimx * Config::outdimy * Config::outdimz];
@@ -174,8 +174,7 @@ int main(int argc, char **argv)
 			if (dur > layer_time) dur = layer_time;
 
 			solver->GetLayer(resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz);
-			OutputNetCDF3D_layer(outputPath, resVel, resT, out_layer, Config::outdimx, Config::outdimy, Config::outdimz, 
-							(i + Config::out_time_steps >= Config::time_steps) && (currentframe == frames-1));
+			OutputNetCDF3D_layer(outputPath, resVel, resT, out_layer, Config::outdimx, Config::outdimy, Config::outdimz, Config::out_vars);
 			out_layer++;
 		}
 	}
