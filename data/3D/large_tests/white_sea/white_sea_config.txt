@@ -7,6 +7,7 @@ lambda		1.4
 
 bc_type		NoSlip
 bc_initv	-0.25 -0.25 0.0
+bc_initT	1.01
 
 grid_dx		0.035
 grid_dy		0.15

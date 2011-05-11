@@ -328,11 +328,9 @@ namespace Common
 
 	static void OutputNetCDF3D_layer(const char *outputPath, Vec3D *vel, double *T, int time, int dimx, int dimy, int dimz, const vector<string>& vars)
 	{
-		int status;
-
 		// open netcdf
 		int ncid;
-		status = nc_open( outputPath, NC_WRITE, &ncid );
+		nc_open( outputPath, NC_WRITE, &ncid );
 
 		const size_t start[] = { time, 0, 0, 0 };
 		const size_t count[] = { 1, dimx, dimy, dimz };

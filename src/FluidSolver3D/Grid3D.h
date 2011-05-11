@@ -52,6 +52,8 @@ namespace FluidSolver3D
 		double dx, dy, dz;
 
 		double baseT;
+		Vec3D bcInVel;
+		double bcInT;
 
 		Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend, bool useNetCDF = false);			// 2D shape with constant depth
 		Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend, bool useNetCDF = false);						// 3D shape, polygons
@@ -81,7 +83,7 @@ namespace FluidSolver3D
 		int GetFrame(double time);
 		float GetLayerTime(double time);
 		void SetFrameTime(double time);
-		void SetStartVel(const Vec3D &vec);
+		void SetBoundParams(const Vec3D &vec, const double &temp);
 
 		FluidSolver2D::Grid2D *GetGrid2D();
 		DepthInfo3D *GetDepthInfo();
@@ -108,7 +110,6 @@ namespace FluidSolver3D
 		FrameInfo3D* frames;
 		int num_frames;
 		double frame_time;
-		Vec3D init_vel;
 
 		// static by now
 		DepthInfo3D *depthInfo;

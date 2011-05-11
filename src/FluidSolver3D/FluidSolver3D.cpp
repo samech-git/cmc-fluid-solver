@@ -73,22 +73,22 @@ int main(int argc, char **argv)
 	Grid3D *grid = NULL;
 	if( Config::in_fmt == Shape3D ) 
 	{
-		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::startT, backend);
+		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::baseT, backend);
 		printf("Geometry: 3D polygons\n", grid->dimx, grid->dimy, grid->dimz);
 	}
 	else if( Config::in_fmt == Shape2D )
 	{
-		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::depth, Config::startT, backend);
+		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::depth, Config::baseT, backend);
 		printf("Geometry: extruded 2D shape\n");
 	}
 	else
 	{
-		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::startT, backend, true);
+		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::baseT, backend, true);
 		printf("Geometry: depths from NetCDF\n");
 	}
 
 	grid->SetFrameTime( Config::frame_time );
-	grid->SetStartVel( Config::bc_inV );
+	grid->SetBoundParams( Config::bc_inV, Config::bc_inT );
 
 	printf("Grid options:\n  align %s\n", align ? "ON" : "OFF");
 	if (grid->LoadFromFile(inputPath, align))

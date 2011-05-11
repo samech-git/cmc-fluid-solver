@@ -119,9 +119,10 @@ namespace FluidSolver3D
 		frame_time = time;
 	}
 
-	void Grid3D::SetStartVel(const Vec3D &vec)
+	void Grid3D::SetBoundParams(const Vec3D &vec, const double &temp)
 	{
-		init_vel = vec;
+		bcInVel = vec;
+		bcInT = temp;
 	}
 
 	int Grid3D::GetFrame(double time)
@@ -801,7 +802,10 @@ namespace FluidSolver3D
 				if (GetType(i, dimy-1, k) == NODE_IN) 
 				{
 					SetType(i, dimy-1, k, NODE_VALVE);
-					SetData(i, dimy-1, k, BC_NOSLIP, BC_NOSLIP, ( k < (start+end)/2 ) ? init_vel : Vec3D()-init_vel, (float)baseT);
+					if( k < (start+end)/2 )
+						SetData(i, dimy-1, k, BC_NOSLIP, BC_NOSLIP, bcInVel, (float)bcInT);
+					else
+						SetData(i, dimy-1, k, BC_NOSLIP, BC_NOSLIP, Vec3D()-bcInVel, 2.0f-(float)bcInT);
 				}
 		}
 
@@ -816,7 +820,10 @@ namespace FluidSolver3D
 				if (GetType(dimx-1, j, k) == NODE_IN) 
 				{
 					SetType(dimx-1, j, k, NODE_VALVE);
-					SetData(dimx-1, j, k, BC_NOSLIP, BC_NOSLIP, ( k < (start+end)/2 ) ? init_vel : Vec3D()-init_vel, (float)baseT);
+					if( k < (start+end)/2 )
+						SetData(dimx-1, j, k, BC_NOSLIP, BC_NOSLIP, bcInVel, (float)bcInT);
+					else
+						SetData(dimx-1, j, k, BC_NOSLIP, BC_NOSLIP, Vec3D()-bcInVel, 2.0f-(float)bcInT);
 				}
 		}
 	}

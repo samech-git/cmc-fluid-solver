@@ -48,12 +48,13 @@ namespace Common
 		static bool bc_noslip;
 		static double bc_strength;			// [0..1] if 0 - noslip, if 1 - slip
 		static Vec3D bc_inV;
+		static double bc_inT;
 
 		// depth of our 3D object (along Z direction)
 		static double depth;				
 
 		// thermodynamic params
-		static double R_specific, k, cv, startT;		 
+		static double R_specific, k, cv, baseT;		 
 
 		// time params
 		static int cycles, time_steps, out_time_steps;
@@ -74,11 +75,12 @@ namespace Common
 			R_specific = 461.495;		// water,	287.058	for air (gas constant)
 			k = 0.6;					// water (thermal conductivity)
 			cv = 4200.0;				// water (specific heat capacity at constant volume)
-			startT = 1.0;				// normalized
+			baseT = 1.0;				// normalized
 
 			bc_noslip = true;	
 			bc_strength = 0.5;
 			bc_inV = Vec3D(0.0f, 0.0f, 0.0f);
+			bc_inT = baseT;
 
 			useNormalizedParams = false;
 			viscosity = 0.05;
@@ -204,6 +206,7 @@ namespace Common
 				if (!strcmp(str, "bc_type")) ReadBC(file);
 				if (!strcmp(str, "bc_strenght")) ReadDouble(file, bc_strength);
 				if (!strcmp(str, "bc_initv")) { ReadFloat(file, bc_inV.x); ReadFloat(file, bc_inV.y); ReadFloat(file, bc_inV.z); }
+				if (!strcmp(str, "bc_initT")) { ReadDouble(file, bc_inT); }
 
 				if (!strcmp(str, "grid_dx")) ReadDouble(file, dx);
 				if (!strcmp(str, "grid_dy")) ReadDouble(file, dy);
@@ -267,10 +270,11 @@ namespace Common
 	bool Config::bc_noslip;
 	double Config::bc_strength;
 	Vec3D Config::bc_inV;
+	double Config::bc_inT;
 
 	double Config::depth;
 
-	double Config::R_specific, Config::k, Config::cv, Config::startT;		 
+	double Config::R_specific, Config::k, Config::cv, Config::baseT;		 
 
 	int Config::cycles, Config::time_steps, Config::out_time_steps;
 	double Config::frame_time;
