@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 	Config::LoadFromFile(configPath);
 
 	//--------------------------------------- Initializing ---------------------------------------
-	Grid2D grid(Config::dx, Config::dy, Config::startT, Config::bc_noslip, Config::bc_strength);
+	Grid2D grid(Config::dx, Config::dy, Config::baseT, Config::bc_noslip, Config::bc_strength);
 	if (grid.LoadFromFile(inputPath, fieldPath))
 	{
 		printf("dx,dy,dimx,dimy,bc_noslip\n");
