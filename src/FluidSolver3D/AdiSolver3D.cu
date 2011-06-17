@@ -251,7 +251,7 @@ namespace FluidSolver3D
 	{
 		// fetch current segment info
 		int id = blockIdx.x * blockDim.x + threadIdx.x;
-		if( id > num_seg ) return;
+		if( id >= num_seg ) return;
 		Segment3D &seg = segs[id];
 		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
 		int n = seg.size;
@@ -272,7 +272,7 @@ namespace FluidSolver3D
 	{
 		// fetch current segment info
 		int id = blockIdx.x * blockDim.x + threadIdx.x;
-		if( id > num_seg ) return;
+		if( id >= num_seg ) return;
 		Segment3D &seg = segs[id];
 		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
 		int n = seg.size;
@@ -289,7 +289,7 @@ namespace FluidSolver3D
 	{
 		// fetch current segment info
 		int id = blockIdx.x * blockDim.x + threadIdx.x;
-		if( id > num_seg ) return;
+		if( id >= num_seg ) return;
 		Segment3D &seg = segs[id];
 		int max_n = max( max( next.dimx, next.dimy ), next.dimz );
 		int n = seg.size;

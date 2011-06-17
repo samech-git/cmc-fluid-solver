@@ -13,6 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A62347ED-7162-46C0-B1AE-88CF199E94AB}</ProjectGuid>
     <RootNamespace>FluidSolver3D</RootNamespace>
+    <ProjectName>FluidSolver3D</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
