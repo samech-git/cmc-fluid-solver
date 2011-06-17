@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FluidSolver3D", "FluidSolver3D\FluidSolver3D.vcproj", "{51834B2C-BC73-46C3-AC97-E7D12333E0C0}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FluidSolver3D", "FluidSolver3D\FluidSolver3D_2008.vcproj", "{51834B2C-BC73-46C3-AC97-E7D12333E0C0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
