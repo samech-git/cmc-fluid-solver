@@ -16,7 +16,11 @@
 
 #include "AdiSolver3D.h"
 
+#if( __CUDA_ARCH__ < 120 )
+#define SOLVER_BLOCK_DIM	128
+#else
 #define SOLVER_BLOCK_DIM	256
+#endif
 
 #define SEG_BLOCK_DIM_X		32
 #define SEG_BLOCK_DIM_Y		8
