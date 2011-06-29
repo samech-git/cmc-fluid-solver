@@ -15,7 +15,12 @@
  */
 
 #include "AdiSolver3D.h"
+
+#ifdef _WIN32
 #include "..\Common\Algorithms.h"
+#elif __unix__
+#include "../Common/Algorithms.h"
+#endif
 
 namespace FluidSolver3D
 {

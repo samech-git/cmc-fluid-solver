@@ -18,6 +18,10 @@
 
 #include "Grid3D.h"
 
+#ifdef linux
+#include <cmath>  // for abs functions
+#endif
+
 using namespace FluidSolver3D;
 
 #include <cuda_runtime.h>

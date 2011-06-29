@@ -18,7 +18,11 @@
 
 #define PROFILE_ENABLE		1
 
+#ifdef _WIN32
 #include "..\Common\Profiler.h"
+#elif __unix__
+#include "../Common/Profiler.h"
+#endif
 
 #include "Solver3D.h"
 

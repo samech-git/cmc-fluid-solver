@@ -16,6 +16,10 @@
 
 #include "FluidSolver3D.h"
 
+#ifdef linux
+#include <typeinfo>
+#endif
+
 using namespace FluidSolver3D;
 using namespace Common;
 
@@ -180,6 +184,8 @@ int main(int argc, char **argv)
 	}
 	timer.stop();
 	printf("\nTotal time: %.2f sec\n", timer.elapsed_sec());
+
+	//OutputSliceResult("last_zslice.txt", 32, resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, (float)dt * Config::out_time_steps);
 
 	delete solver;
 	delete [] resVel;

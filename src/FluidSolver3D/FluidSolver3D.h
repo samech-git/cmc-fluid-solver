@@ -23,6 +23,12 @@
 
 #include "AdiSolver3D.h"
 
+#ifdef _WIN32
 #include "..\Common\Geometry.h"
 #include "..\Common\IO.h"
 #include "..\Common\Config.h"
+#elif __unix__
+#include "../Common/Geometry.h"
+#include "../Common/IO.h"
+#include "../Common/Config.h"
+#endif

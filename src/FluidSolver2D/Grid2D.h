@@ -16,8 +16,13 @@
 
 #pragma once
 
+#ifdef _WIN32
 #include "..\Common\Geometry.h"
 #include "..\Common\IO.h"
+#elif __unix__
+#include "../Common/Geometry.h"
+#include "../Common/IO.h"
+#endif
 
 #include <stdlib.h>
 #include <vector>

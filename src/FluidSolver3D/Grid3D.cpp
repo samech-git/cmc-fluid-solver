@@ -16,6 +16,10 @@
 
 #include "Grid3D.h"
 
+#ifdef linux
+#include <cmath> //for abs functions
+#endif
+
 namespace FluidSolver3D
 {
 	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend, bool useNetCDF) : 
@@ -267,7 +271,7 @@ namespace FluidSolver3D
 
 		double *lons = new double[ny];
 		nc_get_var(ncid, lonid, lons);
-
+	
 		// read depths
 		int varid;
 		nc_inq_varid(ncid, "z", &varid);
@@ -871,12 +875,15 @@ namespace FluidSolver3D
 		bfh.bfSize = bfh.bfOffBits + sizeof(char) * 3 * dimx * dimy + dimx * (dimy % 4);
 		
 		memset(&bih, sizeof(bih), 0);
-		bih.biSize = sizeof(bih);
+		bih.biSize = int(sizeof(bih));
 		bih.biBitCount = 24;
-		bih.biCompression = 0L;
+		bih.biCompression = 0L;//0L;
 		bih.biHeight = dimx;
 		bih.biWidth = dimy;
 		bih.biPlanes = 1;
+
+		//bih.biSizeImage = bfh.bfSize - bfh.bfOffBits;
+		bih.biClrUsed = 8;
 
 		for (int k = 0; k < dimz; k++)
 		{
@@ -908,7 +915,6 @@ namespace FluidSolver3D
 					case NODE_BOUND: color[0] = (char)255; color[1] = (char)255; color[2] = (char)255; break;	// white
 					case NODE_VALVE: color[0] = (char)241; color[1] = (char)41; color[2] = (char)212; break;	// purple
 					}
-
 					fwrite(color, sizeof(char) * 3, 1, file);
 				}
 				fwrite(color, sizeof(char) * 3, dimy % 4, file);

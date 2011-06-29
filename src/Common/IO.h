@@ -18,7 +18,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <direct.h>
+#include <stdint.h>
 
 #include <string>
 #include <iostream>
@@ -26,36 +26,47 @@
 #include <vector>
 #include <algorithm>
 
+#ifdef _WIN32
 #include <NetCDF.h>
+#elif linux
+#include <netcdf.h>
+#endif
 
 #define MAX_STR_SIZE	255
 
 using namespace std;
 
+#ifdef _MSC_VER
+#include <direct.h>
+#elif linux
+#include "LinuxIO.h"
+using namespace LinuxIO;
+#endif
+
 namespace Common
 {	
 	#pragma pack(push,2)
 	typedef struct tagBitmapFileHeader {
-        unsigned short		bfType;
-        unsigned long		bfSize;
-        unsigned short		bfReserved1;
-        unsigned short		bfReserved2;
-        unsigned long		bfOffBits;
+        uint16_t 		bfType;
+        uint32_t		bfSize;
+        uint16_t 		bfReserved1;
+        uint16_t 		bfReserved2;
+        uint32_t		bfOffBits;
 	} BitmapFileHeader;
 	#pragma pack(pop)
 
 	typedef struct tagBitmapInfoHeader {
-        unsigned long		biSize;
-        long				biWidth;
-        long				biHeight;
-        unsigned short      biPlanes;
-        unsigned short      biBitCount;
-        unsigned long		biCompression;
-        unsigned long		biSizeImage;
-		long			    biXPelsPerMeter;
-        long				biYPelsPerMeter;
-        unsigned long		biClrUsed;
-        unsigned long		biClrImportant;
+        uint32_t		biSize;
+        int32_t			biWidth;
+        int32_t			biHeight;
+        uint16_t		biPlanes;
+        uint16_t		biBitCount;
+        uint32_t		biCompression;
+        uint32_t		biSizeImage;
+				int32_t			biXPelsPerMeter;
+        int32_t			biYPelsPerMeter;
+        uint32_t		biClrUsed;
+        uint32_t		biClrImportant;
 	} BitmapInfoHeader;
 
 	inline std::string stringify(int x)

@@ -15,7 +15,11 @@
  */
 
 #include "Grid2D.h"
-#include "IO.h"
+//#include "IO.h"
+
+#ifdef linux
+#include <cmath>  // for abs functions
+#endif
 
 namespace FluidSolver2D
 {
@@ -288,6 +292,7 @@ namespace FluidSolver2D
 				frames[j].Shapes[i].Init(temp);
 				for (int k=0; k<frames[j].Shapes[i].NumPoints; k++)
 				{
+
 					ReadPoint2D(file, p);
 					frames[j].Shapes[i].Points[k].x = p.x * GRID_SCALE_FACTOR;
 					frames[j].Shapes[i].Points[k].y = p.y * GRID_SCALE_FACTOR;

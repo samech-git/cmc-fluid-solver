@@ -16,10 +16,18 @@
 
 #pragma once
 
+#ifdef _WIN32
 #include "..\Common\Geometry.h"
 #include "..\Common\IO.h"
 
 #include "..\FluidSolver2D\Grid2D.h"
+
+#elif __unix__
+#include "../Common/Geometry.h"
+#include "../Common/IO.h"
+
+#include "../FluidSolver2D/Grid2D.h"
+#endif
 
 #include <cuda_runtime.h>
 #include <netcdf.h>

@@ -48,7 +48,7 @@ namespace Common
 
 		Vec2D() : x(0.0), y(0.0) { }
 		Vec2D(FTYPE _x, FTYPE _y) : x(_x), y(_y) { }
-		Vec2D(Vec2D &vec) : x(vec.x), y(vec.y) { }
+		Vec2D(const Vec2D &vec) : x(vec.x), y(vec.y) { }
 
 		Vec2D operator += (const Vec2D &vec)
 		{
@@ -96,7 +96,7 @@ namespace Common
 
 		Vec3D() : x(0.0), y(0.0), z(0.0) { }
 		Vec3D(FTYPE _x, FTYPE _y, FTYPE _z) : x(_x), y(_y), z(_z) { }
-		Vec3D(Vec3D &vec) : x(vec.x), y(vec.y), z(vec.z) { }
+		Vec3D(const Vec3D &vec) : x(vec.x), y(vec.y), z(vec.z) { }
 
 		Vec3D operator += (const Vec3D &vec)
 		{
@@ -164,7 +164,7 @@ namespace Common
 
 		VecTN() : tangent(0,0), normal(0,0) { }
 		VecTN(Vec2D _x, Vec2D _y) : tangent(_x), normal(_y) { }
-		VecTN(VecTN &vec) : tangent(vec.tangent), normal(vec.normal) { }
+		VecTN(const VecTN &vec) : tangent(vec.tangent), normal(vec.normal) { }
 		VecTN(FTYPE x1, FTYPE y1, FTYPE x2, FTYPE y2) : tangent(x1, y1), normal(x2, y2) { }
 	};
 

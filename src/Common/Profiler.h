@@ -16,8 +16,14 @@
 
 #pragma once
 
+#ifdef _WIN32
 #include "..\Common\Timer.h"
+#elif __unix__
+#include "../Common/Timer.h"
+#endif
 
+#include <stdio.h>
+#include <string>
 #include <map>
 #include <algorithm>
 #include <vector>
@@ -85,10 +91,10 @@ namespace Common
 				printf("%s,%s,%s,%s,\n", "Event Name", "Total (ms)", "Avg (ms)", "Count");
 				
 				// copy to vector and sort by values
-				vector<pair<string,EventInfo>> v(events.begin(), events.end());
+				vector<pair<string,EventInfo> > v(events.begin(), events.end());
 				sort(v.begin(), v.end(), ValueCmp());
 				
-				for( vector<pair<string,EventInfo>>::iterator it = v.begin(); it != v.end(); it++ )
+				for( vector<pair<string,EventInfo> >::iterator it = v.begin(); it != v.end(); it++ )
 				{
 					EventInfo &e = it->second;
 					e.avg_ms = e.total_ms / e.count;
@@ -104,10 +110,10 @@ namespace Common
 				printf("%16s%16s%16s%16s\n", "Event Name", "Total (ms)", "Avg (ms)", "Count");
 				
 				// copy to vector and sort by values
-				vector<pair<string,EventInfo>> v(events.begin(), events.end());
+				vector<pair<string,EventInfo> > v(events.begin(), events.end());
 				sort(v.begin(), v.end(), ValueCmp());
 				
-				for( vector<pair<string,EventInfo>>::iterator it = v.begin(); it != v.end(); it++ )
+				for( vector<pair<string,EventInfo> >::iterator it = v.begin(); it != v.end(); it++ )
 				{
 					EventInfo &e = it->second;
 					e.avg_ms = e.total_ms / e.count;
