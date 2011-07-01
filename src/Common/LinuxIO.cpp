@@ -9,6 +9,7 @@ int LinuxIO::fopen_s( FILE** pFile, const char *filename, const char *mode )
 		return 0;
 	else   
 		return 1;
+}
 
 int LinuxIO::sprintf_s(char *buffer, const char *fmt, ...)
 {	

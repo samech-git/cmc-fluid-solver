@@ -1,14 +1,12 @@
-# Ubuntu 10.10
-
-CUDA_INSTALL_PATH = /usr/local/cuda
+CUDA_INSTALL_PATH = /usr/local/cuda40
 NETCDF_INSTALL_PATH = /usr
 
-CXX := g++ -fopenmp
-LINK := g++ -fPIC -fopenmp
+CXX := icc -openmp
+LINK := icc -fPIC
 NVCC := nvcc -ccbin /usr/bin -arch=compute_20 -code=sm_20
 
 # Includes
-INCLUDES = -I. -I$(CUDA_INSTALL_PATH)/include -I$(NETCDF_INSTALL_PATH)/include -I../FluidSolver2D
+INCLUDES = -I. -I$(CUDA_INSTALL_PATH)/include -I$(NETCDF_INSTALL_PATH)/include/netcdf -I../FluidSolver2D
 
 # Common flags
 COMMONFLAGS += $(INCLUDES)
@@ -17,13 +15,14 @@ CXXFLAGS += $(COMMONFLAGS)
 CFLAGS += $(COMMONFLAGS)
 
 # Libs
+LIB_INTEL := -L/opt/intel/Compiler/11.1/072/lib/intel64 -liomp5 -lpthread -lguide
 LIB_CUDA :=  -L$(CUDA_INSTALL_PATH)/lib64 -lcudart
-LIB_NETCDF := -L$(NETCDF_INSTALL_PATH)/lib64 -lnetcdf
+LIB_NETCDF := -L$(NETCDF_INSTALL_PATH)/lib64 -L/opt/hdf5/serial/lib -lnetcdf  -lnetcdff -lhdf5_hl -lhdf5 -lgfortran 
 
-OBJS = Grid2D.cpp.o AdiSolver3D.cpp.o AdiSolver3D.cu.o Grid3D.cpp.o \
-       TimeLayer3D.cu.o Solver3D.cpp.o FluidSolver3D.cpp.o LinuxIO.cpp.o
+OBJS = AdiSolver3D.cpp.o AdiSolver3D.cu.o Grid3D.cpp.o \
+       TimeLayer3D.cu.o Solver3D.cpp.o FluidSolver3D.cpp.o LinuxIO.cpp.o Grid2D.cpp.o
 TARGET = ../../bin/Release/FluidSolver3D
-LINKLINE = $(LINK) -o $(TARGET) $(OBJS) $(LIB_CUDA) $(LIB_NETCDF) -lrt
+LINKLINE = $(LINK) -o $(TARGET) $(OBJS) $(LIB_INTEL) $(LIB_CUDA) $(LIB_NETCDF) -lrt
 
 .SUFFIXES: .cpp .cu .o
 

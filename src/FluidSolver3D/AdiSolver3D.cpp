@@ -204,7 +204,7 @@ namespace FluidSolver3D
 
 		// check & output error
 		if (err > ERR_THRESHOLD) {
-			printf("\nError is too big!\n", err);
+			printf("\nError is too big! %f\n", err);
 			exit(1);
 		}
 		else

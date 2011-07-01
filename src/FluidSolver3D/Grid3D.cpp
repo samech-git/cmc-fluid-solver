@@ -877,7 +877,7 @@ namespace FluidSolver3D
 		memset(&bih, sizeof(bih), 0);
 		bih.biSize = int(sizeof(bih));
 		bih.biBitCount = 24;
-		bih.biCompression = 0L;//0L;
+		bih.biCompression = 0;
 		bih.biHeight = dimx;
 		bih.biWidth = dimy;
 		bih.biPlanes = 1;
