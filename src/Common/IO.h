@@ -18,7 +18,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h>
 
 #include <string>
 #include <iostream>
@@ -28,20 +27,29 @@
 
 #ifdef _WIN32
 #include <NetCDF.h>
+#ifdef _MSC_VER
+#include <direct.h>
+#if (_MSC_VER >= 1600)
+#include <stdint.h>
+#else
+typedef __int16 int16_t;
+typedef unsigned __int16 uint16_t;
+typedef __int32 int32_t;
+typedef unsigned __int32 uint32_t;
+typedef __int64 int64_t;
+typedef unsigned __int64 uint64_t;
+#endif
+#endif
 #elif linux
 #include <netcdf.h>
+#include <stdint.h>
+#include "LinuxIO.h"
+using namespace LinuxIO;
 #endif
 
 #define MAX_STR_SIZE	255
 
 using namespace std;
-
-#ifdef _MSC_VER
-#include <direct.h>
-#elif linux
-#include "LinuxIO.h"
-using namespace LinuxIO;
-#endif
 
 namespace Common
 {	
@@ -63,7 +71,7 @@ namespace Common
         uint16_t		biBitCount;
         uint32_t		biCompression;
         uint32_t		biSizeImage;
-				int32_t			biXPelsPerMeter;
+		int32_t			biXPelsPerMeter;
         int32_t			biYPelsPerMeter;
         uint32_t		biClrUsed;
         uint32_t		biClrImportant;
