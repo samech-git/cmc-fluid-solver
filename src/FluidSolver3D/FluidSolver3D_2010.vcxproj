@@ -41,6 +41,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)..\bin\$(Configuration)\</OutDir>
+    <IncludePath>C:\Program Files\Microsoft HPC Pack 2008 R2\Inc;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Program Files\Microsoft HPC Pack 2008 R2\Lib\i386;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -67,7 +69,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
     <CudaCompile>
       <Include>..\NetCDF</Include>
-      <CodeGeneration>compute_10,sm_10</CodeGeneration>
+      <CodeGeneration>compute_10,sm_10; compute_20,sm_20</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

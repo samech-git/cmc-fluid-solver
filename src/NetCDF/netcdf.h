@@ -38,10 +38,12 @@
 #include <stddef.h> /* size_t, ptrdiff_t */
 #include <errno.h>  /* netcdf functions sometimes return system errors */
 /* These defs added by netCDF configure because parallel HDF5 is not present. */
+/*
 #define MPI_Comm int
 #define MPI_Info int
 #define MPI_COMM_WORLD 0
 #define MPI_INFO_NULL 0
+*/
 
 typedef int nc_type;
 

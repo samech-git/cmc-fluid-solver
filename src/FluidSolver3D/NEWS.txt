@@ -1,1 +1,2 @@
-
+08.10.2011
+	Committed MPI version of cmc-fluid-solver with multi GPU support
