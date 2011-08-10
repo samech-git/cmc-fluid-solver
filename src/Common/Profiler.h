@@ -18,8 +18,10 @@
 
 #ifdef _WIN32
 #include "..\Common\Timer.h"
+#include "..\Common\PARAplan.h"
 #elif __unix__
 #include "../Common/Timer.h"
+#include "../Common/PARAplan.h"
 #endif
 
 #include <stdio.h>
@@ -85,6 +87,7 @@ namespace Common
 		void PrintTimings(bool csv)
 		{
 #if PROFILE_ENABLE
+			PARAplan *pplan = PARAplan::Instance();
 			if( csv )
 			{
 				double total_time = 0.0;
@@ -105,7 +108,7 @@ namespace Common
 			}
 			else
 			{
-				printf("Profiling data:\n");
+				printf("Profiling data node(%d):\n", pplan->rank());
 				double total_time = 0.0;
 				printf("%16s%16s%16s%16s\n", "Event Name", "Total (ms)", "Avg (ms)", "Count");
 				
@@ -122,6 +125,7 @@ namespace Common
 				}
 				printf("%16s%16.2f sec\n", "Overall", total_time / 1000);
 			}
+			fflush(stdout);
 #endif
 		}
 	};

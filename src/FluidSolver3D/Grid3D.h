@@ -19,12 +19,16 @@
 #ifdef _WIN32
 #include "..\Common\Geometry.h"
 #include "..\Common\IO.h"
+#include "..\Common\GPUplan.h"
+#include "..\Common\PARAplan.h"
 
 #include "..\FluidSolver2D\Grid2D.h"
 
 #elif __unix__
 #include "../Common/Geometry.h"
 #include "../Common/IO.h"
+#include "../Common/GPUplan.h"
+#include "../Common/PARAplan.h"
 
 #include "../FluidSolver2D/Grid2D.h"
 #endif
@@ -69,6 +73,10 @@ namespace FluidSolver3D
 
 		BBox3D GetBBox();
 
+		void genRandom();
+		void Prepare2();
+		void printTypes();
+
 		NodeType GetType(int i, int j, int k);
 		BCtype GetBC_vel(int i, int j, int k);
 		BCtype GetBC_temp(int i, int j, int k);
@@ -80,7 +88,7 @@ namespace FluidSolver3D
 
 		// return all nodes info as an array
 		Node *GetNodesCPU();							 
-		Node *GetNodesGPU(bool transposed = false);		
+		Node **GetNodesGPU(bool transposed = false);
 
 		void SetNodeVel(int i, int j, int k, Vec3D new_v);
 
@@ -106,8 +114,9 @@ namespace FluidSolver3D
 		BackendType backend;
 
 		Node*		nodes;		// all grid nodes
-		Node*		d_nodes;	// same nodes stored on GPU
-		Node*		d_nodesT;	// transposed nodes on GPU
+
+		Node**	d_nodes;	  // same nodes stored on multiple GPUs
+		Node**		d_nodesT;	// transposed nodes on multiple GPU
 
 		bool use3Dshape;
 		bool useNetCDF;
@@ -128,6 +137,7 @@ namespace FluidSolver3D
 
 		// helper functions for 3D shape update
 		void Init(bool align);
+		void Init2();
 		void Prepare3D_Shape(double time);
 		void Prepare3D_NetCDF(double time);
 

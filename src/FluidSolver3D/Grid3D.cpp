@@ -37,11 +37,63 @@ namespace FluidSolver3D
 	Grid3D::~Grid3D()
 	{
 		if (nodes != NULL) delete [] nodes;
-		if (d_nodes != NULL) cudaFree(d_nodes);
-		if (d_nodesT != NULL) cudaFree(d_nodesT);
+		if (d_nodesT != NULL) multiDevFree<Node>(d_nodesT);
+		if (d_nodes != NULL) multiDevFree<Node>(d_nodes);
 		if (grid2D != NULL) delete grid2D;
 		if (frames != NULL) delete [] frames;
 		if (depthInfo != NULL) delete depthInfo;
+	}
+
+	void Grid3D::genRandom()
+	{
+		Init2();
+		for(int i = 0; i < dimx * dimy * dimz; i++)
+		{
+			nodes[i].v.x = 0.;
+			nodes[i].v.y = 0.;
+			nodes[i].v.z = 0.;
+			nodes[i].T = 10. + std::rand() % 1024;
+		}
+	}
+
+	void Grid3D::printTypes()
+	{
+		PARAplan *pplan = PARAplan::Instance();
+		if (pplan->rank() > 1)
+			return;
+		for (int i = 0; i < dimx; i++)
+		{
+			for (int j = 0; j < dimy; j++)
+			{
+				for (int k = 0; k < dimz; k++)
+					printf("%d  ", nodes[i*dimy*dimz + j*dimz + k].type);
+				printf("\n");
+			}
+			printf("\n");
+		}		
+	}    
+
+	void Grid3D::Prepare2()
+	{
+		//initialize the grid with dummy data
+		for(int i = 0; i < dimx; i++)
+			for(int j = 0; j < dimy; j++)
+				for(int k = 0; k < dimz; k++)
+				{ 
+					int idx = i*dimy*dimz + j*dimz + k;
+					if (( i == 0 || i == dimx-1 )  ||
+						  ( j == 0 || j == dimy-1 ) ||
+						  ( k == 0 || k == dimz-1 ))
+							nodes[idx].type = NODE_BOUND;
+					else 
+						nodes[idx].type = NODE_IN;
+				}
+		// copy to GPU as well
+		if( backend == GPU )
+		{
+			PARAplan* pplan = PARAplan::Instance();
+			multiDevMemcpy<Node>(d_nodes, nodes +	pplan->getOffset1D() * dimy * dimz, pplan->getLength1D() * dimy * dimz);
+		}
 	}
 
 	BBox3D Grid3D::GetBBox()
@@ -54,7 +106,7 @@ namespace FluidSolver3D
 		return nodes[i * dimy * dimz + j * dimz + k].type;
 	}
 
-	Node *Grid3D::GetNodesGPU(bool transposed)
+	Node **Grid3D::GetNodesGPU(bool transposed)
 	{
 		return (transposed ? d_nodesT : d_nodes);
 	}
@@ -173,11 +225,41 @@ namespace FluidSolver3D
 		nodes = new Node[size];
 		if( backend == GPU ) 
 		{
-			cudaMalloc(&d_nodes, sizeof(Node) * size);
-			cudaMalloc(&d_nodesT, sizeof(Node) * size);
+			PARAplan *pplan = PARAplan::Instance();
+			pplan->splitEven1D(dimx);
+			size = pplan->getLength1D() * dimy * dimz;
+			multiDevAlloc<Node> (d_nodes, size); 
+			multiDevAlloc<Node> (d_nodesT, size); 
 		}
 		
-		for (int i=0; i<size; i++)
+		for (int i=0; i<dimx * dimy * dimz; i++)
+		{
+			nodes[i].type = NODE_OUT;
+			nodes[i].v = Vec3D(0.0, 0.0, 0.0);
+			nodes[i].T = 0;
+		}
+	}
+
+	void Grid3D::Init2()
+	{
+		dimx = 1./dx ;
+		dimy = 1./dy ;
+		dimz = 1./dz ;
+
+		// allocate data
+		int size = dimx * dimy * dimz;
+		nodes = new Node[size];
+		if( backend == GPU ) 
+		{
+			PARAplan *pplan = PARAplan::Instance();
+			pplan->splitEven1D(dimx);
+			size = pplan->getLength1D() * dimy * dimz;
+
+			multiDevAlloc<Node> (d_nodes, size); 
+			multiDevAlloc<Node> (d_nodesT, size); 
+		}
+		
+		for (int i=0; i<dimx*dimy*dimz; i++)
 		{
 			nodes[i].type = NODE_OUT;
 			nodes[i].v = Vec3D(0.0, 0.0, 0.0);
@@ -299,8 +381,10 @@ namespace FluidSolver3D
 
 		if( backend == GPU ) 
 		{
-			cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
-			cudaMalloc(&d_nodesT, sizeof(Node) * dimx * dimy * dimz);
+			PARAplan *pplan = PARAplan::Instance();
+			int size = pplan->getLength1D() * dimy * dimz;
+			multiDevAlloc<Node> (d_nodes, size); 
+			multiDevAlloc<Node> (d_nodesT, size); 
 		}
 
 		return true;
@@ -328,8 +412,12 @@ namespace FluidSolver3D
 				num_frames = grid2D->GetFramesNum();
 				if( backend == GPU ) 
 				{
-					cudaMalloc(&d_nodes, sizeof(Node) * dimx * dimy * dimz);
-					cudaMalloc(&d_nodesT, sizeof(Node) * dimx * dimy * dimz);
+					PARAplan *pplan = PARAplan::Instance();
+					//Split the grid along x direction:
+					pplan->splitEven1D(dimx);
+					int size = pplan->getLength1D() * dimy * dimz;
+					multiDevAlloc<Node> (d_nodes, size);
+					multiDevAlloc<Node> (d_nodesT, size);
 				}
 				return true;
 			}
@@ -351,22 +439,23 @@ namespace FluidSolver3D
 		// copy to GPU as well
 		if( backend == GPU ) 
 		{
-			cudaMemcpy(d_nodes, nodes, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyHostToDevice);
-
+			PARAplan* pplan = PARAplan::Instance();
+			int dimxOffset = pplan->getOffset1D();
+			int dimxNode = pplan->getLength1D();
+			multiDevMemcpy<Node>(d_nodes, nodes + dimxOffset*dimy*dimz, dimxNode * dimy * dimz);
 			// currently implemented on CPU but it's possible to do a transpose on GPU
-			for (int i = 0; i < dimx; i++)
+			for (int i = dimxOffset; i < dimxOffset + dimxNode; i++)
 				for (int j = 0; j < dimy; j++)
 					for (int k = j+1; k < dimz; k++)
 					{
-						int id = i * dimy * dimz + j * dimz + k;
-						int idT = i * dimy * dimz + k * dimy + j;
+						int id = (i) * dimy * dimz + j * dimz + k;
+						int idT = (i) * dimy * dimz + k * dimy + j;
 						Node tmp = nodes[idT];
 						nodes[idT] = nodes[id];
 						nodes[id] = tmp;
 					}
-
-			cudaMemcpy(d_nodesT, nodes, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyHostToDevice);
-			cudaMemcpy(nodes, d_nodes, sizeof(Node) * dimx * dimy * dimz, cudaMemcpyDeviceToHost);
+			multiDevMemcpy<Node>(d_nodesT, nodes + dimxOffset*dimy*dimz, dimxNode * dimy * dimz);
+			multiDevMemcpy<Node>(nodes + dimxOffset*dimy*dimz, d_nodes, dimxNode * dimy * dimz);
 		}
 	}
 
@@ -587,7 +676,7 @@ namespace FluidSolver3D
 			int j = queue[cur * 3 + 1];
 			int k = queue[cur * 3 + 2];
 
-			// add neighbours
+			// add neighbors
 			for (int t = 0; t < n; t++)
 			{
 				int next_i = i + neighborPos[t * 3 + 0];
@@ -834,6 +923,9 @@ namespace FluidSolver3D
 
 	void Grid3D::TestPrint(char *filename)
 	{
+		PARAplan *pplan = PARAplan::Instance();
+		if (pplan->rank() > 0)
+			return;
 		FILE *file = NULL;
 		fopen_s(&file, filename, "w");
 		fprintf(file, "grid (z-slices):\n");
@@ -866,6 +958,9 @@ namespace FluidSolver3D
 
 	void Grid3D::OutputImage(char *filename_base)
 	{
+		PARAplan *pplan = PARAplan::Instance();
+		if (pplan->rank() > 0)
+			return;
 		BitmapFileHeader bfh;
 		BitmapInfoHeader bih;
 		

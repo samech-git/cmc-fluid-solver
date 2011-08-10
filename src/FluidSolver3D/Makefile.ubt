@@ -20,8 +20,8 @@ CFLAGS += $(COMMONFLAGS)
 LIB_CUDA :=  -L$(CUDA_INSTALL_PATH)/lib64 -lcudart
 LIB_NETCDF := -L$(NETCDF_INSTALL_PATH)/lib64 -lnetcdf
 
-OBJS = Grid2D.cpp.o AdiSolver3D.cpp.o AdiSolver3D.cu.o Grid3D.cpp.o \
-       TimeLayer3D.cu.o Solver3D.cpp.o FluidSolver3D.cpp.o LinuxIO.cpp.o
+OBJS = AdiSolver3D.cpp.o AdiSolver3D.cu.o ../FluidSolver2D//Grid2D.cpp.o Grid3D.cpp.o \
+       TimeLayer3D.cu.o Solver3D.cpp.o FluidSolver3D.cpp.o LinuxIO.cpp.o GPUplan.cpp.o test_util.cpp.o
 TARGET = ../../bin/Release/FluidSolver3D
 LINKLINE = $(LINK) -o $(TARGET) $(OBJS) $(LIB_CUDA) $(LIB_NETCDF) -lrt
 
@@ -38,6 +38,12 @@ Grid2D.cpp.o: ../FluidSolver2D/Grid2D.cpp
 
 LinuxIO.cpp.o: ../Common/LinuxIO.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+GPUplan.cpp.o: ../Common/GPUplan.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+test_util.cpp.o: ../Common/test_util.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@	
 
 all: $(OBJS) Makefile
 	$(LINKLINE)

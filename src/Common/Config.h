@@ -205,6 +205,7 @@ namespace Common
 
 				if (!strcmp(str, "bc_type")) ReadBC(file);
 				if (!strcmp(str, "bc_strenght")) ReadDouble(file, bc_strength);
+				//if (!strcmp(str, "bc_initv")) { ReadDouble(file, bc_inV.x); ReadDouble(file, bc_inV.y); ReadDouble(file, bc_inV.z); }
 				if (!strcmp(str, "bc_initv")) { ReadFloat(file, bc_inV.x); ReadFloat(file, bc_inV.y); ReadFloat(file, bc_inV.z); }
 				if (!strcmp(str, "bc_initT")) { ReadDouble(file, bc_inT); }
 

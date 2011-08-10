@@ -25,6 +25,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "PARAplan.h"
+
 #ifdef _WIN32
 #include <NetCDF.h>
 #ifdef _MSC_VER
@@ -452,6 +454,10 @@ namespace Common
 
 	static void PrintTimeStepInfo(int frame, int subframe, double cur_time, double max_time, float elapsed_time)
 	{
+		PARAplan *pplan = PARAplan::Instance();
+		if (pplan->rank() > 0)
+			return;
+
 		float perresf = (float)cur_time * 100 / (float)max_time;
 
 		if (perresf < 2)
@@ -468,6 +474,7 @@ namespace Common
 
 			printf(" frame %i\tsubstep %i\t%i%%\t(%i h %i m %i s left)", frame, subframe, (int)perresf, time_h, time_m, time_s);
 		}
+		fflush(stdout);
 	}
 
 	static void FindFile(char *path, char *filename, bool checkExist = true)

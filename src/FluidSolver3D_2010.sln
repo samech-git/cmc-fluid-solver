@@ -3,6 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FluidSolver3D", "FluidSolver3D\FluidSolver3D_2010.vcxproj", "{A62347ED-7162-46C0-B1AE-88CF199E94AB}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C0F342D7-D6BA-449E-81C6-29E237763847}"
+	ProjectSection(SolutionItems) = preProject
+		FluidSolver3D_2010.vsd = FluidSolver3D_2010.vsd
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32

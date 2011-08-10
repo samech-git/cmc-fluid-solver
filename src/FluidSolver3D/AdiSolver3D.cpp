@@ -22,8 +22,41 @@
 #include "../Common/Algorithms.h"
 #endif
 
+#include "../Common/test_util.h"
+
 namespace FluidSolver3D
 {
+
+	double  AdiSolver3D::sum_layer(char ch)
+	{
+		PARAplan *pplan = PARAplan::Instance();
+
+		TimeLayer3D* layer;
+		switch (ch)
+		{
+		case 'c':
+			layer = cur;
+			break;
+		case 't':
+			layer = temp;
+			break;
+		case 'n':
+			layer = next;
+			break;
+		case 'h':
+			layer = half;
+			break;
+		}
+
+		double sum = 0.;
+		int ndimx = pplan->getLength1D();
+		sum += TestUtil::sumEllementsMultiGPU(layer->U->getMultiArray(), ndimx*dimy*dimz, layer->haloSize);
+		sum += TestUtil::sumEllementsMultiGPU(layer->V->getMultiArray(), ndimx*dimy*dimz, layer->haloSize);
+		sum += TestUtil::sumEllementsMultiGPU(layer->W->getMultiArray(), ndimx*dimy*dimz, layer->haloSize);
+		sum += TestUtil::sumEllementsMultiGPU(layer->T->getMultiArray(), ndimx*dimy*dimz, layer->haloSize);
+		return sum;
+	}
+
 	AdiSolver3D::AdiSolver3D()
 	{
 		grid = NULL;
@@ -37,15 +70,25 @@ namespace FluidSolver3D
 		tempT = NULL;
 		nextT = NULL;
 
-		a = d_a = NULL;
-		b = d_b = NULL;
-		c = d_c = NULL;
-		d = d_d = NULL;
-		x = d_x = NULL;
+		a = NULL;
+		b = NULL;
+		c = NULL;
+		d = NULL;
+		x = NULL;
 
-		h_listX = d_listX = NULL;
-		h_listY = d_listY = NULL;
-		h_listZ = d_listZ = NULL;
+		d_a = NULL;
+		d_b = NULL;
+		d_c = NULL;
+		d_d = NULL;
+		d_x = NULL;
+
+		h_listX = NULL;
+		h_listY = NULL;
+		h_listZ = NULL;
+
+		d_listX = NULL;
+		d_listY = NULL;
+		d_listZ = NULL;
 	}
 
 	void AdiSolver3D::FreeMemory()
@@ -69,15 +112,18 @@ namespace FluidSolver3D
 		if (h_listY != NULL) delete [] h_listY;
 		if (h_listZ != NULL) delete [] h_listZ;
 
-		if (d_a != NULL) cudaFree(d_a);
-		if (d_b != NULL) cudaFree(d_b);
-		if (d_c != NULL) cudaFree(d_c);
-		if (d_d != NULL) cudaFree(d_d);
-		if (d_x != NULL) cudaFree(d_x);
+		if (d_a != NULL) multiDevFree<FTYPE>(d_a);
+		if (d_b != NULL) multiDevFree<FTYPE>(d_b);
+		if (d_c != NULL) multiDevFree<FTYPE>(d_c);
+		if (d_d != NULL) multiDevFree<FTYPE>(d_d);
+		if (d_x != NULL) multiDevFree<FTYPE>(d_x);
 
-		if (d_listX != NULL) cudaFree(d_listX);
-		if (d_listY != NULL) cudaFree(d_listY);
-		if (d_listZ != NULL) cudaFree(d_listZ);
+		if (d_listX != NULL) multiDevFree<Segment3D>(d_listX);
+		if (d_listY != NULL) multiDevFree<Segment3D>(d_listY);
+		if (d_listZ != NULL) multiDevFree<Segment3D>(d_listZ);
+
+		for (int i = 0; i < 3; i++ )
+			delete [] numSegsGPU[i];
 	}
 
 	AdiSolver3D::~AdiSolver3D()
@@ -99,6 +145,10 @@ namespace FluidSolver3D
 		backend = _backend;
 		csvFormat = _csv;
 
+		PARAplan* pplan = PARAplan::Instance();
+		int dimxNodeOffset = pplan->getOffset1D();
+		int dimxNode = pplan->getLength1D();
+
 		dimx = grid->dimx;
 		dimy = grid->dimy;
 		dimz = grid->dimz;
@@ -113,16 +163,19 @@ namespace FluidSolver3D
 
 		if( backend == GPU )
 		{
+			GPUplan *pGPUplan = GPUplan::Instance();
+			for (int i = 0; i < 3; i++ )
+				numSegsGPU[i] = new int[pplan->gpuNum()];
 			// create GPU matrices
-			cudaMalloc( &d_a, sizeof(FTYPE) * n * n * n * MAX_SEGS_PER_ROW );
-			cudaMalloc( &d_b, sizeof(FTYPE) * n * n * n * MAX_SEGS_PER_ROW );
-			cudaMalloc( &d_c, sizeof(FTYPE) * n * n * n * MAX_SEGS_PER_ROW );
-			cudaMalloc( &d_d, sizeof(FTYPE) * n * n * n * MAX_SEGS_PER_ROW );
-			cudaMalloc( &d_x, sizeof(FTYPE) * n * n * n * MAX_SEGS_PER_ROW );
-						
-			cudaMalloc( &d_listX, sizeof(Segment3D) * grid->dimy * grid->dimz * MAX_SEGS_PER_ROW );
-			cudaMalloc( &d_listY, sizeof(Segment3D) * grid->dimx * grid->dimz * MAX_SEGS_PER_ROW );
-			cudaMalloc( &d_listZ, sizeof(Segment3D) * grid->dimx * grid->dimy * MAX_SEGS_PER_ROW );
+			multiDevAlloc<FTYPE>( d_a, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW); // with halos for intercommunication );
+			multiDevAlloc<FTYPE>( d_b, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW);
+			multiDevAlloc<FTYPE>( d_c, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW);
+			multiDevAlloc<FTYPE>( d_d, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW);
+			multiDevAlloc<FTYPE>( d_x, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW);
+
+			multiDevAlloc<Segment3D>( d_listX, grid->dimy * grid->dimz * MAX_SEGS_PER_ROW, false, 0 ); // each device has relevant list of segments
+			multiDevAlloc<Segment3D>( d_listY, grid->dimx * grid->dimz * MAX_SEGS_PER_ROW, false, 0 );
+			multiDevAlloc<Segment3D>( d_listZ, grid->dimx * grid->dimy * MAX_SEGS_PER_ROW, false, 0 );
 		}
 		else
 		{
@@ -135,33 +188,39 @@ namespace FluidSolver3D
 			transposeOpt = false;
 			decomposeOpt = false;
 		}
+		int haloSize = 0; // no MPI support in CPU case
+		if (backend == GPU)
+			haloSize = grid->dimy * grid->dimz;
+		cur = new TimeLayer3D(backend, grid, grid->dimy * grid->dimz);  //create slices with halos
+		half = new TimeLayer3D(backend, dimxNode, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz, haloSize);
+		next = new TimeLayer3D(backend, dimxNode, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz, haloSize);
+		temp = new TimeLayer3D(backend, dimxNode, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz, haloSize);
 
-		cur = new TimeLayer3D(backend, grid);
-		half = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
-		next = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
-		temp = new TimeLayer3D(backend, grid->dimx, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz);
-
-		curT = new TimeLayer3D(backend, grid->dimx, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy);
-		tempT = new TimeLayer3D(backend, grid->dimx, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy);
-		nextT = new TimeLayer3D(backend, grid->dimx, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy);
+		curT = new TimeLayer3D(backend, dimxNode, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy, haloSize);
+		tempT = new TimeLayer3D(backend, dimxNode, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy, haloSize);
+		nextT = new TimeLayer3D(backend, dimxNode, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy, haloSize);
 	}
 
 	void AdiSolver3D::OutputSegmentsInfo(int num, Segment3D *list, char *filename)
 	{
-		FILE *file = NULL;
-		fopen_s(&file, filename, "w");
-		int num_elem = 0;
-		for (int i = 0; i < num; i++) num_elem += list[i].size;
-		fprintf(file, "num_systems = %i\nunknown_elements = %i\nall_elements = %i\n", num, num_elem-num*2, num_elem);
-		for (int i = 0; i < num; i++)
-			fprintf(file, "%i ", list[i].size);
-		fclose(file);
+		PARAplan *pplan = PARAplan::Instance();
+		if (pplan->rank() == 0)
+		{
+			FILE *file = NULL;
+			fopen_s(&file, filename, "w");
+			int num_elem = 0;
+			for (int i = 0; i < num; i++) num_elem += list[i].size;
+			fprintf(file, "num_systems = %i\nunknown_elements = %i\nall_elements = %i\n", num, num_elem-num*2, num_elem);
+			for (int i = 0; i < num; i++)
+				fprintf(file, "%i ", list[i].size);
+			fclose(file);
+		}
 	}
 
 	void AdiSolver3D::TimeStep(FTYPE dt, int num_global, int num_local)
 	{	
-		CreateSegments();
-		
+		PARAplan *pplan = PARAplan::Instance();
+		CreateSegments();	
 		// output segments info to file for benchmarking tridiagonal solvers
 		//OutputSegmentsInfo(numSegs[X], h_listX, "segsX.txt");
 		//OutputSegmentsInfo(numSegs[Y], h_listY, "segsY.txt");
@@ -179,21 +238,22 @@ namespace FluidSolver3D
 			cur->Transpose(curT);
 			prof.StopEvent("Transpose");
 		}
-
-		// do global iterations
+		// do global iterations		
 		for (int it = 0; it < num_global; it++)
 		{
 			// alternating directions
 			SolveDirection(Z, dt, num_local, h_listZ, d_listZ, cur, temp, next);
+     	//printf("AdiSolver3D::TimeStep: temp, next after SolveDirection(Z): %f    %f\n",  sum_layer('t'), sum_layer('n'));
 			SolveDirection(Y, dt, num_local, h_listY, d_listY, next, temp, half);
-			SolveDirection(X, dt, num_local, h_listX, d_listX, half, temp, next);
+			//printf("AdiSolver3D::TimeStep: temp, half after SolveDirection(Z and Y): %f    %f\n",  sum_layer('t'), sum_layer('h'));						
+			SolveDirection(X, dt, num_local, h_listX, d_listX, half, temp, next);			
+			//printf("AdiSolver3D::TimeStep: temp, next after SolveDirection(Z,Y, and X): %f    %f\n",  sum_layer('t'), sum_layer('n'));
 
 			// update non-linear layer
 			prof.StartEvent();
 			next->MergeLayerTo(grid, temp, NODE_IN);
 			prof.StopEvent("MergeLayer");
-		}
-		
+		}		
 		// smooth results
 		//temp->Smooth(grid, next, NODE_IN);
 
@@ -205,10 +265,14 @@ namespace FluidSolver3D
 		// check & output error
 		if (err > ERR_THRESHOLD) {
 			printf("\nError is too big! %f\n", err);
-			exit(1);
+			throw runtime_error("");
 		}
 		else
-			printf("\rerr = %.8f,", err);
+			if (pplan->rank() == 0)
+			{
+				printf("\rerr = %.8f,", err);
+				fflush(stdout);
+			}
 
 		// clear cells for dynamic grid update
 		prof.StartEvent();
@@ -222,9 +286,27 @@ namespace FluidSolver3D
 	}
 
 	template<DirType dir>
-	void AdiSolver3D::CreateListSegments(int &numSeg, Segment3D *h_list, Segment3D *d_list, int dim1, int dim2, int dim3)
+	void AdiSolver3D::CreateListSegments(int &numSeg, Segment3D *h_list, Segment3D **d_list, int dim1, int dim2, int dim3)
 	{	
+		PARAplan* pplan = PARAplan::Instance();
+		int dimxNode = pplan->getLength1D();
+		int dimxNodeOffset = pplan->getOffset1D();
 		numSeg = 0;
+
+		Segment3D* hh_list;
+		switch (dir)
+		{
+		case X:
+			hh_list = new Segment3D[grid->dimy * grid->dimz * MAX_SEGS_PER_ROW];
+			break;
+		case Y:
+			hh_list = new Segment3D[grid->dimx * grid->dimz * MAX_SEGS_PER_ROW];
+			break;
+		case Z:
+			hh_list = new Segment3D[grid->dimx * grid->dimy * MAX_SEGS_PER_ROW];
+			break;
+		}
+
 		for (int i = 0; i < dim2; i++)
 			for (int j = 0; j < dim3; j++)
 			{
@@ -265,7 +347,9 @@ namespace FluidSolver3D
 
 							new_seg.size = (new_seg.endx - new_seg.posx) + (new_seg.endy - new_seg.posy) + (new_seg.endz - new_seg.posz) + 1;
 
-							h_list[numSeg] = new_seg;
+							new_seg.skipX = false;
+							new_seg.type = BOUND;
+							hh_list[numSeg] = new_seg;
 							numSeg++;
 							state = 0;
 						}
@@ -277,11 +361,87 @@ namespace FluidSolver3D
 				}
 			}
 
+		numSeg = _nodeSplitListSegments<dir>(h_list, numSeg, hh_list, dimxNode, dimxNodeOffset);
+
 		if( backend == GPU )
 		{
 			// copy segments info to GPU as well
-			cudaMemcpy( d_list, h_list, sizeof(Segment3D) * numSeg, cudaMemcpyHostToDevice );
+			GPUplan *pGPUplan = GPUplan::Instance();
+
+			dimxNodeOffset = 0;
+			for (int i = 0; i < pGPUplan->size(); i++)
+			{
+				dimxNode = pGPUplan->node(i)->getLength1D();
+				int nSegGPU = _nodeSplitListSegments<dir>(hh_list, numSeg, h_list, dimxNode, dimxNodeOffset);
+
+				numSegsGPU[dir][i] = nSegGPU;
+				dimxNodeOffset += dimxNode;
+				
+				//printf("CreateListSegments: Node(%d), printing list of segment sizes per direction %d, device %d:\n",pplan->rank(), dir, i);
+				//printf("numSegsGPU[%d][%d] = %d\n", dir, i, nSegGPU);
+				//fflush(stdout);
+
+
+				cudaSetDevice(i);
+				cudaMemcpy( d_list[i], hh_list, sizeof(Segment3D) * nSegGPU, cudaMemcpyHostToDevice );
+			}
 		}
+		delete [] hh_list;
+	}
+
+template<DirType dir>
+	int AdiSolver3D::_nodeSplitListSegments(Segment3D *dest_list, int numSeg, Segment3D *src_list, int length, int offset)
+	{
+		Segment3D new_seg;
+		int nSeg = 0;
+		for (int i = 0; i < numSeg; i++)
+		{ 
+			new_seg = src_list[i];
+			new_seg.skipX = true;
+			if ( new_seg.posx < offset + length && // check if segment falls into given device
+						new_seg.endx >= offset )   //for non X segments endx=posx
+			{						
+				new_seg.skipX = false;
+				if (new_seg.posx < offset)
+					if (new_seg.endx >= offset + length)
+						new_seg.type = UNBOUND;
+					else
+						if (new_seg.type == BOUND || new_seg.type == BOUND_END)
+							new_seg.type = BOUND_END;
+						else
+							new_seg.type = UNBOUND;
+				else
+					if (new_seg.endx >= offset + length)
+						if (new_seg.type == BOUND || new_seg.type == BOUND_START)
+							new_seg.type = BOUND_START;
+						else
+							new_seg.type = UNBOUND;
+				new_seg.posx = max(0, new_seg.posx  - offset); // Shift positions along X according to GPU node number
+				new_seg.endx = min(length - 1, new_seg.endx - offset);
+				new_seg.size = (new_seg.endx - new_seg.posx) + (new_seg.endy - new_seg.posy) + (new_seg.endz - new_seg.posz) + 1;
+
+				dest_list[nSeg] = new_seg;
+				nSeg++;
+			}
+			else
+				switch (dir)
+				{
+					case X:
+						new_seg.skipX = true; // we want to keep all segments along X for each node for segment id correspondence between different GPUs
+						dest_list[nSeg] = new_seg;
+						nSeg++;
+						break;
+				}
+		}
+		
+		//PARAplan *pplan = PARAplan::Instance();
+		//printf("Node(%d), direction %d:\n", pplan->rank(), dir);
+		//for (int i = 0; i < nSeg; i++)
+		//	printf("%d,%d,%d  %d %d %d  %d %d  %d  \n", dest_list[i].posx, dest_list[i].posy, dest_list[i].posz, dest_list[i].endx, dest_list[i].endy, dest_list[i].endz, dest_list[i].type, dest_list[i].size, dest_list[i].skipX);
+		//printf("\n");
+		//fflush(stdout);
+
+		return nSeg;
 	}
 
 	void AdiSolver3D::CreateSegments()
@@ -295,7 +455,7 @@ namespace FluidSolver3D
 		prof.StopEvent("CreateSegments");
 	}
 
-	void AdiSolver3D::SolveDirection(DirType dir, FTYPE dt, int num_local, Segment3D *h_list, Segment3D *d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
+	void AdiSolver3D::SolveDirection(DirType dir, FTYPE dt, int num_local, Segment3D *h_list, Segment3D **d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
 	{
 		DirType dir_new = dir;
 		TimeLayer3D *cur_new = cur;
@@ -336,10 +496,15 @@ namespace FluidSolver3D
 				}
 				break;		
 			case GPU:
-				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_U, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);	
-				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_V, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
-				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_W, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
-				SolveSegments_GPU(dt, params, numSegs[dir], d_list, type_T, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);				
+				PARAplan *pplan = PARAplan::Instance();
+				temp_new->syncHalos();
+				//printf("AdiSolver3D::TimeStep on node(%d), direction %d: temp after syncHalos: %f\n",pplan->rank(), dir, sum_layer('t'));
+				//fflush(stdout);
+				
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_U, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);	
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_V, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_W, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_T, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);				
 				break;
 			}
 
