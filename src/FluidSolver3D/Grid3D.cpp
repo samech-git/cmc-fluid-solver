@@ -52,7 +52,7 @@ namespace FluidSolver3D
 			nodes[i].v.x = 0.;
 			nodes[i].v.y = 0.;
 			nodes[i].v.z = 0.;
-			nodes[i].T = 10. + std::rand() % 1024;
+			nodes[i].T = 10.f + std::rand() % 1024;
 		}
 	}
 
@@ -242,9 +242,9 @@ namespace FluidSolver3D
 
 	void Grid3D::Init2()
 	{
-		dimx = 1./dx ;
-		dimy = 1./dy ;
-		dimz = 1./dz ;
+		dimx = int(1./dx);
+		dimy = int(1./dy);
+		dimz = int(1./dz);
 
 		// allocate data
 		int size = dimx * dimy * dimz;

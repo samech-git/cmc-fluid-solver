@@ -3,7 +3,7 @@
 #define __PARA
 
 #ifdef __PARA
-#include "mpi.h"
+#include <mpi.h>
 #endif
 
 #include "GPUplan.h"

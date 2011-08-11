@@ -34,7 +34,7 @@
 			/>
 			<Tool
 				Name="Cudart Build Rule"
-				Include="..\NetCDF"
+				Include="C:\Program Files\Microsoft HPC Pack 2008 R2\Inc;..\NetCDF"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -48,12 +48,12 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="$(CUDA_PATH_V4_0)/include;..\NetCDF"
+				AdditionalIncludeDirectories="&quot;$(CUDA_PATH_V4_0)/include&quot;;..\NetCDF;&quot;$(MSMPI_INC)&quot;"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				OpenMP="false"
+				OpenMP="true"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
@@ -69,9 +69,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="cudart.lib netcdf.lib"
+				AdditionalDependencies="msmpi.lib cudart.lib netcdf.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="$(CUDA_PATH_V4_0)/lib/$(PlatformName);..\NetCDF"
+				AdditionalLibraryDirectories="&quot;$(CUDA_PATH_V4_0)/lib/$(PlatformName)&quot;;..\NetCDF;&quot;$(MSMPI_LIB32)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -114,7 +114,9 @@
 			/>
 			<Tool
 				Name="Cudart Build Rule"
-				Include="..\NetCDF"
+				RequiredIncludes="$(CUDA_PATH_V4_0)\include"
+				Include="C:\Program Files\Microsoft HPC Pack 2008 R2\Inc;..\NetCDF"
+				CompileOut="$(IntDir)/$(InputFileName).obj"
 				Arch1="11"
 				Arch2="13"
 				Arch3="20"
@@ -132,7 +134,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="$(CUDA_PATH_V4_0)/include;..\NetCDF"
+				AdditionalIncludeDirectories="&quot;$(MSMPI_INC)&quot;;&quot;$(CUDA_PATH_V4_0)/include&quot;;..\NetCDF"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;GPU_BACKEND"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -152,9 +154,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="cudart.lib netcdf.lib"
+				AdditionalDependencies="msmpi.lib cudart.lib netcdf.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="$(CUDA_PATH_V4_0)/lib/$(PlatformName);..\NetCDF"
+				AdditionalLibraryDirectories="$(MSMPI_LIB32);$(CUDA_PATH_V4_0)/lib/$(PlatformName);..\NetCDF"
 				IgnoreAllDefaultLibraries="false"
 				GenerateDebugInformation="false"
 				SubSystem="1"
@@ -206,6 +208,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\Common\GPUplan.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\FluidSolver2D\Grid2D.cpp"
 				>
 			</File>
@@ -214,7 +220,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\Common\PARAplan.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\Solver3D.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\Common\test_util.cpp"
 				>
 			</File>
 			<File
@@ -248,6 +262,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\Common\GPUplan.h"
+				>
+			</File>
+			<File
 				RelativePath="..\FluidSolver2D\Grid2D.h"
 				>
 			</File>
@@ -260,11 +278,19 @@
 				>
 			</File>
 			<File
+				RelativePath="..\Common\PARAplan.h"
+				>
+			</File>
+			<File
 				RelativePath="..\Common\Profiler.h"
 				>
 			</File>
 			<File
 				RelativePath=".\Solver3D.h"
+				>
+			</File>
+			<File
+				RelativePath="..\Common\test_util.h"
 				>
 			</File>
 			<File
