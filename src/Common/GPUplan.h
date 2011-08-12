@@ -62,7 +62,7 @@ namespace Common
 			void* hstRegPtr;
 	};
 
-	extern void gpuSafeCall(cudaError_t status, std::string message);
+	extern void gpuSafeCall(cudaError_t status, char* message = "cudaSafeCall", int id = -1);
 
 	extern GPUplan * CheckGPUplan(int num_elems_total);
 
@@ -74,18 +74,15 @@ namespace Common
 		sliceWidth - dimension  of additional padding (2*haloSize) space along GPUplan direction (dimx) per GPU
 	*/
 	{
-		cudaError_t status = cudaSuccess;
 		if (!splitting)
 		{ 
 			GPUplan *pGPUplan = GPUplan::Instance();
 			d_array =  new T*[pGPUplan->size()];
 			for (int i = 0; i < pGPUplan->size(); i++)
 			{
-				cudaSetDevice(i);
+				gpuSafeCall( cudaSetDevice(i), "multiDevAlloc: cudaSetDevice", i);
 				//printf("multiDevAlloc: allocated %.2f MB on device  %d\n", sizeof(T) * (num_elems_total + num_elems_add)/(1024.f*1024.f), i);
-				status = cudaMalloc(&(d_array[i]), sizeof(T) * (num_elems_total + num_elems_add));
-				if (status != cudaSuccess )
-					throw std::runtime_error("multiDevAlloc"); 	
+				gpuSafeCall( cudaMalloc(&(d_array[i]), sizeof(T) * (num_elems_total + num_elems_add)),"multiDevAlloc", i);
 			}
 			return;
 		}
@@ -95,11 +92,9 @@ namespace Common
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{ 
 			int num_elems = pGPUplan->rescale1D(i, num_elems_total);;
-			cudaSetDevice(i);
+			gpuSafeCall( cudaSetDevice(i), "multiDevAlloc: cudaSetDevice", i);
+			gpuSafeCall( cudaMalloc(&(d_array[i]), sizeof(T) * (num_elems + num_elems_add)), "multiDevAlloc", i );
 			//printf("multiDevAlloc: allocated %.2f MB on device  %d\n", sizeof(T) * (num_elems_total + num_elems_add)/(1024.f*1024.f), i);
-			status = cudaMalloc(&(d_array[i]), sizeof(T) * (num_elems + num_elems_add));
-			if (status != cudaSuccess )
-				throw std::runtime_error("multiDevAlloc"); 			
 		}
 	}
 
@@ -111,7 +106,7 @@ namespace Common
 		{
 			cudaSetDevice((int)i);
 			//printf("cudaMultiFree: deallocating device %d\n", i);
-			cudaFree(d_array[i]);
+			gpuSafeCall(cudaFree(d_array[i]), "multiDevFree", i);
 		}
 		delete[] d_array;
 	}
@@ -129,9 +124,9 @@ namespace Common
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
 			int num_elems = pGPUplan->rescale1D(i, num_elems_total);
-			cudaSetDevice(i);
+			gpuSafeCall( cudaSetDevice(i), "multiDevMemcpy hostToDevice: cudaSetDevice", i);
 			//cudaMemcpy(dev_dest_array[i] + offset, hst_src_array + offset, sizeof(T) * num_elems, cudaMemcpyHostToDevice);
-			cudaMemcpyAsync(dev_dest_array[i] + deviceOffset, hst_src_array + offset, sizeof(T) * num_elems, cudaMemcpyHostToDevice, pGPUplan->node(i)->stream);
+			gpuSafeCall( cudaMemcpyAsync(dev_dest_array[i] + deviceOffset, hst_src_array + offset, sizeof(T) * num_elems, cudaMemcpyHostToDevice, pGPUplan->node(i)->stream), "multiDevMemcpy hostToDevice", i);
 			offset += num_elems;
 		}
 		cudaDeviceSynchronize();
@@ -149,9 +144,9 @@ namespace Common
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
 			int num_elems = pGPUplan->rescale1D(i, num_elems_total);
-			cudaSetDevice(i);
+			gpuSafeCall( cudaSetDevice(i), "multiDevMemcpy deviceToHost: cudaSetDevice", i);
 			//cudaMemcpy(hst_dest_array + offset, dev_src_array[i] + offset, sizeof(T) * num_elems, cudaMemcpyDeviceToHost);
-			cudaMemcpyAsync(hst_dest_array + offset, dev_src_array[i] + deviceOffset, sizeof(T) * num_elems, cudaMemcpyDeviceToHost, pGPUplan->node(i)->stream);
+			gpuSafeCall( cudaMemcpyAsync(hst_dest_array + offset, dev_src_array[i] + deviceOffset, sizeof(T) * num_elems, cudaMemcpyDeviceToHost, pGPUplan->node(i)->stream), "multiDevMemcpy deviceToHost", i );
 			offset += num_elems;
 		}
 		cudaDeviceSynchronize();
@@ -169,9 +164,9 @@ namespace Common
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
 			int num_elems = pGPUplan->rescale1D(i, num_elems_total);
-			cudaSetDevice(i);
+			gpuSafeCall( cudaSetDevice(i), "multiDevMemcpy deviceToDevice: cudaSetDevice", i);
 			//cudaMemcpy(dev_dest_array[i] + offset, dev_src_array[i] + offset, sizeof(T) * num_elems, cudaMemcpyDeviceToDevice);
-			cudaMemcpyAsync(dev_dest_array[i] + deviceOffset, dev_src_array[i] + deviceOffset, sizeof(T) * num_elems, cudaMemcpyDeviceToDevice, pGPUplan->node(i)->stream);
+			gpuSafeCall( cudaMemcpyAsync(dev_dest_array[i] + deviceOffset, dev_src_array[i] + deviceOffset, sizeof(T) * num_elems, cudaMemcpyDeviceToDevice, pGPUplan->node(i)->stream), "multiDevMemcpy deviceToDevice", i );
 			offset += num_elems;
 		}
 		cudaDeviceSynchronize();

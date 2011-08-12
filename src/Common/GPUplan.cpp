@@ -78,24 +78,23 @@ namespace Common
 		//cudaHostRegister(hstRegPtr, 64*1000000, cudaHostRegisterMapped);
 		//gpuSafeCall(cudaHostAlloc(&hstRegPtr, cudaCacheSize, cudaHostAllocMapped), "GPUplan::init(): cudaHostAlloc");
 		//gpuSafeCall(cudaHostRegister(hstRegPtr, cudaCacheSize, cudaHostRegisterMapped), "GPUplan::init(): cudaHostRegister" );
-		cudaError_t status = cudaSuccess;
 #if MGPU_EMU
 		nMaxGPU = nGPU = GPU_NUM;
 #else
-		status = cudaGetDeviceCount(&nMaxGPU);
+		gpuSafeCall( cudaGetDeviceCount(&nMaxGPU),  "GPUplan::init(): cudaGetDeviceCount" );
 #endif
-		if (status != cudaSuccess || nMaxGPU < 1)
+		if (nMaxGPU < 1)
 			throw std::runtime_error("GPUplan::init(): no CUDA capable devices\n"); 
 		nGPU  = nMaxGPU;
 		plan = new GPUNode*[nMaxGPU];
 		for ( int i = 0; i < nMaxGPU; i++)
 		{
-			cudaSetDevice(i);			
+			gpuSafeCall(cudaSetDevice(i), "GPUplan::init(): cudaSetDevice", i);			
 			plan[i] = new GPUNode();
-			plan[i]->init();
-			
-			
+			plan[i]->init();	
+
 			int canAccessPeer;
+			cudaError_t status;
 			if (i < nMaxGPU - 1)
 			{
 				cudaDeviceCanAccessPeer(&canAccessPeer, i, i+1);
@@ -149,10 +148,21 @@ namespace Common
 		return plan[i];
 	}	
 
-	void gpuSafeCall(cudaError_t status, std::string message = "cudaSafeCall")
+	void gpuSafeCall(cudaError_t status, char* message, int id)
 	{
 		if (status != cudaSuccess )
-			throw std::runtime_error(message);		 
+		{
+			int len = strlen(message);
+			len += 16;
+			if (id < 0)
+				cudaGetDevice(&id);
+			const int bufSize = 256;
+			if (len > bufSize)
+				throw (std::logic_error("gpuSafeCall: buffer size is too small"));
+			char buffer[bufSize];
+			sprintf(buffer, "%s on device %d", message, id);
+			throw std::runtime_error(buffer);
+		}
 	}
 
 	GPUplan * CheckGPUplan(int num_elems_total)

@@ -247,8 +247,8 @@ int main(int argc, char **argv)
 			outsize *= (pplan->rank()==0)? Config::outdimx : noutdimx;
 			Vec3D *resVel = new Vec3D[outsize];
 			double *resT = new double[outsize];
-
-		//------------------------------------------ Solving ------------------------------------------
+//
+//		//------------------------------------------ Solving ------------------------------------------
 		cpu_timer timer;
 		timer.start();
 		int lastframe = -1;
@@ -310,12 +310,13 @@ int main(int argc, char **argv)
 		fprintf (stderr, "\nTerminating...\n");
 		fflush(stdout);
 		fflush(stderr);
-//	_getch();
+		//getch();
 #ifdef __PARA
 		MPI_Abort(MPI_COMM_WORLD, -1);
 #endif
 		return -1;
 	}
 	fflush(stdout);
+	//getch();
 	return 0;
 }

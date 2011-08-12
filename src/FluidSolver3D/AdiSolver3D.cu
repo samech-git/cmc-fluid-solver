@@ -570,24 +570,24 @@ template<int dir, int swipe>
 				break;
 			}
 		}
-			cudaDeviceSynchronize();
+		cudaDeviceSynchronize();
 
-			if ( decomposeOpt )
+		if ( decomposeOpt )
+		{
+			for (int i = 0; i < pGPUplan->size(); i++)
 			{
-				for (int i = 0; i < pGPUplan->size(); i++)
-				{
-					cudaSetDevice(i);
-					cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
+				cudaSetDevice(i);
+				cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
 
-					int dimX = pGPUplan->node(i)->getLength1D();
-					dim3 grid((num_seg[i] + block.x - 1)/block.x);
+				int dimX = pGPUplan->node(i)->getLength1D();
+				dim3 grid((num_seg[i] + block.x - 1)/block.x);
 
-					max_n_max_n = pGPUplan->node(i)->getLength1D() * max_n;
+				max_n_max_n = pGPUplan->node(i)->getLength1D() * max_n;
 
-					solve_matrix<dir, var, ALL><<<grid, block>>>( num_seg[i], segs[i], next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
-				}
-				cudaDeviceSynchronize();
+				solve_matrix<dir, var, ALL><<<grid, block>>>( num_seg[i], segs[i], next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
 			}
+			cudaDeviceSynchronize();
+		}
 		//printf("dir %d: next dd_T after forward and back calculation: %f\n", TestUtil::sumEllementsMultiGPU(next.dd_T, next.dimx * next.dimy * next.dimz, next.haloSize));
 		//TestUtil::printEllementsMultiGPU<FTYPE>(next.dd_T, next.dimy, next.dimz, next.dimy*next.dimz, true);
 		//fflush(stdout);

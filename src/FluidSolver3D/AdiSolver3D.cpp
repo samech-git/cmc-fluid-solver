@@ -24,6 +24,7 @@
 
 #include "../Common/test_util.h"
 
+
 namespace FluidSolver3D
 {
 
@@ -196,9 +197,11 @@ namespace FluidSolver3D
 		next = new TimeLayer3D(backend, dimxNode, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz, haloSize);
 		temp = new TimeLayer3D(backend, dimxNode, grid->dimy, grid->dimz, (FTYPE)grid->dx, (FTYPE)grid->dy, (FTYPE)grid->dz, haloSize);
 
+#if (TRANSPOSE_OPT == 1)
 		curT = new TimeLayer3D(backend, dimxNode, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy, haloSize);
 		tempT = new TimeLayer3D(backend, dimxNode, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy, haloSize);
 		nextT = new TimeLayer3D(backend, dimxNode, grid->dimz, grid->dimy, (FTYPE)grid->dx, (FTYPE)grid->dz, (FTYPE)grid->dy, haloSize);
+#endif		
 	}
 
 	void AdiSolver3D::OutputSegmentsInfo(int num, Segment3D *list, char *filename)
@@ -478,11 +481,10 @@ template<DirType dir>
 
 		for (int it = 0; it < num_local; it++)
 		{
-			prof.StartEvent();
-
 			switch( backend )
 			{
 			case CPU:
+				prof.StartEvent();
 				#pragma omp parallel default(none) firstprivate(dt, dir) shared(h_list, cur, temp, next)
 				{
 					#pragma omp for
@@ -497,10 +499,21 @@ template<DirType dir>
 				break;		
 			case GPU:
 				PARAplan *pplan = PARAplan::Instance();
+				prof.StartEvent();
 				temp_new->syncHalos();
+				switch( dir )
+				{
+				printf("Syncing Halos...\n");
+				fflush(stdout);
+				case X: prof.StopEvent("syncHalos_X"); break;
+				case Y: prof.StopEvent("syncHalos_Y"); break;
+				case Z: prof.StopEvent("syncHalos_Z"); break;
+				}
 				//printf("AdiSolver3D::TimeStep on node(%d), direction %d: temp after syncHalos: %f\n",pplan->rank(), dir, sum_layer('t'));
 				//fflush(stdout);
 				
+				prof.StartEvent();
+
 				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_U, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);	
 				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_V, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);
 				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_W, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt);

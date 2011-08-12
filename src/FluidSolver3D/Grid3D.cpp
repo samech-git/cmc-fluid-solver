@@ -229,7 +229,9 @@ namespace FluidSolver3D
 			pplan->splitEven1D(dimx);
 			size = pplan->getLength1D() * dimy * dimz;
 			multiDevAlloc<Node> (d_nodes, size); 
+#if (TRANSPOSE_OPT == 1)
 			multiDevAlloc<Node> (d_nodesT, size); 
+#endif			
 		}
 		
 		for (int i=0; i<dimx * dimy * dimz; i++)
@@ -383,8 +385,10 @@ namespace FluidSolver3D
 		{
 			PARAplan *pplan = PARAplan::Instance();
 			int size = pplan->getLength1D() * dimy * dimz;
-			multiDevAlloc<Node> (d_nodes, size); 
+			multiDevAlloc<Node> (d_nodes, size);
+#if (TRANSPOSE_OPT ==1)			
 			multiDevAlloc<Node> (d_nodesT, size); 
+#endif			
 		}
 
 		return true;
@@ -417,7 +421,9 @@ namespace FluidSolver3D
 					pplan->splitEven1D(dimx);
 					int size = pplan->getLength1D() * dimy * dimz;
 					multiDevAlloc<Node> (d_nodes, size);
+#if (TRANSPOSE_OPT == 1) 					
 					multiDevAlloc<Node> (d_nodesT, size);
+#endif					
 				}
 				return true;
 			}
@@ -443,6 +449,7 @@ namespace FluidSolver3D
 			int dimxOffset = pplan->getOffset1D();
 			int dimxNode = pplan->getLength1D();
 			multiDevMemcpy<Node>(d_nodes, nodes + dimxOffset*dimy*dimz, dimxNode * dimy * dimz);
+#if (TRANSPOSE_OPT == 1)		
 			// currently implemented on CPU but it's possible to do a transpose on GPU
 			for (int i = dimxOffset; i < dimxOffset + dimxNode; i++)
 				for (int j = 0; j < dimy; j++)
@@ -456,6 +463,7 @@ namespace FluidSolver3D
 					}
 			multiDevMemcpy<Node>(d_nodesT, nodes + dimxOffset*dimy*dimz, dimxNode * dimy * dimz);
 			multiDevMemcpy<Node>(nodes + dimxOffset*dimy*dimz, d_nodes, dimxNode * dimy * dimz);
+#endif			
 		}
 	}
 

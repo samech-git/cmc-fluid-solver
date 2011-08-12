@@ -152,7 +152,6 @@ template <typename T, SwipeType swipe>
 	*/
 	{
 		int ip1 = idev+1; int i = idev; int im1 = idev-1;
-		cudaError_t status = cudaSuccess;
 		if (haloPartSize == -1)
 			haloPartSize = haloSize;
 	#if MGPU_EMU
@@ -161,15 +160,39 @@ template <typename T, SwipeType swipe>
 		switch (swipe)
 		{
 		case FORWARD:
-			status = cudaMemcpyPeer(dev_array[idev+1] + haloShift,  ip1, dev_array[idev] + haloSize + (num_elems_total - haloSize) + haloShift, i,  sizeof(T) * haloPartSize);
+			gpuSafeCall(cudaMemcpyPeer(dev_array[idev+1] + haloShift,  ip1, dev_array[idev] + haloSize + (num_elems_total - haloSize) + haloShift, i,  sizeof(T) * haloPartSize), "haloMemcpyPeer: FORWARD", i);
 			break;
 		case BACK:
-			status = cudaMemcpyPeer(dev_array[idev-1] + haloSize + num_elems_total + haloShift,  im1, dev_array[idev] + haloSize + haloShift, i,  sizeof(T) * haloPartSize);
+			gpuSafeCall(cudaMemcpyPeer(dev_array[idev-1] + haloSize + num_elems_total + haloShift,  im1, dev_array[idev] + haloSize + haloShift, i,  sizeof(T) * haloPartSize), "haloMemcpyPeer: BACK", i);
 			break;
 		}
-		if (status != cudaSuccess )
-			throw std::runtime_error("haloMemcpyPeer\n"); 
 	}
+
+template <typename T, SwipeType swipe>
+	void haloMemcpyPeerAsync(T** dev_array, int idev, int haloSize, int num_elems_total, cudaStream_t& stream, int haloShift = 0, int haloPartSize = -1)
+	/*
+		propagates halo of multi device array back or forth
+		num_elems_total - number of elements without halo
+	*/
+	{
+		int ip1 = idev+1; int i = idev; int im1 = idev-1;
+		if (haloPartSize == -1)
+			haloPartSize = haloSize;
+	#if MMGPU_EMU
+		im1 = ip1 = i = DEFAULT_DEVICE;
+	#endif
+		switch (swipe)
+		{
+		case FORWARD:
+			gpuSafeCall( cudaMemcpyPeerAsync(dev_array[idev+1] + haloShift,  ip1, dev_array[idev] + haloSize + (num_elems_total - haloSize) + haloShift, i,  sizeof(T) * haloPartSize, stream), "haloMemcpyPeerAsync: FORWARD", i);
+			//gpuSafeCall( cudaMemcpyPeer(dev_array[idev+1] + haloShift,  ip1, dev_array[idev] + haloSize + (num_elems_total - haloSize) + haloShift, i,  sizeof(T) * haloPartSize), "haloMemcpyPeer: FORWARD");
+			break;
+		case BACK:
+			gpuSafeCall( cudaMemcpyPeerAsync(dev_array[idev-1] + haloSize + num_elems_total + haloShift,  im1, dev_array[idev] + haloSize + haloShift, i,  sizeof(T) * haloPartSize, stream), "haloMemcpyPeerAsync: BACK", i);
+			//gpuSafeCall( cudaMemcpyPeer(dev_array[idev-1] + haloSize + num_elems_total + haloShift,  im1, dev_array[idev] + haloSize + haloShift, i,  sizeof(T) * haloPartSize), "haloMemcpyPeer: BACK" );
+			break;
+		}
+	}  
 
 	struct ScalarField3D
 	{
@@ -218,12 +241,17 @@ template <typename T, SwipeType swipe>
 				int gpuSize = pGPUplan->size();
 				for (int i = 0; i < gpuSize; i++)
 				{
-					int halo = pGPUplan->node(i)->getLength1D()* dimy * dimz; // number of elements without halo
+					//int halo = pGPUplan->node(i)->getLength1D()* dimy * dimz; // number of elements without halo
+					//if ( i < gpuSize - 1)
+					//	haloMemcpyPeer<FTYPE, FORWARD>( dd_u, i, haloSize, haloSize * pGPUplan->node(i)->getLength1D());
+					//if ( i > 0)
+					//	haloMemcpyPeer<FTYPE, BACK>( dd_u, i, haloSize, haloSize * pGPUplan->node(i-1)->getLength1D());
 					if ( i < gpuSize - 1)
-						haloMemcpyPeer<FTYPE, FORWARD>( dd_u, i, haloSize, haloSize * pGPUplan->node(i)->getLength1D() );
+						haloMemcpyPeerAsync<FTYPE, FORWARD>( dd_u, i, haloSize, haloSize * pGPUplan->node(i)->getLength1D(), pGPUplan->node(i)->stream);
 					if ( i > 0)
-						haloMemcpyPeer<FTYPE, BACK>( dd_u, i, haloSize, haloSize * pGPUplan->node(i-1)->getLength1D() );
-				}				
+						haloMemcpyPeerAsync<FTYPE, BACK>( dd_u, i, haloSize, haloSize * pGPUplan->node(i-1)->getLength1D(), pGPUplan->node(i)->stream2);
+				}
+					cudaDeviceSynchronize();
 #ifdef __PARA
 				FTYPE *mpi_buf = new FTYPE[haloSize];
 				cudaSetDevice(0);

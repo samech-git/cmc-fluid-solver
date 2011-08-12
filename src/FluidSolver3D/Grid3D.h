@@ -36,6 +36,8 @@
 #include <cuda_runtime.h>
 #include <netcdf.h>
 
+#define TRANSPOSE_OPT 1
+
 using namespace Common;
 
 namespace FluidSolver3D
