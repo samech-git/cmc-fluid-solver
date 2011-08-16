@@ -12,22 +12,29 @@
 namespace Common
 {
 	struct PARAplan
-	{	// singleton class. should use "delete" explicitly for the destructor to be called
+	{	//should use "delete" explicitly for the destructor to be called
+		
 		static PARAplan* Instance();
+
+		void init(BackendType backend);
+
 		int getLength1D()const{return data1D;}
 		int getOffset1D()const{return offset1D;}
-		void init(BackendType backend);
-		void setGPUnum(int num);
-		int size()const;
-		int rank()const;
-		int gpuNum()const;
-		int gpuTotal()const;
+		int size()const{return nNodes;}
+		int rank()const{return iRank;}
+		int gpuNum()const{return nGPU;}
+		int gpuTotal()const{return nGPUTotal;}
 		void getEven1D(int& split, int& offset, int num_elems_1D);
+
 		void splitEven1D(int num_elems_1D);
+		void setGPUnum(int num);
+
 		~PARAplan();
 		private:
-			static bool isInstance;
 			static PARAplan *self;
+			static bool isInstance;
+			BackendType hw;
+			GPUplan* pGPUplan;
 			PARAplan();
 			int offset1D;
 			int  nNodes;
@@ -35,8 +42,6 @@ namespace Common
 			int iRank;
 			int nGPU;
 			int nGPUTotal;
-			BackendType hw;
-			GPUplan* pGPUplan;
 	};
 
 #ifdef __PARA

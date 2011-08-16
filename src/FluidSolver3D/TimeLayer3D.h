@@ -178,7 +178,7 @@ template <typename T, SwipeType swipe>
 		int ip1 = idev+1; int i = idev; int im1 = idev-1;
 		if (haloPartSize == -1)
 			haloPartSize = haloSize;
-	#if MMGPU_EMU
+	#if MGPU_EMU
 		im1 = ip1 = i = DEFAULT_DEVICE;
 	#endif
 		switch (swipe)
@@ -251,19 +251,31 @@ template <typename T, SwipeType swipe>
 					if ( i > 0)
 						haloMemcpyPeerAsync<FTYPE, BACK>( dd_u, i, haloSize, haloSize * pGPUplan->node(i-1)->getLength1D(), pGPUplan->node(i)->stream2);
 				}
-					cudaDeviceSynchronize();
+				for (int i = 0; i < gpuSize; i++)
+				{
+					pGPUplan->setDevice(i);
+					gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream), "ScalarField3D::syncHalos(): cudaStreamSynchronize", i);
+					gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream2), "ScalarField3D::syncHalos(): cudaStreamSynchronize", i);
+				}
+					//cudaDeviceSynchronize();
 #ifdef __PARA
 				FTYPE *mpi_buf = new FTYPE[haloSize];
-				cudaSetDevice(0);
+				pGPUplan->setDevice(0);
 				paraDevRecv<FTYPE, FORWARD>(dd_u[0], mpi_buf, haloSize, tagID_F);
-				cudaSetDevice(gpuSize-1);
+				pGPUplan->setDevice(gpuSize-1);
 				paraDevSend<FTYPE, FORWARD>(dd_u[gpuSize-1] + haloSize + pGPUplan->node(gpuSize - 1)->getLength1D() * haloSize - haloSize, mpi_buf, haloSize, tagID_F);
 				paraDevRecv<FTYPE, BACK>(dd_u[gpuSize-1] + haloSize +  pGPUplan->node(gpuSize - 1)->getLength1D() * haloSize, mpi_buf, haloSize, tagID_B);
-				cudaSetDevice(0);
+				pGPUplan->setDevice(0);
 				paraDevSend<FTYPE, BACK>(dd_u[0] + haloSize, mpi_buf, haloSize, tagID_B);
 
 				delete [] mpi_buf;
-				cudaDeviceSynchronize();
+				for (int i = 0; i < gpuSize; i++)
+				{
+					pGPUplan->setDevice(i);
+					gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream), "ScalarField3D::syncHalos(): cudaStreamSynchronize", i);
+					gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream2), "ScalarField3D::syncHalos(): cudaStreamSynchronize", i);
+				}
+				pGPUplan->deviceSynchronize();
 #endif
 				break;
 			}
@@ -636,7 +648,7 @@ template <typename T, SwipeType swipe>
 					multiDevMemcpy<FTYPE>(dest->V->getMultiArray(), V->getArray() + haloSize, dimx * dimy * dimz, haloSize); 
 					multiDevMemcpy<FTYPE>(dest->W->getMultiArray(), W->getArray() + haloSize, dimx * dimy * dimz, haloSize); 
 					multiDevMemcpy<FTYPE>(dest->T->getMultiArray(), T->getArray() + haloSize, dimx * dimy * dimz, haloSize); 
-					cudaDeviceSynchronize();
+					//cudaDeviceSynchronize();
 					return;
 				}
 				break;
@@ -648,14 +660,14 @@ template <typename T, SwipeType swipe>
 					multiDevMemcpy<FTYPE>(dest->V->getArray() + dest->haloSize, V->getMultiArray(), dimx * dimy * dimz, haloSize);
 					multiDevMemcpy<FTYPE>(dest->W->getArray() + dest->haloSize, W->getMultiArray(), dimx * dimy * dimz, haloSize);
 					multiDevMemcpy<FTYPE>(dest->T->getArray() + dest->haloSize, T->getMultiArray(), dimx * dimy * dimz, haloSize);
-					cudaDeviceSynchronize();
+					//cudaDeviceSynchronize();
 					return;
 				case GPU:
 					multiDevMemcpy<FTYPE>(dest->U->getMultiArray(), U->getMultiArray(), dimx * dimy * dimz, haloSize);
 					multiDevMemcpy<FTYPE>(dest->V->getMultiArray(), V->getMultiArray(), dimx * dimy * dimz, haloSize);
 					multiDevMemcpy<FTYPE>(dest->W->getMultiArray(), W->getMultiArray(), dimx * dimy * dimz, haloSize);
 					multiDevMemcpy<FTYPE>(dest->T->getMultiArray(), T->getMultiArray(), dimx * dimy * dimz, haloSize);
-					cudaDeviceSynchronize();
+					//cudaDeviceSynchronize();
 					return;
 				}
 				break;

@@ -155,10 +155,11 @@ void CopyFromGrid_GPU(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **v, FTYPE 
 	GPUplan *pGPUplan = GPUplan::Instance();
 	for (int i = 0; i < pGPUplan->size(); i++)
 	{	
-		cudaSetDevice(i);
+		pGPUplan->setDevice(i);
 		copy_grid<<<grid, block>>>(pGPUplan->node(i)->getLength1D(), dimy, dimz, u[i] + haloSize, v[i] + haloSize, w[i] + haloSize, T[i] + haloSize, nodes[i], target);
 	}
-	cudaDeviceSynchronize();
+	pGPUplan->deviceSynchronize();
+	//cudaDeviceSynchronize();
 }
 
 void CopyFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE **src, FTYPE **dest, Node **nodes, NodeType target, int haloSize = 0)
@@ -168,10 +169,11 @@ void CopyFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE **src, FTYPE **dest, No
 	GPUplan *pGPUplan = GPUplan::Instance();
 	for (int i = 0; i < pGPUplan->size(); i++)
 	{	
-		cudaSetDevice(i);
+		pGPUplan->setDevice(i);
 		copy<<<grid, block>>>(pGPUplan->node(i)->getLength1D(), dimy, dimz, src[i] + haloSize, dest[i] + haloSize, nodes[i], target);
 	}
-	cudaDeviceSynchronize();
+	pGPUplan->deviceSynchronize();
+	//cudaDeviceSynchronize();
 }
 
 void MergeFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE **src, FTYPE **dest, Node **nodes, NodeType target,  int haloSize = 0)
@@ -181,10 +183,11 @@ void MergeFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE **src, FTYPE **dest, N
 	GPUplan *pGPUplan = GPUplan::Instance();
 	for (int i = 0; i < pGPUplan->size(); i++)
 	{	
-		cudaSetDevice(i);
+		pGPUplan->setDevice(i);
 		merge<<<grid, block>>>(pGPUplan->node(i)->getLength1D(), dimy, dimz, src[i] + haloSize, dest[i] + haloSize, nodes[i], target);
 	}
-	cudaDeviceSynchronize();
+	pGPUplan->deviceSynchronize();
+	//cudaDeviceSynchronize();
 }
 
 void Clear_GPU(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **v, FTYPE **w, FTYPE **T, Node **nodes, NodeType target, FTYPE const_u, FTYPE const_v, FTYPE const_w, FTYPE const_T, int haloSize = 0)
@@ -194,10 +197,11 @@ void Clear_GPU(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **v, FTYPE **w, FT
 	GPUplan *pGPUplan = GPUplan::Instance();
 	for (int i = 0; i < pGPUplan->size(); i++)
 	{	
-		cudaSetDevice(i);
+		pGPUplan->setDevice(i);
 		clear<<<grid, block>>>(pGPUplan->node(i)->getLength1D(), dimy, dimz, u[i] + haloSize, v[i] + haloSize, w[i] + haloSize, T[i] + haloSize, nodes[i], target, const_u, const_v, const_w, const_T);
 	}
-	cudaDeviceSynchronize();
+	pGPUplan->deviceSynchronize();
+	//cudaDeviceSynchronize();
 }
 
 void Transpose_GPU_shared(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **dest_u, int haloSize = 0)
@@ -207,11 +211,12 @@ void Transpose_GPU_shared(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **dest_
 	GPUplan *pGPUplan = GPUplan::Instance();
 	for (int i = 0; i < pGPUplan->size(); i++)
 	{	
-		cudaSetDevice(i);
+		pGPUplan->setDevice(i);
 		cudaFuncSetCacheConfig(transpose_shared, cudaFuncCachePreferL1);
 		transpose_shared<<<grid, block>>>(pGPUplan->node(i)->getLength1D(), dimy, dimz, u[i] + haloSize, dest_u[i] + haloSize);
 	}
-	cudaDeviceSynchronize();
+	pGPUplan->deviceSynchronize();
+	//cudaDeviceSynchronize();
 }
 
 void Transpose_GPU_cache(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **dest_u, int haloSize = 0)
@@ -220,12 +225,13 @@ void Transpose_GPU_cache(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **dest_u
 	GPUplan *pGPUplan = GPUplan::Instance();
 	for (int i = 0; i < pGPUplan->size(); i++)
 	{	
-		cudaSetDevice(i);
+		pGPUplan->setDevice(i);
 		dim3 grid((dimz + TRANSPOSE_CACHE_TILE_DIM - 1)/TRANSPOSE_CACHE_TILE_DIM, pGPUplan->node(i)->getLength1D() * ((dimy + TRANSPOSE_CACHE_TILE_DIM - 1)/TRANSPOSE_CACHE_TILE_DIM));
 		cudaFuncSetCacheConfig(transpose_cache, cudaFuncCachePreferL1);
 		transpose_cache<<<grid, block>>>(pGPUplan->node(i)->getLength1D(), dimy, dimz, u[i] + haloSize, dest_u[i] + haloSize);
 	}
-	cudaDeviceSynchronize();
+	pGPUplan->deviceSynchronize();
+	//cudaDeviceSynchronize();
 }
 
 void Transpose_GPU(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **dest_u, int haloSize = 0)

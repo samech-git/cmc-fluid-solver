@@ -164,9 +164,8 @@ namespace FluidSolver3D
 	}	
 
 	template<int dir, int var>
-	__device__ void build_matrix(FluidParamsGPU params, int i, int j, int k, FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int n, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, int id, int num_seg, int max_n_max_n, int dimX, SegmentType segType = BOUND)
+	__device__ void build_matrix(FluidParamsGPU params, int i, int j, int k, FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int n, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, int id, int num_seg, int max_n_max_n, SegmentType segType = BOUND)
 	{	
-		int ps;
 		int start = 1;
 		int end = n-1;
 		switch (dir)
@@ -191,17 +190,16 @@ namespace FluidSolver3D
 			switch (dir)
 			{
 			case X:		
-				ps = dimX - n + p; // allign segments to the end
-				get(a,ps) = - temp.elem(temp.u, i+p, j, k) / (2 * params.dx) - params.vis_dx2; 
-				get(b,ps) = 3 / params.dt  +  2 * params.vis_dx2; 
-				get(c,ps) = temp.elem(temp.u, i+p, j, k) / (2 * params.dx) - params.vis_dx2; 
+				get(a,p) = - temp.elem(temp.u, i+p, j, k) / (2 * params.dx) - params.vis_dx2; 
+				get(b,p) = 3 / params.dt  +  2 * params.vis_dx2; 
+				get(c,p) = temp.elem(temp.u, i+p, j, k) / (2 * params.dx) - params.vis_dx2; 
 				
 				switch (var)	
 				{
-				case type_U: get(d,ps) = cur.elem(cur.u, i+p, j, k) * 3 / params.dt - params.v_T * temp.d_x(temp.T, params.dx, i+p, j, k); break;
-				case type_V: get(d,ps) = cur.elem(cur.v, i+p, j, k) * 3 / params.dt; break;
-				case type_W: get(d,ps) = cur.elem(cur.w, i+p, j, k) * 3 / params.dt; break;
-				case type_T: get(d,ps) = cur.elem(cur.T, i+p, j, k) * 3 / params.dt + params.t_phi * temp.DissFuncX(params.dx, params.dy, params.dz, i+p, j, k); break;
+				case type_U: get(d,p) = cur.elem(cur.u, i+p, j, k) * 3 / params.dt - params.v_T * temp.d_x(temp.T, params.dx, i+p, j, k); break;
+				case type_V: get(d,p) = cur.elem(cur.v, i+p, j, k) * 3 / params.dt; break;
+				case type_W: get(d,p) = cur.elem(cur.w, i+p, j, k) * 3 / params.dt; break;
+				case type_T: get(d,p) = cur.elem(cur.T, i+p, j, k) * 3 / params.dt + params.t_phi * temp.DissFuncX(params.dx, params.dy, params.dz, i+p, j, k); break;
 				}	
 				break;
 
@@ -267,23 +265,19 @@ template<int dir, int swipe>
 						{
 						case UNBOUND:
 							start = 0;
-							get(c,dimX-num-1) = get(c,-1);
-							get(d,dimX-num-1) = get(d,-1);
 							break;
 						case BOUND_END:
 							start = 0;
-							get(c,dimX-num-1) = get(c,-1);
-							get(d,dimX-num-1) = get(d,-1);
-							get(c, dimX-1) = 0.0;
+							get(c, num-1) = 0.0;
 							break;
 						case BOUND:
-							get(c,dimX-1) = 0.0;
-							get(c,dimX-num) = get(c,dimX-num) / get(b,dimX-num);
-							get(d,dimX-num) = get(d,dimX-num) / get(b,dimX-num);
+							get(c, num-1) = 0.0;
+							get(c,0) = get(c,0) / get(b,0);
+							get(d,0) = get(d,0) / get(b,0);
 							break;
 						case BOUND_START:
-							get(c,dimX-num) = get(c,dimX-num) / get(b,dimX-num);
-							get(d,dimX-num) = get(d,dimX-num) / get(b,dimX-num);
+							get(c,0) = get(c,0) / get(b,0);
+							get(d,0) = get(d,0) / get(b,0);
 							break;
 						}
 						break;
@@ -294,20 +288,10 @@ template<int dir, int swipe>
 					break;
 				}
 
-				int is;
 				for (int i = start; i < num; i++)
 				{
-					switch (dir)
-					{
-					case X:
-						is = dimX - num + i;
-						break;
-					default:
-						is = i;
-						break;
-					}
-					get(c,is) = get(c,is) / (get(b,is) - get(a,is) * get(c,is-1));
-					get(d,is) = (get(d,is) - get(d,is-1) * get(a,is)) / (get(b,is) - get(a,is) * get(c,is-1));
+					get(c,i) = get(c,i) / (get(b,i) - get(a,i) * get(c,i-1));
+					get(d,i) = (get(d,i) - get(d,i-1) * get(a,i)) / (get(b,i) - get(a,i) * get(c,i-1));
 					/*
 					switch (segType)
 					{
@@ -323,6 +307,21 @@ template<int dir, int swipe>
 							break;
 					}
 					/**/
+				}
+				switch (dir)
+				{
+				case X:
+					//switch(segType)
+					//{
+					//case UNBOUND:
+					//case BOUND_START:
+					//	get(c, dimX-1) = get(c, num-1);
+					//	get(d, dimX-1) = get(d, num-1);
+					//	break;
+					//}
+					get(c, dimX-1) = get(c, num-1);
+					get(d, dimX-1) = get(d, num-1);
+					break;
 				}
 				break;
 			}			
@@ -349,10 +348,10 @@ template<int dir, int swipe>
 						get(x,num) = get(x,dimX);
 						break;
 					case BOUND_END:
-						get(x, num-1) = get(d,dimX-1);
+						get(x, num-1) = get(d,num-1);
 						break;
 					case BOUND:
-						get(x, num-1) = get(d,dimX-1);
+						get(x, num-1) = get(d,num-1);
 						break;
 					}
 					break;
@@ -361,18 +360,9 @@ template<int dir, int swipe>
 					break;
 				}
 
-				int is;
 				for (int i = end-1; i >= 0; i--) 
 				{
-					switch (dir)
-					{
-					case X:
-						is = dimX - num + i;
-						break;
-					default:
-						is = i;
-					}
-					get(x,i) = get(d,is) -  get(c,is) * get(x, i+1);
+					get(x,i) = get(d,i) -  get(c,i) * get(x, i+1);
 					/*
 					switch (segType)
 					{
@@ -438,29 +428,21 @@ template<int dir, int swipe>
 
 		int n = seg.size;
 
-		int start, end;
 		switch (dir)
 		{
 		case X:
 			if (seg.skipX)
 				return;
-			start = dimX - n;
-			end = dimX - 1;
-			break;
-		default:
-			start = 0;
-			end = n-1;
-			break;
 		}
 
 		switch (swipe)
 		{
 		case ALL:
 		case FORWARD:
-			apply_bc0<dir, var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,start), get(c,start), get(d,start), nodes, seg.type);
-			apply_bc1<dir, var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,end), get(b,end), get(d,end), nodes, seg.type);
+			apply_bc0<dir, var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes, seg.type);
+			apply_bc1<dir, var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes, seg.type);
 		
-			build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n_max_n, dimX, seg.type);
+			build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n_max_n, seg.type);
 
 		case BACK:			
 			solve_tridiagonal<dir, swipe>(a, b, c, d, x, n, id, num_seg, max_n_max_n, dimX, seg.type);
@@ -478,7 +460,7 @@ template<int dir, int swipe>
 
 	template<int dir, int var>
 	__global__ void build_matrix( FluidParamsGPU p, int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, 
-								  FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int max_n_max_n, int dimX, int id_shift = 0 )
+								  FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int max_n_max_n, int id_shift = 0 )
 	{
 		// fetch current segment info
 		int id = id_shift + blockIdx.x * blockDim.x + threadIdx.x;
@@ -487,24 +469,17 @@ template<int dir, int swipe>
 
 		int n = seg.size;
 
-		int start, end;
 		switch (dir)
 		{
 		case X:
 			if (seg.skipX)
 				return;
-			start = dimX - n;
-			end = dimX - 1;
-			break;
-		default:
-			start = 0;
-			end = n-1;
 		}
 
-		apply_bc0<dir, var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,start), get(c,start), get(d,start), nodes, seg.type);
-		apply_bc1<dir, var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,end), get(b,end), get(d,end), nodes, seg.type);
+		apply_bc0<dir, var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes, seg.type);
+		apply_bc1<dir, var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes, seg.type);
 		
-		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n_max_n, dimX);	
+		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n_max_n);	
 	}
 
 	template<int dir, int var, int swipe>
@@ -525,7 +500,7 @@ template<int dir, int swipe>
 
 		int n = seg.size;
 
-		solve_tridiagonal<dir, swipe>(a, b, c, d, x, n, id, num_seg, max_n_max_n, seg.type);
+		solve_tridiagonal<dir, swipe>(a, b, c, d, x, n, id, num_seg, max_n_max_n, dimX, seg.type);
 		
 		switch (swipe)
 		{
@@ -550,7 +525,7 @@ template<int dir, int swipe>
 
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
-			cudaSetDevice(i);
+			pGPUplan->setDevice(i);
 			cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
 
 			int dimX = pGPUplan->node(i)->getLength1D();
@@ -561,7 +536,7 @@ template<int dir, int swipe>
 			switch( decomposeOpt )
 			{
 			case true:
-				build_matrix<dir, var><<<grid, block>>>( p, num_seg[i], segs[i], nodes[i], cur, temp, d_a[i], d_b[i], d_c[i], d_d[i], max_n_max_n, dimX );
+				build_matrix<dir, var><<<grid, block>>>( p, num_seg[i], segs[i], nodes[i], cur, temp, d_a[i], d_b[i], d_c[i], d_d[i], max_n_max_n );
 				break;
 
 			case false:
@@ -570,13 +545,12 @@ template<int dir, int swipe>
 				break;
 			}
 		}
-		cudaDeviceSynchronize();
 
 		if ( decomposeOpt )
 		{
 			for (int i = 0; i < pGPUplan->size(); i++)
 			{
-				cudaSetDevice(i);
+				pGPUplan->setDevice(i);
 				cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
 
 				int dimX = pGPUplan->node(i)->getLength1D();
@@ -584,10 +558,12 @@ template<int dir, int swipe>
 
 				max_n_max_n = pGPUplan->node(i)->getLength1D() * max_n;
 
-				solve_matrix<dir, var, ALL><<<grid, block>>>( num_seg[i], segs[i], next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
+				solve_matrix<dir, var, ALL><<<grid, block>>>( num_seg[i], segs[i], next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], dimX, max_n_max_n );
 			}
-			cudaDeviceSynchronize();
 		}
+
+		pGPUplan->deviceSynchronize();
+		//cudaDeviceSynchronize();
 		//printf("dir %d: next dd_T after forward and back calculation: %f\n", TestUtil::sumEllementsMultiGPU(next.dd_T, next.dimx * next.dimy * next.dimz, next.haloSize));
 		//TestUtil::printEllementsMultiGPU<FTYPE>(next.dd_T, next.dimy, next.dimz, next.dimy*next.dimz, true);
 		//fflush(stdout);
@@ -635,12 +611,12 @@ template<int dir, int swipe>
 		//cudaDeviceSynchronize();
 		//return;
 		//***************************************
-		cudaSetDevice(0);
+		pGPUplan->setDevice(0);
 		paraDevRecv<FTYPE, FORWARD>(d_c[0], mpi_buf_1, haloSize, 666);
 		paraDevRecv<FTYPE, FORWARD>(d_d[0], mpi_buf_2, haloSize, 667);
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
-			cudaSetDevice(i);
+			pGPUplan->setDevice(i);
 			cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
 
 			dimX = pGPUplan->node(i)->getLength1D();
@@ -652,19 +628,23 @@ template<int dir, int swipe>
 			solve_segments<X, var, FORWARD><<<grid, block>>>( p, num_seg[i], segs[i], nodes[i], cur, temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
 			if (i < pGPUplan->size() - 1) //  send to node n+1
 			{
-				haloMemcpyPeer<FTYPE, FORWARD>( d_c, i, haloSize, dimX * haloSize );
-				haloMemcpyPeer<FTYPE, FORWARD>( d_d, i, haloSize, dimX * haloSize );
+				haloMemcpyPeer<FTYPE, FORWARD>( d_c, i, haloSize, dimX * haloSize);
+				haloMemcpyPeer<FTYPE, FORWARD>( d_d, i, haloSize, dimX * haloSize);
 			}
 		}
 		//cudaDeviceSynchronize();
-		cudaSetDevice(pGPUplan->size()-1);
-		paraDevSend<FTYPE, FORWARD>(d_c[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf_1, haloSize, 666);
-		paraDevSend<FTYPE, FORWARD>(d_d[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf_2, haloSize, 667);
+		if (pplan->size() > 0)
+		{
+			pGPUplan->deviceSynchronize();
+			pGPUplan->setDevice(pGPUplan->size()-1);
+			paraDevSend<FTYPE, FORWARD>(d_c[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf_1, haloSize, 666);
+			paraDevSend<FTYPE, FORWARD>(d_d[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf_2, haloSize, 667);
 
-		paraDevRecv<FTYPE, BACK>(d_x[pGPUplan->size()-1] + haloSize +  dimX * haloSize, mpi_buf_1, haloSize, 668);
+			paraDevRecv<FTYPE, BACK>(d_x[pGPUplan->size()-1] + haloSize +  dimX * haloSize, mpi_buf_1, haloSize, 668);
+		}
 		for (int i = pGPUplan->size() - 1; i >= 0; i--)
 		{
-			cudaSetDevice(i);
+			pGPUplan->setDevice(i);
 			cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
 
 			dimX = pGPUplan->node(i)->getLength1D();
@@ -675,9 +655,13 @@ template<int dir, int swipe>
 			if (i > 0)
 				haloMemcpyPeer<FTYPE, BACK>(d_x, i, haloSize, pGPUplan->node(i-1)->getLength1D()*haloSize);
 		}
-		cudaDeviceSynchronize();
-		cudaSetDevice(0);
-		paraDevSend<FTYPE, BACK>(d_x[0] + haloSize, mpi_buf_1, haloSize, 668);		
+		pGPUplan->deviceSynchronize();
+		//cudaDeviceSynchronize();
+		if (pplan->size() > 0)
+		{
+			pGPUplan->setDevice(0);
+			paraDevSend<FTYPE, BACK>(d_x[0] + haloSize, mpi_buf_1, haloSize, 668);
+		}
 
 		delete [] mpi_buf_1;
 		delete [] mpi_buf_2;

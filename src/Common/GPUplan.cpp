@@ -24,51 +24,12 @@ namespace Common
 		gpuSafeCall( cudaStreamDestroy(stream3), "GPUNode::~GPUNode(): on stream destroy" );
 	}
 
-
 	bool GPUplan::isInstance = false;
 	GPUplan* GPUplan::self = NULL;
 
 	GPUplan::GPUplan()
 	{
-		nGPU = nMaxGPU = 0; plan = NULL;  data1D = 0;
-	}
-
-	GPUplan* GPUplan::Instance()
-	{
-		if(!isInstance)
-		{
-			self = new GPUplan();
-			isInstance = true;
-			return self;
-		}
-		else
-			return self;
-	}
-
-	void GPUplan::destroy()
-	{
-		isInstance = false;
-		for (int i = 0; i < nMaxGPU; i++)
-		{
-			cudaSetDevice(i);
-			plan[i]->destroy();
-		}
-		delete [] plan;
-		//gpuSafeCall(cudaHostUnregister(hstRegPtr), "GPUplan::~GPUplan(): cudaHostUnregister" );
-	  //gpuSafeCall(cudaFreeHost(hstRegPtr), "GPUplan::~GPUplan(): cudaFreeHost");
-	}
-
-	GPUplan::~GPUplan()
-	{
-		GPUplan::destroy();
-	}
-
-	int GPUplan::size()const{ return nGPU;}
-
-	void GPUplan::setGPUnum( int num )
-	{
-		//if (plan != NULL) GPUplan::destroy();
-		nGPU = (num <= nMaxGPU)?num:nMaxGPU; 
+		nGPU = nMaxGPU = 0; plan = NULL;  data1D = 0; ibegin = 0;
 	}
 
   void GPUplan::init()
@@ -87,11 +48,11 @@ namespace Common
 			throw std::runtime_error("GPUplan::init(): no CUDA capable devices\n"); 
 		nGPU  = nMaxGPU;
 		plan = new GPUNode*[nMaxGPU];
-		for ( int i = 0; i < nMaxGPU; i++)
+		for ( int i = ibegin; i < ibegin + nMaxGPU; i++)
 		{
-			gpuSafeCall(cudaSetDevice(i), "GPUplan::init(): cudaSetDevice", i);			
-			plan[i] = new GPUNode();
-			plan[i]->init();	
+			gpuSafeCall(cudaSetDevice(i), "GPUplan::init(): cudaSetDevice", i);
+			plan[i - ibegin] = new GPUNode();
+			plan[i - ibegin]->init();	
 
 			int canAccessPeer;
 			cudaError_t status;
@@ -119,6 +80,50 @@ namespace Common
 		}
 	}
 
+	GPUplan* GPUplan::Instance()
+	{
+		if(!isInstance)
+		{
+			self = new GPUplan();
+			isInstance = true;
+			return self;
+		}
+		else
+			return self;
+	}
+
+	GPUNode* GPUplan::node(int i)
+	{
+		if (plan == NULL || i >= nGPU)
+			throw std::logic_error("GPUplan::node: Indexing");
+		return plan[i];
+	}	
+
+	void GPUplan::setDevice(int iDev)
+	{
+		gpuSafeCall(cudaSetDevice(ibegin + iDev), "GPUplan::setDevice", iDev);
+	}
+
+	void GPUplan::deviceSynchronize()
+	{
+		for (int i = 0; i < nGPU; i++)
+		{
+			gpuSafeCall(cudaSetDevice(i + ibegin), "GPUplan::syncDefaultStreams(): cudaSetDevice", i);
+			gpuSafeCall(cudaDeviceSynchronize(), "GPUplan::syncDefaultStreams(): cudaDeviceSynchronize", i);
+			//cudaStreamSynchronize(0);
+		}
+	}
+
+	void GPUplan::setBegin(int iDev)
+	{
+		ibegin = iDev;
+	}
+
+	void GPUplan::setGPUnum( int num )
+	{
+		//if (plan != NULL) GPUplan::destroy();
+		nGPU = (num <= nMaxGPU)?num:nMaxGPU; 
+	}
 
 	void GPUplan::splitEven1D(int num_elems_1D)
 	/*
@@ -137,16 +142,28 @@ namespace Common
 			plan[iDev]->setLength1D(plan[iDev]->getLength1D()+1);
 		printf("Splitting the data along first dimension(%d):\n", num_elems_1D);
 		for(int iDev = 0; iDev < nGPU; iDev++)
-			printf("device(%d) = %d    ",iDev, plan[iDev]->getLength1D());
+			printf("device(%d) = %d    ",ibegin + iDev, plan[iDev]->getLength1D());
 		printf("\n");
 	}
 
-	GPUNode* GPUplan::node(int i)
+	void GPUplan::destroy()
 	{
-		if (plan == NULL || i >= nGPU)
-			throw std::logic_error("Indexing");
-		return plan[i];
-	}	
+		isInstance = false;
+		for (int i = 0; i < nMaxGPU; i++)
+		{
+			cudaSetDevice(i + ibegin);
+			plan[i]->destroy();
+		}
+		delete [] plan;
+		//gpuSafeCall(cudaHostUnregister(hstRegPtr), "GPUplan::~GPUplan(): cudaHostUnregister" );
+	  //gpuSafeCall(cudaFreeHost(hstRegPtr), "GPUplan::~GPUplan(): cudaFreeHost");
+	}
+
+	GPUplan::~GPUplan()
+	{
+		GPUplan::destroy();
+	}
+
 
 	void gpuSafeCall(cudaError_t status, char* message, int id)
 	{
@@ -156,6 +173,11 @@ namespace Common
 			len += 16;
 			if (id < 0)
 				cudaGetDevice(&id);
+			else
+			{
+				GPUplan *pGPUplan = GPUplan::Instance();
+				id += pGPUplan->begin();
+			}
 			const int bufSize = 256;
 			if (len > bufSize)
 				throw (std::logic_error("gpuSafeCall: buffer size is too small"));
@@ -165,7 +187,7 @@ namespace Common
 		}
 	}
 
-	GPUplan * CheckGPUplan(int num_elems_total)
+	GPUplan *CheckGPUplan(int num_elems_total)
 	{
 		GPUplan *pGPUplan = GPUplan::Instance();
 		if (num_elems_total % pGPUplan->getLength1D())

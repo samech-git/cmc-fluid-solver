@@ -385,7 +385,7 @@ namespace FluidSolver3D
 				//fflush(stdout);
 
 
-				cudaSetDevice(i);
+				pGPUplan->setDevice(i);
 				cudaMemcpy( d_list[i], hh_list, sizeof(Segment3D) * nSegGPU, cudaMemcpyHostToDevice );
 			}
 		}

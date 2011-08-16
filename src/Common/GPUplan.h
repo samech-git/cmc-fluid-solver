@@ -24,14 +24,14 @@ namespace Common
 	{
 		static const int nMaxEvents = 64; // max events per node
     cudaEvent_t event[nMaxEvents];
-
-    //Stream for asynchronous command execution
     cudaStream_t stream, stream2, stream3;
 
+		void init();
+
 		int getLength1D(){return data1D;}
+
 		void setLength1D(int _data1D){ data1D = _data1D;}
 
-		void init();
 		void destroy();
 
 	private:
@@ -40,24 +40,36 @@ namespace Common
 
 	struct GPUplan
 	{	// singleton class. should use "delete" explicitly for the destructor to be called
-		static GPUplan* Instance();
-		GPUNode* node(int i);// {return this->operator[](i);}
-		int getLength1D()const{return data1D;}
-		// rescale1D() returns num_elems_total per node according to GPUplan splitting along one dimension
-		inline int rescale1D(int inode, int num_elems_total) const { return plan[inode]->getLength1D() * (num_elems_total / data1D); }
+
 		void init();
+
+		static GPUplan* Instance();
+		GPUNode* node(int i);
+
+		int getLength1D()const{return data1D;}
+		int begin()const{ return ibegin;}
+		int size()const{ return nGPU;};
+
+		void setDevice(int iDev);
+		void deviceSynchronize();
+		void setBegin(int iDev);
 		void setGPUnum(int num); // will use num < nMaxGPU GPUs
-		int size()const;
 		void splitEven1D(int num_elems_1D);
+		inline int rescale1D(int inode, int num_elems_total) const 
+			{ return plan[inode]->getLength1D() * (num_elems_total / data1D); } 		// returns num_elems_total per node according to GPUplan splitting along one dimension
+
 		void destroy();
 		~GPUplan();
+
 		private:
+			GPUNode** plan;
 			static bool isInstance;
 			static GPUplan *self;
 			GPUplan();
-			int  nGPU;
+
 			int nMaxGPU;
-			GPUNode** plan;
+			int  nGPU;
+			int ibegin;
 			int data1D;
 			void* hstRegPtr;
 	};
@@ -80,7 +92,7 @@ namespace Common
 			d_array =  new T*[pGPUplan->size()];
 			for (int i = 0; i < pGPUplan->size(); i++)
 			{
-				gpuSafeCall( cudaSetDevice(i), "multiDevAlloc: cudaSetDevice", i);
+				pGPUplan->setDevice(i);
 				//printf("multiDevAlloc: allocated %.2f MB on device  %d\n", sizeof(T) * (num_elems_total + num_elems_add)/(1024.f*1024.f), i);
 				gpuSafeCall( cudaMalloc(&(d_array[i]), sizeof(T) * (num_elems_total + num_elems_add)),"multiDevAlloc", i);
 			}
@@ -92,7 +104,7 @@ namespace Common
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{ 
 			int num_elems = pGPUplan->rescale1D(i, num_elems_total);;
-			gpuSafeCall( cudaSetDevice(i), "multiDevAlloc: cudaSetDevice", i);
+			pGPUplan->setDevice(i);
 			gpuSafeCall( cudaMalloc(&(d_array[i]), sizeof(T) * (num_elems + num_elems_add)), "multiDevAlloc", i );
 			//printf("multiDevAlloc: allocated %.2f MB on device  %d\n", sizeof(T) * (num_elems_total + num_elems_add)/(1024.f*1024.f), i);
 		}
@@ -104,7 +116,7 @@ namespace Common
 		GPUplan *pGPUplan = GPUplan::Instance();
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
-			cudaSetDevice((int)i);
+			pGPUplan->setDevice(i);
 			//printf("cudaMultiFree: deallocating device %d\n", i);
 			gpuSafeCall(cudaFree(d_array[i]), "multiDevFree", i);
 		}
@@ -124,12 +136,13 @@ namespace Common
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
 			int num_elems = pGPUplan->rescale1D(i, num_elems_total);
-			gpuSafeCall( cudaSetDevice(i), "multiDevMemcpy hostToDevice: cudaSetDevice", i);
+				pGPUplan->setDevice(i);
 			//cudaMemcpy(dev_dest_array[i] + offset, hst_src_array + offset, sizeof(T) * num_elems, cudaMemcpyHostToDevice);
 			gpuSafeCall( cudaMemcpyAsync(dev_dest_array[i] + deviceOffset, hst_src_array + offset, sizeof(T) * num_elems, cudaMemcpyHostToDevice, pGPUplan->node(i)->stream), "multiDevMemcpy hostToDevice", i);
 			offset += num_elems;
 		}
-		cudaDeviceSynchronize();
+		pGPUplan->deviceSynchronize();
+		//cudaDeviceSynchronize();
 	}
 
 	template <typename T>
@@ -144,12 +157,13 @@ namespace Common
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
 			int num_elems = pGPUplan->rescale1D(i, num_elems_total);
-			gpuSafeCall( cudaSetDevice(i), "multiDevMemcpy deviceToHost: cudaSetDevice", i);
+			pGPUplan->setDevice(i);
 			//cudaMemcpy(hst_dest_array + offset, dev_src_array[i] + offset, sizeof(T) * num_elems, cudaMemcpyDeviceToHost);
 			gpuSafeCall( cudaMemcpyAsync(hst_dest_array + offset, dev_src_array[i] + deviceOffset, sizeof(T) * num_elems, cudaMemcpyDeviceToHost, pGPUplan->node(i)->stream), "multiDevMemcpy deviceToHost", i );
 			offset += num_elems;
 		}
-		cudaDeviceSynchronize();
+		pGPUplan->deviceSynchronize();
+		//cudaDeviceSynchronize();
 	}
 
 	template <typename T>
@@ -164,11 +178,12 @@ namespace Common
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
 			int num_elems = pGPUplan->rescale1D(i, num_elems_total);
-			gpuSafeCall( cudaSetDevice(i), "multiDevMemcpy deviceToDevice: cudaSetDevice", i);
+			pGPUplan->setDevice(i);
 			//cudaMemcpy(dev_dest_array[i] + offset, dev_src_array[i] + offset, sizeof(T) * num_elems, cudaMemcpyDeviceToDevice);
 			gpuSafeCall( cudaMemcpyAsync(dev_dest_array[i] + deviceOffset, dev_src_array[i] + deviceOffset, sizeof(T) * num_elems, cudaMemcpyDeviceToDevice, pGPUplan->node(i)->stream), "multiDevMemcpy deviceToDevice", i );
 			offset += num_elems;
 		}
-		cudaDeviceSynchronize();
+		pGPUplan->deviceSynchronize();
+		//cudaDeviceSynchronize();
 	}
 }

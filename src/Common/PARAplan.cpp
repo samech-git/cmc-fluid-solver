@@ -2,36 +2,12 @@
 
 namespace Common
 {
-#ifdef __PARA
-	void mpiSafeCall(int status, char* message)
-	{
-		if (status != MPI_SUCCESS )
-			throw std::runtime_error(message);		 
-	}
-
-	MPI_Datatype mpi_typeof(int*) { return MPI_INT; }
-	MPI_Datatype mpi_typeof(float*) { return MPI_FLOAT; }
-	MPI_Datatype mpi_typeof(double*) { return MPI_DOUBLE; }
-#endif
-
 	bool PARAplan::isInstance = false;
 	PARAplan* PARAplan::self = NULL;
 
 	PARAplan::PARAplan()
 	{
 		nNodes = 1; data1D = 0; iRank = 0;
-	}
-
-	PARAplan* PARAplan::Instance()
-	{
-		if(!isInstance)
-		{
-			self = new PARAplan();
-			isInstance = true;
-			return self;
-		}
-		else
-			return self;
 	}
 
   void PARAplan::init(BackendType backend = GPU)
@@ -46,6 +22,9 @@ namespace Common
 			pGPUplan = GPUplan::Instance();
 			pGPUplan->init();
 			nGPU = pGPUplan->size();
+//-------------For testing: 1 GPU per rank------
+//		pGPUplan->setBegin(iRank*nGPU);
+//----------------------------------------------
 #ifdef __PARA
 			MPI_Reduce(&nGPU, &nGPUTotal, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 			MPI_Bcast(&nGPUTotal, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -53,6 +32,18 @@ namespace Common
 			nGPUTotal = nGPU;
 #endif
 		}
+	}
+
+	PARAplan* PARAplan::Instance()
+	{
+		if(!isInstance)
+		{
+			self = new PARAplan();
+			isInstance = true;
+			return self;
+		}
+		else
+			return self;
 	}
 
 	void PARAplan::getEven1D(int& split, int& offset, int num_elems_1D)
@@ -81,32 +72,15 @@ namespace Common
 	{
 		pGPUplan->setGPUnum(num);
 		nGPU = pGPUplan->size();
+//-------------For testing: 1 GPU per rank------
+			//pGPUplan->setBegin(iRank*nGPU);
+//----------------------------------------------
 #ifdef __PARA
 			MPI_Reduce(&nGPU, &nGPUTotal, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 			MPI_Bcast(&nGPUTotal, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 #else
 			nGPUTotal = nGPU;
 #endif
-	}
-
-	int PARAplan::size()const
-	{
-		return nNodes;
-	}
-
-	int PARAplan::rank()const
-	{
-		return iRank;
-	}
-
-	int PARAplan::gpuNum()const
-	{
-		return nGPU;
-	}
-
-	int PARAplan::gpuTotal()const
-	{
-		return nGPUTotal;
 	}
 
 	PARAplan::~PARAplan()
@@ -117,4 +91,16 @@ namespace Common
 #endif
 	}
 
+
+#ifdef __PARA
+	void mpiSafeCall(int status, char* message)
+	{
+		if (status != MPI_SUCCESS )
+			throw std::runtime_error(message);		 
+	}
+
+	MPI_Datatype mpi_typeof(int*) { return MPI_INT; }
+	MPI_Datatype mpi_typeof(float*) { return MPI_FLOAT; }
+	MPI_Datatype mpi_typeof(double*) { return MPI_DOUBLE; }
+#endif
 }
