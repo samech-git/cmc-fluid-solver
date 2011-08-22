@@ -252,6 +252,13 @@ namespace FluidSolver3D
 			SolveDirection(X, dt, num_local, h_listX, d_listX, half, temp, next);			
 			//printf("AdiSolver3D::TimeStep: temp, next after SolveDirection(Z,Y, and X): %f    %f\n",  sum_layer('t'), sum_layer('n'));
 
+			//for(int i = 0; i< dimx; i++)
+			//	for(int j = 0; j< dimy; j++)
+			//		for(int k = 0; k< dimz; k++)
+
+			//	if(next->T->elem(i,j,k) != next->T->elem(i,j,k) || next->U->elem(i,j,k) != next->U->elem(i,j,k)  || next->V->elem(i,j,k)  != next->V->elem(i,j,k)  || next->W->elem(i,j,k) != next->W->elem(i,j,k))
+			//		throw logic_error("next layer has NaN");
+
 			// update non-linear layer
 			prof.StartEvent();
 			next->MergeLayerTo(grid, temp, NODE_IN);
@@ -503,8 +510,8 @@ template<DirType dir>
 				temp_new->syncHalos();
 				switch( dir )
 				{
-				printf("Syncing Halos...\n");
-				fflush(stdout);
+				//printf("Syncing Halos...\n");
+				//fflush(stdout);
 				case X: prof.StopEvent("syncHalos_X"); break;
 				case Y: prof.StopEvent("syncHalos_Y"); break;
 				case Z: prof.StopEvent("syncHalos_Z"); break;
