@@ -1,1 +1,2 @@
 *	problem with netcdf on psg: netcdf is compiled with --enable-netcdf-4, but hdf5 is not parallel
+*	put merge layer into update_segment

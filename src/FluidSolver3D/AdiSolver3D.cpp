@@ -555,6 +555,8 @@ template<DirType dir>
 		}
 	}
 
+	//void AdiSolver3D::SolveDirectionXY(FTYPE dt, int num_local, Segment3D *h_list, Segment3D **d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
+
 	void AdiSolver3D::SolveSegment(FTYPE dt, int id, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next)
 	{
 		int n = seg.size;

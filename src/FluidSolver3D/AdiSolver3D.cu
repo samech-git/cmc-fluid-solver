@@ -438,12 +438,10 @@ template<int dir, int swipe>
 		switch (swipe)
 		{
 		case ALL:
-		case FORWARD:
 			apply_bc0<dir, var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes, seg.type);
 			apply_bc1<dir, var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes, seg.type);
-		
+		case FORWARD:
 			build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n_max_n, seg.type);
-
 		case BACK:			
 			solve_tridiagonal<dir, swipe>(a, b, c, d, x, n, id, num_seg, max_n_max_n, dimX, seg.type);
 			break;
@@ -456,6 +454,25 @@ template<int dir, int swipe>
 			update_segment<dir, var>(x, seg, next, id, num_seg, max_n_max_n);
 			break;
 		}
+	}
+
+	template<int dir, int var>
+	__global__ void update_segments(int num_seg, Segment3D *segs, TimeLayer3D_GPU next, FTYPE *x, int  max_n_max_n, int id_shift = 0)
+	{
+		// fetch current segment info
+		int id = id_shift + blockIdx.x * blockDim.x + threadIdx.x;
+		if( id >= num_seg + id_shift) return;
+		Segment3D &seg = segs[id];
+
+		int n = seg.size;
+
+		switch (dir)
+		{
+		case X:
+			if (seg.skipX)
+				return;
+		}
+		update_segment<dir, var>(x, seg, next, id, num_seg, max_n_max_n);
 	}
 
 	template<int dir, int var>
@@ -475,11 +492,10 @@ template<int dir, int swipe>
 			if (seg.skipX)
 				return;
 		}
-
+		
 		apply_bc0<dir, var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes, seg.type);
 		apply_bc1<dir, var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes, seg.type);
-		
-		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n_max_n);	
+		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n_max_n, seg.type);		
 	}
 
 	template<int dir, int var, int swipe>
@@ -504,7 +520,7 @@ template<int dir, int swipe>
 		
 		switch (swipe)
 		{
-		case BACK:
+		case ALL:
 			update_segment<dir, var>(x, seg, next, id, num_seg, max_n_max_n);
 			break;
 		}
@@ -587,9 +603,9 @@ template<int dir, int swipe>
 			return;
 		}
 		/**/
-
-		int max_n_max_n;
+		
 		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
+		int max_n_max_n = max_n * max_n;
 
 		int haloSize = max_n * max_n * MAX_SEGS_PER_ROW;
 		int dimX;
@@ -611,9 +627,25 @@ template<int dir, int swipe>
 		//cudaDeviceSynchronize();
 		//return;
 		//***************************************
-		pGPUplan->setDevice(0);
-		paraDevRecv<FTYPE, FORWARD>(d_c[0], mpi_buf_1, haloSize, 666);
-		paraDevRecv<FTYPE, FORWARD>(d_d[0], mpi_buf_2, haloSize, 667);
+
+		for (int i = 0; i < pGPUplan->size(); i++)
+		{
+			pGPUplan->setDevice(i);
+			cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
+			dim3 grid((num_seg[i] + block.x - 1)/block.x);
+			build_matrix<X, var><<<grid, block>>>( p, num_seg[i], segs[i], nodes[i], cur, temp, d_a[i], d_b[i], d_c[i], d_d[i], max_n_max_n );
+		}
+
+#ifdef __PARA
+		if (pplan->size() > 1)
+		{
+			pGPUplan->deviceSynchronize();
+			pGPUplan->setDevice(0);
+			paraDevRecv<FTYPE, FORWARD>(d_c[0], mpi_buf_1, haloSize, 666);
+			paraDevRecv<FTYPE, FORWARD>(d_d[0], mpi_buf_2, haloSize, 667);
+		}
+#endif
+
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
 			pGPUplan->setDevice(i);
@@ -622,10 +654,8 @@ template<int dir, int swipe>
 			dimX = pGPUplan->node(i)->getLength1D();
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
 
-			max_n_max_n = max_n * max_n;
-
 			//cudaFuncSetCacheConfig(solve_segments<dir, var, ALL>, cudaFuncCachePreferL1);
-			solve_segments<X, var, FORWARD><<<grid, block>>>( p, num_seg[i], segs[i], nodes[i], cur, temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
+			solve_matrix<X, var, FORWARD><<<grid, block>>>( num_seg[i], segs[i], next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
 			if (i < pGPUplan->size() - 1) //  send to node n+1
 			{
 				haloMemcpyPeer<FTYPE, FORWARD>( d_c, i, haloSize, dimX * haloSize);
@@ -633,6 +663,7 @@ template<int dir, int swipe>
 			}
 		}
 		//cudaDeviceSynchronize();
+#ifdef __PARA
 		if (pplan->size() > 0)
 		{
 			pGPUplan->deviceSynchronize();
@@ -642,6 +673,7 @@ template<int dir, int swipe>
 
 			paraDevRecv<FTYPE, BACK>(d_x[pGPUplan->size()-1] + haloSize +  dimX * haloSize, mpi_buf_1, haloSize, 668);
 		}
+#endif
 		for (int i = pGPUplan->size() - 1; i >= 0; i--)
 		{
 			pGPUplan->setDevice(i);
@@ -651,17 +683,31 @@ template<int dir, int swipe>
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
 
 			max_n_max_n = max_n * max_n;
-			solve_segments<X, var, BACK><<<grid, block>>>( p, num_seg[i], segs[i], nodes[i], cur, temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
+			solve_matrix<X, var, BACK><<<grid, block>>>( num_seg[i], segs[i], next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
 			if (i > 0)
 				haloMemcpyPeer<FTYPE, BACK>(d_x, i, haloSize, pGPUplan->node(i-1)->getLength1D()*haloSize);
 		}
-		pGPUplan->deviceSynchronize();
-		//cudaDeviceSynchronize();
+
+#ifdef __PARA		
 		if (pplan->size() > 0)
 		{
+			pGPUplan->deviceSynchronize();
 			pGPUplan->setDevice(0);
 			paraDevSend<FTYPE, BACK>(d_x[0] + haloSize, mpi_buf_1, haloSize, 668);
 		}
+#endif
+
+		for (int i = 0; i < pGPUplan->size(); i++)
+		{
+			pGPUplan->setDevice(i);
+			cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
+			dim3 grid((num_seg[i] + block.x - 1)/block.x);
+			update_segments<X, var><<<grid, block>>>( num_seg[i], segs[i], next, d_x[i],  max_n_max_n);
+		}
+
+		pGPUplan->deviceSynchronize();
+		//cudaDeviceSynchronize();
+
 
 		delete [] mpi_buf_1;
 		delete [] mpi_buf_2;
