@@ -110,21 +110,24 @@ int main(int argc, char **argv)
 		//--------------------------------------- Initializing ---------------------------------------
 #if !SIMPLE_GRID
 		Grid3D *grid = NULL;
+
+		SplitType split_type = EVEN_SEGMENTS; //EVEN_X or EVEN_SEGMENTS
+
 		if( Config::in_fmt == Shape3D ) 
 		{
-			grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::baseT, backend);
+			grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::baseT, backend, false, split_type);
 			if (pplan->rank() == 0)
 				printf("Geometry: 3D polygons\n", grid->dimx, grid->dimy, grid->dimz);
 		}
 		else if( Config::in_fmt == Shape2D )
 		{
-			grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::depth, Config::baseT, backend);
+			grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::depth, Config::baseT, backend, false, split_type);
 			if (pplan->rank() == 0)
 				printf("Geometry: extruded 2D shape\n");
 		}
 		else
 		{
-			grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::baseT, backend, true);
+			grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::baseT, backend, true, split_type);
 			if (pplan->rank() == 0)
 				printf("Geometry: depths from NetCDF\n");
 		}
@@ -136,7 +139,9 @@ int main(int argc, char **argv)
 		if (grid->LoadFromFile(inputPath, align))
 			if (pplan->rank() == 0)
 				printf("Grid = %i x %i x %i\n", grid->dimx, grid->dimy, grid->dimz);
-		grid->Prepare(0.0);
+		grid->Prepare_CPU(0.0);
+		grid->Split();
+		grid->Init_GPU();
 
 		if (pplan->rank() == 0)
 		{
@@ -189,7 +194,7 @@ int main(int argc, char **argv)
 		// allocate result arrays			
 		int outsize = Config::outdimy * Config::outdimz;
 		int noutdimx, outoffset;
-		pplan->getEven1D(noutdimx, outoffset, Config::outdimx);
+		pplan->get1D(noutdimx, outoffset, Config::outdimx);
 		outsize *= (pplan->rank()==0)? Config::outdimx : noutdimx;
 		Vec3D *resVel = new Vec3D[outsize];
 		double *resT = new double[outsize];
@@ -222,7 +227,9 @@ int main(int argc, char **argv)
 				}
 				break;
 		}
+
 		solver->Init(backend, csv, grid, *params);
+
 		int startFrame = 0;
 
 		int frames = grid->GetFramesNum();
@@ -243,7 +250,7 @@ int main(int argc, char **argv)
 			// allocate result arrays			
 			int outsize = Config::outdimy * Config::outdimz;
 			int noutdimx, outoffset;
-			pplan->getEven1D(noutdimx, outoffset, Config::outdimx);
+			pplan->get1D(noutdimx, outoffset, Config::outdimx);
 			outsize *= (pplan->rank()==0)? Config::outdimx : noutdimx;
 			Vec3D *resVel = new Vec3D[outsize];
 			double *resT = new double[outsize];

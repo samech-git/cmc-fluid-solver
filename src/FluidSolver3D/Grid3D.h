@@ -40,8 +40,35 @@
 
 using namespace Common;
 
+#define MAX_SEGS_PER_ROW	2
+
 namespace FluidSolver3D
 {
+
+	enum SegmentType // Segments get split up along X direction in multiGPU code
+	{ 
+		BOUND, 
+		BOUND_START, 
+		BOUND_END,
+		UNBOUND
+	};
+
+	enum SplitType // Segments get split up along X direction in multiGPU code
+	{ 
+		EVEN_X, 
+		EVEN_SEGMENTS
+	};
+
+	struct Segment3D
+	{
+		int posx, posy, posz;
+		int endx, endy, endz;
+		int size;
+		bool skipX; // segment alongX to be skipped 
+		DirType dir; 
+		SegmentType type;
+	};
+
 	struct Node
 	{
 		NodeType type;
@@ -69,8 +96,8 @@ namespace FluidSolver3D
 		Vec3D bcInVel;
 		double bcInT;
 
-		Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend, bool useNetCDF = false);			// 2D shape with constant depth
-		Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend, bool useNetCDF = false);						// 3D shape, polygons
+		Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend, bool useNetCDF = false, SplitType = EVEN_X);			// 2D shape with constant depth
+		Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend, bool useNetCDF = false, SplitType = EVEN_X);						// 3D shape, polygons
 		~Grid3D();
 
 		BBox3D GetBBox();
@@ -78,6 +105,9 @@ namespace FluidSolver3D
 		void genRandom();
 		void Prepare2();
 		void printTypes();
+
+		void GenerateListSegments(int &numSeg, Segment3D *h_list, int dim1, int dim2, int dim3, DirType dir);
+		void SplitSegments_X(int *splitting);
 
 		NodeType GetType(int i, int j, int k);
 		BCtype GetBC_vel(int i, int j, int k);
@@ -106,8 +136,11 @@ namespace FluidSolver3D
 		FluidSolver2D::Grid2D *GetGrid2D();
 		DepthInfo3D *GetDepthInfo();
 		
-		bool LoadFromFile(char *filename, bool align = false);
-		void Prepare(double time);
+		bool LoadFromFile(char *filename, bool align = false);		
+		void Prepare(double time);		
+		void Prepare_CPU(double time);
+		void Init_GPU();
+		void Split();
 
 		void TestPrint(char *filename);
 		void OutputImage(char *filename_base);
@@ -129,6 +162,7 @@ namespace FluidSolver3D
 		FrameInfo3D* frames;
 		int num_frames;
 		double frame_time;
+		SplitType split_type;
 
 		// static by now
 		DepthInfo3D *depthInfo;
@@ -140,6 +174,7 @@ namespace FluidSolver3D
 		// helper functions for 3D shape update
 		void Init(bool align);
 		void Init2();
+		void Prepare_GPU();
 		void Prepare3D_Shape(double time);
 		void Prepare3D_NetCDF(double time);
 

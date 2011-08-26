@@ -22,14 +22,14 @@
 
 namespace FluidSolver3D
 {
-	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend, bool useNetCDF) : 
-		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend), use3Dshape(false), frames(NULL), depthInfo(NULL)
+	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend, bool useNetCDF, SplitType _split_type) : 
+		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend), use3Dshape(false), frames(NULL), depthInfo(NULL), split_type(_split_type)
 	{
 		grid2D = new FluidSolver2D::Grid2D(dx, dy, baseT, true, 0.0);
 	}
 
-	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend, bool _useNetCDF) : 
-		dx(_dx), dy(_dy), dz(_dz), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend), use3Dshape(true), useNetCDF(_useNetCDF), frames(NULL), depthInfo(NULL)
+	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend, bool _useNetCDF, SplitType _split_type) : 
+		dx(_dx), dy(_dy), dz(_dz), baseT(_baseT), nodes(NULL), d_nodes(NULL), d_nodesT(NULL), backend(_backend), use3Dshape(true), useNetCDF(_useNetCDF), frames(NULL), depthInfo(NULL), split_type(_split_type)
 	{
 		grid2D = NULL;
 	}
@@ -94,6 +94,131 @@ namespace FluidSolver3D
 			PARAplan* pplan = PARAplan::Instance();
 			multiDevMemcpy<Node>(d_nodes, nodes +	pplan->getOffset1D() * dimy * dimz, pplan->getLength1D() * dimy * dimz);
 		}
+	}
+
+	void Grid3D::GenerateListSegments(int &numSeg, Segment3D *h_list, int dim1, int dim2, int dim3, DirType dir)
+	{
+		numSeg = 0;
+		for (int i = 0; i < dim2; i++)
+			for (int j = 0; j < dim3; j++)
+			{
+				Segment3D seg, new_seg;
+				int state = 0, incx, incy, incz;
+				switch (dir)
+				{
+				case X:	
+					seg.posx = 0; seg.posy = i; seg.posz = j; 
+					incx = 1; incy = 0; incz = 0;
+					break;
+				case Y: 
+					seg.posx = i; seg.posy = 0; seg.posz = j; 
+					incx = 0; incy = 1; incz = 0;
+					break;
+				case Z: 
+					seg.posx = i; seg.posy = j; seg.posz = 0; 
+					incx = 0; incy = 0; incz = 1; 
+					break;
+				}
+				seg.dir = (DirType)dir;
+
+				while ((seg.posx + incx < dimx) && (seg.posy + incy < dimy) && (seg.posz + incz < dimz))
+				{
+					if (GetType(seg.posx + incx, seg.posy + incy, seg.posz + incz) == NODE_IN)
+					{
+						if (state == 0) 
+							new_seg = seg;
+						state = 1;
+					}
+					else
+					{
+						if (state == 1)
+						{
+							new_seg.endx = seg.posx + incx;
+							new_seg.endy = seg.posy + incy;
+							new_seg.endz = seg.posz + incz;
+
+							new_seg.size = (new_seg.endx - new_seg.posx) + (new_seg.endy - new_seg.posy) + (new_seg.endz - new_seg.posz) + 1;
+
+							new_seg.skipX = false;
+							new_seg.type = BOUND;
+							h_list[numSeg] = new_seg;
+							numSeg++;
+							state = 0;
+						}
+					}
+					
+					seg.posx += incx;
+					seg.posy += incy;
+					seg.posz += incz;
+				}
+			}
+	}
+
+	void Grid3D::SplitSegments_X(int *splitting)
+	{
+		if (backend == CPU) // not supported in MPI 
+		{
+			splitting[0] = dimx;
+			return;
+		}
+		int i, num_seg_X, num_seg_Y, num_seg_Z;
+		double *acu_sum = new double[dimx];
+
+		Segment3D *h_list_X = new Segment3D[dimy * dimz * MAX_SEGS_PER_ROW];
+		Segment3D *h_list_Y = new Segment3D[dimx * dimz * MAX_SEGS_PER_ROW];
+		Segment3D *h_list_Z = new Segment3D[dimx * dimy * MAX_SEGS_PER_ROW];
+
+		GenerateListSegments(num_seg_X, h_list_X, dimx, dimy, dimz, X);	
+		GenerateListSegments(num_seg_Y, h_list_Y, dimy, dimx, dimz, Y);	
+		GenerateListSegments(num_seg_Z, h_list_Z, dimz, dimx, dimy, Z);	
+
+		for (i = 0; i < dimx; i++)
+			acu_sum[i] = 0.0;
+
+		for (i = 0; i < num_seg_Y; i++)
+			acu_sum[h_list_Y[i].posx] += 1.0;
+		for (i = 0; i < num_seg_Z; i++)
+			acu_sum[h_list_Z[i].posx] += 1.0;
+		
+		for (int ii = 0; ii < num_seg_X; ii++)
+			for (i = h_list_X[ii].posx; i <= h_list_X[ii].endx; i++)
+				acu_sum[i] += 1.0/h_list_X[ii].size;
+		
+		PARAplan *pplan = PARAplan::Instance();
+		// save sum to file:
+		/*
+		if (pplan->rank() == 0)
+		{
+			FILE *file = NULL;
+			fopen_s(&file, "segs_per_X.txt", "w");
+			for (i = 0; i < dimx; i++) 
+				fprintf(file, "%i    %f\n",i , acu_sum[i]);
+			fclose(file);
+		}
+		*/		
+		int nGPUs = pplan->gpuTotal();
+		double segsPerGPU = double(num_seg_Y + num_seg_Z + num_seg_X) /nGPUs;
+		double segSum = acu_sum[0];
+		int gpunode = 0;
+		int i_old = 0 ;
+		for (i = 1; i < dimx; i++)
+		{
+			if (segSum + acu_sum[i] > segsPerGPU)
+			{
+				splitting[gpunode] = i - 1 - i_old + 1;
+				gpunode++;
+				i_old = i;
+				if (gpunode >= nGPUs - 1) break;				
+				segSum = 0.0;
+			}
+			segSum += acu_sum[i];	
+		}
+		splitting[nGPUs - 1] = (nGPUs == 1)? dimx: dimx - i_old;
+
+		delete [] h_list_Z;
+		delete [] h_list_Y;
+		delete [] h_list_X;
+		delete [] acu_sum;
 	}
 
 	BBox3D Grid3D::GetBBox()
@@ -223,16 +348,6 @@ namespace FluidSolver3D
 		// allocate data
 		int size = dimx * dimy * dimz;
 		nodes = new Node[size];
-		if( backend == GPU ) 
-		{
-			PARAplan *pplan = PARAplan::Instance();
-			pplan->splitEven1D(dimx);
-			size = pplan->getLength1D() * dimy * dimz;
-			multiDevAlloc<Node> (d_nodes, size); 
-#if (TRANSPOSE_OPT == 1)
-			multiDevAlloc<Node> (d_nodesT, size); 
-#endif			
-		}
 		
 		for (int i=0; i<dimx * dimy * dimz; i++)
 		{
@@ -381,16 +496,6 @@ namespace FluidSolver3D
 
 		num_frames = 1;
 
-		if( backend == GPU ) 
-		{
-			PARAplan *pplan = PARAplan::Instance();
-			int size = pplan->getLength1D() * dimy * dimz;
-			multiDevAlloc<Node> (d_nodes, size);
-#if (TRANSPOSE_OPT ==1)			
-			multiDevAlloc<Node> (d_nodesT, size); 
-#endif			
-		}
-
 		return true;
 	}
 
@@ -414,17 +519,6 @@ namespace FluidSolver3D
 				dimz = align ? AlignBy32(active_dimz) : active_dimz;
 				nodes = new Node[dimx * dimy * dimz];
 				num_frames = grid2D->GetFramesNum();
-				if( backend == GPU ) 
-				{
-					PARAplan *pplan = PARAplan::Instance();
-					//Split the grid along x direction:
-					pplan->splitEven1D(dimx);
-					int size = pplan->getLength1D() * dimy * dimz;
-					multiDevAlloc<Node> (d_nodes, size);
-#if (TRANSPOSE_OPT == 1) 					
-					multiDevAlloc<Node> (d_nodesT, size);
-#endif					
-				}
 				return true;
 			}
 			else
@@ -432,7 +526,7 @@ namespace FluidSolver3D
 		}
 	}
 
-	void Grid3D::Prepare(double time)
+	void Grid3D::Prepare_CPU(double time)
 	{
 		if (use3Dshape) 
 		{
@@ -441,29 +535,70 @@ namespace FluidSolver3D
 		}
 		else
 			Prepare2D(time);
-		
-		// copy to GPU as well
-		if( backend == GPU ) 
-		{
-			PARAplan* pplan = PARAplan::Instance();
-			int dimxOffset = pplan->getOffset1D();
-			int dimxNode = pplan->getLength1D();
-			multiDevMemcpy<Node>(d_nodes, nodes + dimxOffset*dimy*dimz, dimxNode * dimy * dimz);
+	}
+
+	void Grid3D::Prepare_GPU()
+	{
+		PARAplan* pplan = PARAplan::Instance();
+		int dimxOffset = pplan->getOffset1D();
+		int dimxNode = pplan->getLength1D();
+		multiDevMemcpy<Node>(d_nodes, nodes + dimxOffset*dimy*dimz, dimxNode * dimy * dimz);
 #if (TRANSPOSE_OPT == 1)		
-			// currently implemented on CPU but it's possible to do a transpose on GPU
-			for (int i = dimxOffset; i < dimxOffset + dimxNode; i++)
-				for (int j = 0; j < dimy; j++)
-					for (int k = j+1; k < dimz; k++)
-					{
-						int id = (i) * dimy * dimz + j * dimz + k;
-						int idT = (i) * dimy * dimz + k * dimy + j;
-						Node tmp = nodes[idT];
-						nodes[idT] = nodes[id];
-						nodes[id] = tmp;
-					}
-			multiDevMemcpy<Node>(d_nodesT, nodes + dimxOffset*dimy*dimz, dimxNode * dimy * dimz);
-			multiDevMemcpy<Node>(nodes + dimxOffset*dimy*dimz, d_nodes, dimxNode * dimy * dimz);
-#endif			
+		// currently implemented on CPU but it's possible to do a transpose on GPU
+		for (int i = dimxOffset; i < dimxOffset + dimxNode; i++)
+			for (int j = 0; j < dimy; j++)
+				for (int k = j+1; k < dimz; k++)
+				{
+					int id = (i) * dimy * dimz + j * dimz + k;
+					int idT = (i) * dimy * dimz + k * dimy + j;
+					Node tmp = nodes[idT];
+					nodes[idT] = nodes[id];
+					nodes[id] = tmp;
+				}
+		multiDevMemcpy<Node>(d_nodesT, nodes + dimxOffset*dimy*dimz, dimxNode * dimy * dimz);
+		multiDevMemcpy<Node>(nodes + dimxOffset*dimy*dimz, d_nodes, dimxNode * dimy * dimz);
+#endif	
+	}
+
+	void Grid3D::Split()
+	{
+		PARAplan *pplan = PARAplan::Instance();
+		switch (split_type)
+		{
+		case EVEN_X:
+			pplan->splitEven1D(dimx);
+			break;
+		case EVEN_SEGMENTS:
+			int *splitting = new int[dimx];
+			SplitSegments_X(splitting);
+			pplan->split1D(splitting);
+			delete [] splitting;
+		}
+	}
+
+	void Grid3D::Init_GPU()
+	{
+		if (backend != GPU) return;
+
+		if (d_nodesT != NULL) multiDevFree<Node>(d_nodesT);
+		if (d_nodes != NULL) multiDevFree<Node>(d_nodes);		
+
+		PARAplan *pplan = PARAplan::Instance();
+		int size = pplan->getLength1D() * dimy * dimz;
+		multiDevAlloc<Node> (d_nodes, size); 
+#if (TRANSPOSE_OPT == 1)
+		multiDevAlloc<Node> (d_nodesT, size); 
+#endif
+		Prepare_GPU();
+	}
+
+	void Grid3D::Prepare(double time)
+	{	
+		Prepare_CPU(time);
+		// copy to GPU as well
+		if( backend == GPU )
+		{
+			Prepare_GPU();
 		}
 	}
 

@@ -228,7 +228,7 @@ template <typename T, SwipeType swipe>
 			return  dd_u;
 		}
 
-		void syncHalos(int tagID_F = 666, int tagID_B = 667)
+		void syncHalos(int tagID_F = 666, int tagID_B = 667, FTYPE* mpi_buf = NULL)
 		/*
 			Will synchronize fields' halos if haloSize != 0 
 		*/
@@ -277,8 +277,10 @@ template <typename T, SwipeType swipe>
 				int size = pplan->size();
 				if (size > 1)
 				{
-					FTYPE *mpi_buf_s = new FTYPE[haloSize];
-					FTYPE *mpi_buf_r = new FTYPE[haloSize];
+					//FTYPE *mpi_buf_s = new FTYPE[haloSize];
+					//FTYPE *mpi_buf_r = new FTYPE[haloSize];
+					FTYPE *mpi_buf_s = mpi_buf;
+					FTYPE *mpi_buf_r = mpi_buf + haloSize;
 					MPI_Request request_s, request_r;
 					MPI_Status status;
 
@@ -317,8 +319,8 @@ template <typename T, SwipeType swipe>
 					//pGPUplan->setDevice(0);
 					//paraDevSend<FTYPE, BACK>(dd_u[0] + haloSize, mpi_buf, haloSize, tagID_B);
 
-					delete [] mpi_buf_r;
-					delete [] mpi_buf_s;
+					//delete [] mpi_buf_r;
+					//delete [] mpi_buf_s;
 					//for (int i = 0; i < gpuSize; i++)
 					//{
 					//	pGPUplan->setDevice(i);
@@ -478,7 +480,6 @@ template <typename T, SwipeType swipe>
 				{
 					throw logic_error("not implemented yet!\n");
 					//MergeFieldTo_GPU(dimx, dimy, dimz, u, dest->getArray(), nodes, type);
-					break;
 				}
 			}
 		}
@@ -543,12 +544,12 @@ template <typename T, SwipeType swipe>
 
 		int haloSize;
 
-		void syncHalos()
+		void syncHalos(FTYPE *mpi_buf = NULL)
 		{
-			U->syncHalos(666, 667);
-			V->syncHalos(668, 669);
-			W->syncHalos(670, 671);
-			T->syncHalos(672, 673);
+			U->syncHalos(666, 667, mpi_buf);
+			V->syncHalos(668, 669, mpi_buf);
+			W->syncHalos(670, 671, mpi_buf);
+			T->syncHalos(672, 673, mpi_buf);
 		}
 		
 		inline FTYPE DissFuncX(int i, int j, int k)
@@ -835,7 +836,7 @@ template <typename T, SwipeType swipe>
 
 			PARAplan *pplan = PARAplan::Instance();
 			int outdimx, offset;
-			pplan->getEven1D(outdimx, offset, _outdimx);
+			pplan->get1D(outdimx, offset, _outdimx);
 
 			int size = outdimy * outdimz;
 			size *= (pplan->rank()==0)? _outdimx:outdimx;

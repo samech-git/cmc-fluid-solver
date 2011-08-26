@@ -110,7 +110,6 @@ namespace Common
 		{
 			gpuSafeCall(cudaSetDevice(i + ibegin), "GPUplan::syncDefaultStreams(): cudaSetDevice", i);
 			gpuSafeCall(cudaDeviceSynchronize(), "GPUplan::syncDefaultStreams(): cudaDeviceSynchronize", i);
-			//cudaStreamSynchronize(0);
 		}
 	}
 
@@ -143,6 +142,20 @@ namespace Common
 		printf("Splitting the data along first dimension(%d):\n", num_elems_1D);
 		for(int iDev = 0; iDev < nGPU; iDev++)
 			printf("device(%d) = %d    ",ibegin + iDev, plan[iDev]->getLength1D());
+		printf("\n");
+	}
+
+	void GPUplan::split1D(int *num_elems_1D)
+	{
+		data1D = 0;
+		for (int i = 0; i < nGPU; i++)
+		{
+			data1D += num_elems_1D[i];
+			plan[i]->setLength1D(num_elems_1D[i]);
+		}
+		printf("Splitting the data along first dimension(%d):\n", data1D);
+		for(int i = 0; i < nGPU; i++)
+			printf("device(%d) = %d    ",ibegin + i, plan[i]->getLength1D());
 		printf("\n");
 	}
 

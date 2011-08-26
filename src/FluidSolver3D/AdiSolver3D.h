@@ -17,6 +17,7 @@
 #pragma once
 
 #define PROFILE_ENABLE		1
+#define BLOCKING_SOLVER_ENABLE 1
 
 #ifdef _WIN32
 #include "..\Common\Profiler.h"
@@ -27,7 +28,6 @@
 #include "Solver3D.h"
 
 #define ERR_THRESHOLD		0.01
-#define MAX_SEGS_PER_ROW	2
 
 using namespace Common;
 
@@ -35,26 +35,8 @@ namespace FluidSolver3D
 {
 	enum VarType { type_U, type_V, type_W, type_T };
 
-	enum SegmentType // Segments get split up along X direction in multiGPU code
-	{ 
-		BOUND, 
-		BOUND_START, 
-		BOUND_END,
-		UNBOUND
-	};
-
-	struct Segment3D
-	{
-		int posx, posy, posz;
-		int endx, endy, endz;
-		int size;
-		bool skipX; // segment alongX to be skipped 
-		DirType dir; 
-		SegmentType type;
-	};
-
 	extern void SolveSegments_GPU( FTYPE dt, FluidParams params, int* num_seg, Segment3D **segs, VarType var, DirType dir, Node **nodes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
-								   FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt );
+								   FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt, FTYPE *mpi_buf = NULL );
 
 	class AdiSolver3D : public Solver3D
 	{
@@ -83,6 +65,8 @@ namespace FluidSolver3D
 		TimeLayer3D *temp, *half;
 		TimeLayer3D *curT, *tempT, *nextT;			// for transpose GPU optimization
 
+		FTYPE *mpi_buf;
+
 		FTYPE *a, *b, *c, *d, *x;									// matrices in CPU mem
 		FTYPE **d_a, **d_b, **d_c, **d_d, **d_x; // same matrices in GPU mem
 
@@ -102,6 +86,7 @@ namespace FluidSolver3D
 		void UpdateSegment(FTYPE *x, Segment3D seg, VarType var, TimeLayer3D *layer);
 		
 		void SolveDirection(DirType dir, FTYPE dt, int num_local, Segment3D *h_list, Segment3D **d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
+		void SolveDirection_XY(FTYPE dt, int num_local, Segment3D *h_list, Segment3D **d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
 
 		void FreeMemory();
 	};

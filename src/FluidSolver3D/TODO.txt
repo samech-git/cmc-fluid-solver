@@ -1,2 +1,3 @@
-*	problem with netcdf on psg: netcdf is compiled with --enable-netcdf-4, but hdf5 is not parallel
+*	problem with netcdf on psg: netcdf is compiled with --enable-netcdf-4, but hdf5 is not parallel - partially SOLVED
 *	put merge layer into update_segment
+*	move mpi_buf into PARAplan

@@ -69,7 +69,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
     <CudaCompile>
       <Include>..\NetCDF</Include>
-      <CodeGeneration>compute_10,sm_10; compute_20,sm_20</CodeGeneration>
+      <CodeGeneration> compute_20,sm_20</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

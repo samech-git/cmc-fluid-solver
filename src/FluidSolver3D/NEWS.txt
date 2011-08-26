@@ -1,2 +1,11 @@
 08.10.2011
 	Committed MPI version of cmc-fluid-solver with multi GPU support
+24.08.2011
+	Added pinned mpi_buf to AdiSolver
+25.08.2011 - 26.08.2011
+	Moved Segment3D, MAX_SEGS_PER_ROW to Grid3D.h
+	Moved a part of CreateListSegments into Grid3D as GenerateListSegments
+	Implemented PARAplan and GPUplan initialization from arbitrary splitting
+	Added segment analysis Grid3D::SplitSegments_X for work load optimization on Multi GPU
+	Fixed a bug, introduced into CPU version
+	All MPI communications in LaunchSolveSegments_X_var and syncHalos() are done through pinned memory, mpi_buf

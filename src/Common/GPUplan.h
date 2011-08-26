@@ -55,6 +55,7 @@ namespace Common
 		void setBegin(int iDev);
 		void setGPUnum(int num); // will use num < nMaxGPU GPUs
 		void splitEven1D(int num_elems_1D);
+		void split1D(int *num_elems_1D);
 		inline int rescale1D(int inode, int num_elems_total) const 
 			{ return plan[inode]->getLength1D() * (num_elems_total / data1D); } 		// returns num_elems_total per node according to GPUplan splitting along one dimension
 
@@ -142,7 +143,6 @@ namespace Common
 			offset += num_elems;
 		}
 		pGPUplan->deviceSynchronize();
-		//cudaDeviceSynchronize();
 	}
 
 	template <typename T>
@@ -163,7 +163,6 @@ namespace Common
 			offset += num_elems;
 		}
 		pGPUplan->deviceSynchronize();
-		//cudaDeviceSynchronize();
 	}
 
 	template <typename T>
@@ -184,6 +183,5 @@ namespace Common
 			offset += num_elems;
 		}
 		pGPUplan->deviceSynchronize();
-		//cudaDeviceSynchronize();
 	}
 }

@@ -54,6 +54,9 @@ namespace Common
 		void StartEvent()
 		{
 #if PROFILE_ENABLE
+#ifdef __PARA
+			MPI_Barrier(MPI_COMM_WORLD);
+#endif
 			timer.start();
 #endif
 		}
