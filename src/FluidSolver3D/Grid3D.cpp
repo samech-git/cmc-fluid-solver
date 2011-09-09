@@ -161,32 +161,55 @@ namespace FluidSolver3D
 			splitting[0] = dimx;
 			return;
 		}
-		int i, num_seg_X, num_seg_Y, num_seg_Z;
+		int i, num_seg_X, num_seg_Y, num_seg_Z, loadPerGPU;
 		double *acu_sum = new double[dimx];
 
-		Segment3D *h_list_X = new Segment3D[dimy * dimz * MAX_SEGS_PER_ROW];
-		Segment3D *h_list_Y = new Segment3D[dimx * dimz * MAX_SEGS_PER_ROW];
-		Segment3D *h_list_Z = new Segment3D[dimx * dimy * MAX_SEGS_PER_ROW];
+		Segment3D *h_list_X = NULL, *h_list_Y = NULL, *h_list_Z = NULL;
 
-		GenerateListSegments(num_seg_X, h_list_X, dimx, dimy, dimz, X);	
-		GenerateListSegments(num_seg_Y, h_list_Y, dimy, dimx, dimz, Y);	
-		GenerateListSegments(num_seg_Z, h_list_Z, dimz, dimx, dimy, Z);	
+		PARAplan *pplan = PARAplan::Instance();
+		int nGPUs = pplan->gpuTotal();
 
 		for (i = 0; i < dimx; i++)
 			acu_sum[i] = 0.0;
 
-		for (i = 0; i < num_seg_Y; i++)
-			acu_sum[h_list_Y[i].posx] += 1.0;
-		for (i = 0; i < num_seg_Z; i++)
-			acu_sum[h_list_Z[i].posx] += 1.0;
+		if (split_type == EVEN_SEGMENTS)
+		{
+			h_list_X = new Segment3D[dimy * dimz * MAX_SEGS_PER_ROW];
+			h_list_Y = new Segment3D[dimx * dimz * MAX_SEGS_PER_ROW];
+			h_list_Z = new Segment3D[dimx * dimy * MAX_SEGS_PER_ROW];
+
+			GenerateListSegments(num_seg_X, h_list_X, dimx, dimy, dimz, X);	
+			GenerateListSegments(num_seg_Y, h_list_Y, dimy, dimx, dimz, Y);	
+			GenerateListSegments(num_seg_Z, h_list_Z, dimz, dimx, dimy, Z);	
+
+			for (i = 0; i < num_seg_Y; i++)
+				acu_sum[h_list_Y[i].posx] += 1.0;
+			for (i = 0; i < num_seg_Z; i++)
+				acu_sum[h_list_Z[i].posx] += 1.0;
 		
-		for (int ii = 0; ii < num_seg_X; ii++)
-			for (i = h_list_X[ii].posx; i <= h_list_X[ii].endx; i++)
-				acu_sum[i] += 1.0/h_list_X[ii].size;
-		
-		PARAplan *pplan = PARAplan::Instance();
+			for (int ii = 0; ii < num_seg_X; ii++)
+				for (i = h_list_X[ii].posx; i <= h_list_X[ii].endx; i++)
+					acu_sum[i] += 1.0/h_list_X[ii].size;
+
+			loadPerGPU = double(num_seg_Y + num_seg_Z + num_seg_X) / nGPUs;
+		}
+
+		if (split_type == EVEN_VOLUME)
+		{
+			double indsidePoints = 0.;
+			for (i = 0; i < dimx; i++)
+				for (int j = 0; j < dimy; j++)
+					for (int k = 0; k < dimz; k++)
+						if (GetType(i,j,k) == NODE_IN)
+						{
+							acu_sum[i] += 1.0;
+							indsidePoints += 1.0;
+						}
+			loadPerGPU = indsidePoints / nGPUs;
+		}
+
 		// save sum to file:
-		/*
+		
 		if (pplan->rank() == 0)
 		{
 			FILE *file = NULL;
@@ -195,29 +218,27 @@ namespace FluidSolver3D
 				fprintf(file, "%i    %f\n",i , acu_sum[i]);
 			fclose(file);
 		}
-		*/		
-		int nGPUs = pplan->gpuTotal();
-		double segsPerGPU = double(num_seg_Y + num_seg_Z + num_seg_X) /nGPUs;
-		double segSum = acu_sum[0];
+		
+		double sum = acu_sum[0];
 		int gpunode = 0;
 		int i_old = 0 ;
 		for (i = 1; i < dimx; i++)
 		{
-			if (segSum + acu_sum[i] > segsPerGPU)
+			if (sum + acu_sum[i] > loadPerGPU)
 			{
 				splitting[gpunode] = i - 1 - i_old + 1;
 				gpunode++;
 				i_old = i;
 				if (gpunode >= nGPUs - 1) break;				
-				segSum = 0.0;
+				sum = 0.0;
 			}
-			segSum += acu_sum[i];	
+			sum += acu_sum[i];	
 		}
 		splitting[nGPUs - 1] = (nGPUs == 1)? dimx: dimx - i_old;
 
-		delete [] h_list_Z;
-		delete [] h_list_Y;
-		delete [] h_list_X;
+		if (h_list_Z != NULL) delete [] h_list_Z;
+		if (h_list_Y != NULL) delete [] h_list_Y;
+		if (h_list_X != NULL) delete [] h_list_X;
 		delete [] acu_sum;
 	}
 
@@ -568,7 +589,7 @@ namespace FluidSolver3D
 		case EVEN_X:
 			pplan->splitEven1D(dimx);
 			break;
-		case EVEN_SEGMENTS:
+		default:
 			int *splitting = new int[dimx];
 			SplitSegments_X(splitting);
 			pplan->split1D(splitting);

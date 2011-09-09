@@ -385,12 +385,14 @@ template<int dir, int swipe>
 	}
 
 	template<int dir, int var>
-	__device__ void update_segment( FTYPE *x, Segment3D &seg, TimeLayer3D_GPU &layer, int id, int num_seg, int max_n_max_n )
+	__device__ void update_segment( FTYPE *x, Segment3D &seg, Node* nodes, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &layer, int id, int num_seg, int max_n_max_n )
 	{
 		int i = seg.posx;
 		int j = seg.posy;
 		int k = seg.posz;
 		
+		int idn;
+
 		if( dir == Z_as_Y ) 
 		{
 			k = seg.posy;
@@ -406,6 +408,25 @@ template<int dir, int swipe>
 			case type_W: layer.elem(layer.w, i, j, k) = get(x,t); break;
 			case type_T: layer.elem(layer.T, i, j, k) = get(x,t); break;
 			}
+#if INTERNAL_MERGE_ENABLE == 1
+			idn = i * layer.dimy * layer.dimz;
+			switch(dir)
+			{
+			case Z_as_Y:
+				idn += k * layer.dimy + j;
+				break;
+			default:
+				idn += j * layer.dimz + k;
+			}
+			if (nodes[idn].type == NODE_IN)
+				switch (var)
+				{
+				case type_U: temp.elem(temp.u, i, j, k) = (temp.elem(temp.u, i, j, k) +  get(x,t) ) / 2; break;
+				case type_V: temp.elem(temp.v, i, j, k) = (temp.elem(temp.v, i, j, k) +  get(x,t) ) / 2; break;
+				case type_W: temp.elem(temp.w, i, j, k) = (temp.elem(temp.w, i, j, k) +  get(x,t) ) / 2; break;
+				case type_T: temp.elem(temp.T, i, j, k) = (temp.elem(temp.T, i, j, k) +  get(x,t) ) / 2; break;
+				}
+#endif
 
 			switch (dir)
 			{
@@ -451,13 +472,13 @@ template<int dir, int swipe>
 		{
 		case ALL:
 		case BACK:
-			update_segment<dir, var>(x, seg, next, id, num_seg, max_n_max_n);
+			update_segment<dir, var>(x, seg, nodes, temp, next, id, num_seg, max_n_max_n);
 			break;
 		}
 	}
 
 	template<int dir, int var>
-	__global__ void update_segments(int num_seg, Segment3D *segs, TimeLayer3D_GPU next, FTYPE *x, int  max_n_max_n, int id_shift = 0)
+	__global__ void update_segments(int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU temp, TimeLayer3D_GPU next,  FTYPE *x, int  max_n_max_n, int id_shift = 0)
 	{
 		// fetch current segment info
 		int id = id_shift + blockIdx.x * blockDim.x + threadIdx.x;
@@ -470,7 +491,7 @@ template<int dir, int swipe>
 			if (seg.skipX)
 				return;
 		}
-		update_segment<dir, var>(x, seg, next, id, num_seg, max_n_max_n);
+		update_segment<dir, var>(x, seg, nodes, temp, next, id, num_seg, max_n_max_n);
 	}
 
 	template<int dir, int var>
@@ -497,7 +518,7 @@ template<int dir, int swipe>
 	}
 
 	template<int dir, int var, int swipe>
-	__global__ void solve_matrix( int num_seg, Segment3D *segs, TimeLayer3D_GPU next,
+	__global__ void solve_matrix( int num_seg, Segment3D *segs, Node* nodes, TimeLayer3D_GPU temp, TimeLayer3D_GPU next, 
 								  FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, FTYPE *x, int max_n_max_n, int dimX, int id_shift = 0 )
 	{
 		// fetch current segment info
@@ -519,7 +540,7 @@ template<int dir, int swipe>
 		switch (swipe)
 		{
 		case ALL:
-			update_segment<dir, var>(x, seg, next, id, num_seg, max_n_max_n);
+			update_segment<dir, var>(x, seg, nodes, temp, next, id, num_seg, max_n_max_n);
 			break;
 		}
 	}
@@ -572,20 +593,16 @@ template<int dir, int swipe>
 
 				max_n_max_n = pGPUplan->node(i)->getLength1D() * max_n;
 
-				solve_matrix<dir, var, ALL><<<grid, block>>>( num_seg[i], segs[i], next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], dimX, max_n_max_n );
+				solve_matrix<dir, var, ALL><<<grid, block>>>( num_seg[i], segs[i], nodes[i], temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], dimX, max_n_max_n );
 			}
 		}
 
 		pGPUplan->deviceSynchronize();
-		//cudaDeviceSynchronize();
-		//printf("dir %d: next dd_T after forward and back calculation: %f\n", TestUtil::sumEllementsMultiGPU(next.dd_T, next.dimx * next.dimy * next.dimz, next.haloSize));
-		//TestUtil::printEllementsMultiGPU<FTYPE>(next.dd_T, next.dimy, next.dimz, next.dimy*next.dimz, true);
-		//fflush(stdout);
 	}
 
 	template<VarType var>
 	void LaunchSolveSegments_X_var( FluidParamsGPU p, int *num_seg, Segment3D **segs, Node **nodes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-									  FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt, FTYPE *mpi_buf = NULL )
+									  FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt, int numSegs, FTYPE *mpi_buf = NULL )
 	/*
 		X direction only
 	*/
@@ -606,30 +623,13 @@ template<int dir, int swipe>
 		int max_n_max_n = max_n * max_n;
 
 		int haloSize = max_n * max_n * MAX_SEGS_PER_ROW;
+		int comSize = numSegs; //cur.dimy * cur.dimz;
 		int dimX;
 
 		dim3 block(SOLVER_BLOCK_DIM);
 
 #ifdef __PARA
-		//MPI_Status status1, status2;	
-		//MPI_Request request_s;
-		//FTYPE *mpi_buf_1 = new FTYPE[2 * haloSize];
-		//FTYPE *mpi_buf_2 = new FTYPE[haloSize];
-		//FTYPE *mpi_buf = new FTYPE[2 * haloSize];
 #endif
-
-		//***************************************
-		//cur.SetDevice(0); temp.SetDevice(0); next.SetDevice(0);
-		//int dimX = pGPUplan->node(0).getLength1D();
-		//dim3 grid((num_seg[0] + block.x - 1)/block.x);
-
-		//max_n_max_n = max_n * max_n;
-		//solve_segments<X, var, FORWARD><<<grid, block>>>( p, num_seg[0], segs[0], nodes[0], cur, temp, next, d_a[0], d_b[0], d_c[0], d_d[0], d_x[0], max_n_max_n, dimX );
-		////cudaDeviceSynchronize();
-		//solve_segments<X, var, BACK><<<grid, block>>>( p, num_seg[0], segs[0], nodes[0], cur, temp, next, d_a[0], d_b[0], d_c[0], d_d[0], d_x[0], max_n_max_n, dimX );
-		//cudaDeviceSynchronize();
-		//return;
-		//***************************************
 
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
@@ -644,13 +644,13 @@ template<int dir, int swipe>
 		{			
 			pGPUplan->setDevice(0);
 			//cudaDeviceSynchronize();
-			paraDevRecv<FTYPE, FORWARD>(d_c[0], mpi_buf, haloSize, 666);
-			paraDevRecv<FTYPE, FORWARD>(d_d[0], mpi_buf + haloSize, haloSize, 667);
+			paraDevRecv<FTYPE, FORWARD>(d_c[0], mpi_buf, comSize, 666);
+			paraDevRecv<FTYPE, FORWARD>(d_d[0], mpi_buf + comSize, comSize, 667);
 			//if (irank > 0)
 			//{
-			//	mpiSafeCall( MPI_Recv(mpi_buf, 2 * haloSize, mpi_typeof(mpi_buf), irank-1, 666, MPI_COMM_WORLD, &status1),  "LaunchSolveSegments_X_var<FORWARD>: MPI_Recv" );
-			//	gpuSafeCall( cudaMemcpy(d_c[0], mpi_buf, sizeof(FTYPE) * haloSize, cudaMemcpyHostToDevice), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
-			//	gpuSafeCall( cudaMemcpy(d_d[0], mpi_buf + haloSize, sizeof(FTYPE) * haloSize, cudaMemcpyHostToDevice), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
+			//	mpiSafeCall( MPI_Recv(mpi_buf, 2 * comSize, mpi_typeof(mpi_buf), irank-1, 666, MPI_COMM_WORLD, &status1),  "LaunchSolveSegments_X_var<FORWARD>: MPI_Recv" );
+			//	gpuSafeCall( cudaMemcpy(d_c[0], mpi_buf, sizeof(FTYPE) * comSize, cudaMemcpyHostToDevice), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
+			//	gpuSafeCall( cudaMemcpy(d_d[0], mpi_buf + comSize, sizeof(FTYPE) * comSize, cudaMemcpyHostToDevice), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
 			//}
 		}
 #endif
@@ -664,11 +664,11 @@ template<int dir, int swipe>
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
 
 			//cudaFuncSetCacheConfig(solve_segments<dir, var, ALL>, cudaFuncCachePreferL1);
-			solve_matrix<X, var, FORWARD><<<grid, block>>>( num_seg[i], segs[i], next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
+			solve_matrix<X, var, FORWARD><<<grid, block>>>( num_seg[i], segs[i], nodes[i], temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
 			if (i < pGPUplan->size() - 1) //  send to node n+1
 			{
-				haloMemcpyPeer<FTYPE, FORWARD>( d_c, i, haloSize, dimX * haloSize);
-				haloMemcpyPeer<FTYPE, FORWARD>( d_d, i, haloSize, dimX * haloSize);
+				haloMemcpyPeer<FTYPE, FORWARD>( d_c, i, haloSize, dimX * haloSize, 0, comSize);
+				haloMemcpyPeer<FTYPE, FORWARD>( d_d, i, haloSize, dimX * haloSize, 0, comSize);
 			}
 		}
 #ifdef __PARA
@@ -676,21 +676,21 @@ template<int dir, int swipe>
 		{
 			//pGPUplan->deviceSynchronize();
 			pGPUplan->setDevice(pGPUplan->size()-1);
-			//if (irank < size - 1)
+			if (irank < size - 1)
 			//{
-			//	gpuSafeCall( cudaMemcpy(mpi_buf, d_c[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, sizeof(FTYPE) * haloSize, cudaMemcpyDeviceToHost), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
-			//	gpuSafeCall( cudaMemcpy(mpi_buf + haloSize, d_d[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, sizeof(FTYPE) * haloSize, cudaMemcpyDeviceToHost), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
-			//	mpiSafeCall( MPI_Send(mpi_buf, 2 * haloSize, mpi_typeof(mpi_buf), irank + 1, 666, MPI_COMM_WORLD), "LaunchSolveSegments_X_var<FORWARD>:  MPI_Send" );
+			//	gpuSafeCall( cudaMemcpy(mpi_buf, d_c[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, sizeof(FTYPE) * comSize, cudaMemcpyDeviceToHost), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
+			//	gpuSafeCall( cudaMemcpy(mpi_buf + comSize, d_d[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, sizeof(FTYPE) * comSize, cudaMemcpyDeviceToHost), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
+			//	mpiSafeCall( MPI_Ssend(mpi_buf, 2 * comSize, mpi_typeof(mpi_buf), irank + 1, 666, MPI_COMM_WORLD), "LaunchSolveSegments_X_var<FORWARD>:  MPI_Send" );
 			//}
-			paraDevSend<FTYPE, FORWARD>(d_c[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf, haloSize, 666);
-			paraDevSend<FTYPE, FORWARD>(d_d[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf + haloSize, haloSize, 667);
+			paraDevSend<FTYPE, FORWARD>(d_c[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf, comSize, 666);
+			paraDevSend<FTYPE, FORWARD>(d_d[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf + comSize, comSize, 667);
 
 			//if (irank < size - 1)
 			//{
-			//	mpiSafeCall( MPI_Recv(mpi_buf, haloSize, mpi_typeof(mpi_buf), irank+1, 667, MPI_COMM_WORLD, &status2), "LaunchSolveSegments_X_var<BACK>: MPI_Recv" );
-			//	gpuSafeCall( cudaMemcpy(d_x[pGPUplan->size()-1] + haloSize +  dimX * haloSize, mpi_buf, sizeof(FTYPE) * haloSize, cudaMemcpyHostToDevice), "LaunchSolveSegments_X_var<BACK>: cudaMemcpy" );
+			//	mpiSafeCall( MPI_Recv(mpi_buf, comSize, mpi_typeof(mpi_buf), irank+1, 667, MPI_COMM_WORLD, &status2), "LaunchSolveSegments_X_var<BACK>: MPI_Recv" );
+			//	gpuSafeCall( cudaMemcpy(d_x[pGPUplan->size()-1] + haloSize +  dimX * haloSize, mpi_buf, sizeof(FTYPE) * comSize, cudaMemcpyHostToDevice), "LaunchSolveSegments_X_var<BACK>: cudaMemcpy" );
 			//}
-			paraDevRecv<FTYPE, BACK>(d_x[pGPUplan->size()-1] + haloSize +  dimX * haloSize, mpi_buf, haloSize, 668);
+			paraDevRecv<FTYPE, BACK>(d_x[pGPUplan->size()-1] + haloSize +  dimX * haloSize, mpi_buf, comSize, 668);
 		}
 #endif
 		for (int i = pGPUplan->size() - 1; i >= 0; i--)
@@ -702,9 +702,9 @@ template<int dir, int swipe>
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
 
 			max_n_max_n = max_n * max_n;
-			solve_matrix<X, var, BACK><<<grid, block>>>( num_seg[i], segs[i], next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
+			solve_matrix<X, var, BACK><<<grid, block>>>( num_seg[i], segs[i], nodes[i], temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
 			if (i > 0)
-				haloMemcpyPeer<FTYPE, BACK>(d_x, i, haloSize, pGPUplan->node(i-1)->getLength1D()*haloSize);
+				haloMemcpyPeer<FTYPE, BACK>(d_x, i, haloSize, pGPUplan->node(i-1)->getLength1D()*haloSize, 0, comSize);
 		}
 
 #ifdef __PARA		
@@ -714,10 +714,10 @@ template<int dir, int swipe>
 			//cudaDeviceSynchronize();
 			//if (irank > 0)
 			//{
-			//	gpuSafeCall( cudaMemcpy(mpi_buf, d_x[0] + haloSize, sizeof(FTYPE) * haloSize, cudaMemcpyDeviceToHost), "LaunchSolveSegments_X_var<BACK>: cudaMemcpy" );
-			//	mpiSafeCall( MPI_Send(mpi_buf, haloSize, mpi_typeof(mpi_buf), irank - 1, 667, MPI_COMM_WORLD), "LaunchSolveSegments_X_var<BACK>: MPI_Send" );
+			//	gpuSafeCall( cudaMemcpy(mpi_buf, d_x[0] + haloSize, sizeof(FTYPE) * comSize, cudaMemcpyDeviceToHost), "LaunchSolveSegments_X_var<BACK>: cudaMemcpy" );
+			//	mpiSafeCall( MPI_Ssend(mpi_buf, comSize, mpi_typeof(mpi_buf), irank - 1, 667, MPI_COMM_WORLD), "LaunchSolveSegments_X_var<BACK>: MPI_Send" );
 			//}
-			paraDevSend<FTYPE, BACK>(d_x[0] + haloSize, mpi_buf, haloSize, 668);
+			paraDevSend<FTYPE, BACK>(d_x[0] + haloSize, mpi_buf, comSize, 668);
 		}
 #endif
 
@@ -726,19 +726,9 @@ template<int dir, int swipe>
 			pGPUplan->setDevice(i);
 			cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
-			update_segments<X, var><<<grid, block>>>( num_seg[i], segs[i], next, d_x[i],  max_n_max_n);
+			update_segments<X, var><<<grid, block>>>( num_seg[i], segs[i], nodes[i], temp, next, d_x[i],  max_n_max_n);
 		}
-
 		pGPUplan->deviceSynchronize();
-		//cudaDeviceSynchronize();
-
-#ifdef __PARA
-		//delete [] mpi_buf;
-		//if (irank > 0)
-			//MPI_Wait(&request_s, &status1);
-		//delete [] mpi_buf_1;
-		//delete [] mpi_buf_2;
-#endif
 	}
 
 	template<DirType dir>
@@ -755,22 +745,22 @@ template<int dir, int swipe>
 	}
 
 	void LaunchSolveSegments_X( FluidParamsGPU p, int *num_seg, Segment3D **segs, VarType var, Node **nodes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-								  FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt, FTYPE *mpi_buf = NULL )
+								  FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt, int numSegs, FTYPE *mpi_buf = NULL )
 	/*
 		Will change later to solve variables in parallel on mGPU (more memory)
 	*/
 	{
 		switch( var )
 		{
-		case type_U: LaunchSolveSegments_X_var<type_U>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, mpi_buf ); break;
-		case type_V: LaunchSolveSegments_X_var<type_V>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, mpi_buf ); break;
-		case type_W: LaunchSolveSegments_X_var<type_W>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, mpi_buf ); break;
-		case type_T: LaunchSolveSegments_X_var<type_T>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, mpi_buf ); break;
+		case type_U: LaunchSolveSegments_X_var<type_U>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs, mpi_buf ); break;
+		case type_V: LaunchSolveSegments_X_var<type_V>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs, mpi_buf ); break;
+		case type_W: LaunchSolveSegments_X_var<type_W>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs, mpi_buf ); break;
+		case type_T: LaunchSolveSegments_X_var<type_T>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs, mpi_buf ); break;
 		}
 	}
 
 	void SolveSegments_GPU( FTYPE dt, FluidParams params, int *num_seg, Segment3D **segs, VarType var, DirType dir, Node **nodes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
-							FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt,  FTYPE *mpi_buf )
+							FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt,  int numSegs, FTYPE *mpi_buf )
 	{
 		TimeLayer3D_GPU d_cur( cur );
 		TimeLayer3D_GPU d_temp( temp );
@@ -780,7 +770,7 @@ template<int dir, int swipe>
 
 		switch( dir )
 		{
-		case X: LaunchSolveSegments_X( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, mpi_buf ); break;
+		case X: LaunchSolveSegments_X( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs, mpi_buf ); break;
 		case Y: LaunchSolveSegments_dir<Y>( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
 		case Z: LaunchSolveSegments_dir<Z>( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
 		case Z_as_Y: LaunchSolveSegments_dir<Z_as_Y>( p, num_seg, segs, var, nodes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;

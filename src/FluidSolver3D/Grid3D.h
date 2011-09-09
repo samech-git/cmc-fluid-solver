@@ -56,7 +56,8 @@ namespace FluidSolver3D
 	enum SplitType // Segments get split up along X direction in multiGPU code
 	{ 
 		EVEN_X, 
-		EVEN_SEGMENTS
+		EVEN_SEGMENTS,
+		EVEN_VOLUME
 	};
 
 	struct Segment3D

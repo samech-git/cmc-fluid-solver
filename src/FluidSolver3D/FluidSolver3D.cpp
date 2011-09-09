@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 #if !SIMPLE_GRID
 		Grid3D *grid = NULL;
 
-		SplitType split_type = EVEN_SEGMENTS; //EVEN_X or EVEN_SEGMENTS
+		SplitType split_type = EVEN_X; //EVEN_X, EVEN_SEGMENTS or EVEN_VOLUME
 
 		if( Config::in_fmt == Shape3D ) 
 		{
@@ -156,6 +156,16 @@ int main(int argc, char **argv)
 		}
 		//grid->printTypes();
 #endif
+
+// calculate volume:
+		double indsidePoints = 0.;
+		for (int i = 0; i < grid->dimx; i++)
+			for (int j = 0; j < grid->dimy; j++)
+				for (int k = 0; k < grid->dimz; k++)
+					if (grid->GetType(i,j,k) == NODE_IN)
+						indsidePoints += 1.0;
+		if (pplan->rank() == 0)
+			printf("NODE_IN points = %f of total %f, volume = %f\n", indsidePoints, double(grid->dimx) * grid->dimy * grid->dimz, indsidePoints * grid->dx * grid->dy * grid->dz);
 
 		//--------------------------------------- For Testing ---------------------------------------
 #if SIMPLE_GRID
@@ -274,9 +284,13 @@ int main(int argc, char **argv)
 
 			grid->Prepare(t);
 
+			if (i == 0)
+				solver->debug(true);
 			solver->UpdateBoundaries();
 			solver->TimeStep((FTYPE)dt, Config::num_global, Config::num_local);
 			solver->SetGridBoundaries();
+			if (i == 0)
+				solver->debug(false);
 
 			timer.stop();
 
@@ -298,7 +312,7 @@ int main(int argc, char **argv)
 		if (pplan->rank() == 0)
 		{
 			printf("\nTotal time: %.2f sec\n", timer.elapsed_sec());
-			OutputSliceResult("last_zslice.txt", 18, resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, (float)dt * Config::out_time_steps);
+			OutputSliceResult("last_zslice.txt", 2, resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, (float)dt * Config::out_time_steps);
 		}
 #endif
 

@@ -9,3 +9,9 @@
 	Added segment analysis Grid3D::SplitSegments_X for work load optimization on Multi GPU
 	Fixed a bug, introduced into CPU version
 	All MPI communications in LaunchSolveSegments_X_var and syncHalos() are done through pinned memory, mpi_buf
+09.09.2011
+	Added splitting by equal volumes (EVEN_VOLUME) for workload optimization
+	Fixed a bug in MPI version
+	INTERNAL_MERGE_ENABLE = 1 in AdiSolver.h will switch on Nonlinear Layer Merging on segment's update
+	Added ifdebug flag for printing stats in AdiSolver, set by debug(ifdebug)
+

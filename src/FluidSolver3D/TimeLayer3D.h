@@ -112,14 +112,16 @@ template <typename T, SwipeType swipe>
 			if (irank < size - 1)
 			{
 				gpuSafeCall(cudaMemcpy(mpi_buf, dev_src, sizeof(T) * num_elems, cudaMemcpyDeviceToHost), "paraDevSend: cudaMemcpy");
-				mpiSafeCall(MPI_Send(mpi_buf, num_elems, mpi_typeof(mpi_buf), irank + 1, tagID, MPI_COMM_WORLD), "paraDevSend: MPI_Send");
+				cudaDeviceSynchronize();
+				mpiSafeCall(MPI_Ssend(mpi_buf, num_elems, mpi_typeof(mpi_buf), irank + 1, tagID, MPI_COMM_WORLD), "paraDevSend: MPI_Ssend");
 			}
 			break;
 		case BACK:
 			if (irank > 0)
 			{
 				cudaMemcpy(mpi_buf, dev_src, sizeof(T) * num_elems, cudaMemcpyDeviceToHost);
-				MPI_Send(mpi_buf, num_elems, mpi_typeof(mpi_buf), irank - 1, tagID, MPI_COMM_WORLD);
+				cudaDeviceSynchronize();
+				mpiSafeCall(MPI_Ssend(mpi_buf, num_elems, mpi_typeof(mpi_buf), irank - 1, tagID, MPI_COMM_WORLD), "paraDevSend: MPI_Ssend");
 			}
 			break;
 		}
@@ -255,11 +257,6 @@ template <typename T, SwipeType swipe>
 				int gpuSize = pGPUplan->size();
 				for (int i = 0; i < gpuSize; i++)
 				{
-					//int halo = pGPUplan->node(i)->getLength1D()* dimy * dimz; // number of elements without halo
-					//if ( i < gpuSize - 1)
-					//	haloMemcpyPeer<FTYPE, FORWARD>( dd_u, i, haloSize, haloSize * pGPUplan->node(i)->getLength1D());
-					//if ( i > 0)
-					//	haloMemcpyPeer<FTYPE, BACK>( dd_u, i, haloSize, haloSize * pGPUplan->node(i-1)->getLength1D());
 					if ( i < gpuSize - 1)
 						haloMemcpyPeerAsync<FTYPE, FORWARD>( dd_u, i, haloSize, haloSize * pGPUplan->node(i)->getLength1D(), pGPUplan->node(i)->stream);
 					if ( i > 0)
@@ -271,14 +268,11 @@ template <typename T, SwipeType swipe>
 					gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream), "ScalarField3D::syncHalos(): cudaStreamSynchronize", i);
 					gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream2), "ScalarField3D::syncHalos(): cudaStreamSynchronize", i);
 				}
-					//cudaDeviceSynchronize();
 #ifdef __PARA				
 				int irank = pplan->rank();
 				int size = pplan->size();
 				if (size > 1)
 				{
-					//FTYPE *mpi_buf_s = new FTYPE[haloSize];
-					//FTYPE *mpi_buf_r = new FTYPE[haloSize];
 					FTYPE *mpi_buf_s = mpi_buf;
 					FTYPE *mpi_buf_r = mpi_buf + haloSize;
 					MPI_Request request_s, request_r;
@@ -308,25 +302,6 @@ template <typename T, SwipeType swipe>
 						MPI_Wait(&request_s, &status);	
 					pGPUplan->setDevice(gpuSize-1);
 					gpuSafeCall( cudaMemcpy(dd_u[gpuSize-1] + haloSize +  pGPUplan->node(gpuSize - 1)->getLength1D() * haloSize, mpi_buf_r, sizeof(FTYPE) * haloSize, cudaMemcpyHostToDevice), "syncHalos<BACK>: cudaMemcpy" );
-
-
-
-					//pGPUplan->setDevice(0);
-					//paraDevRecv<FTYPE, FORWARD>(dd_u[0], mpi_buf, haloSize, tagID_F);
-					//pGPUplan->setDevice(gpuSize-1);
-					//paraDevSend<FTYPE, FORWARD>(dd_u[gpuSize-1] + haloSize + pGPUplan->node(gpuSize - 1)->getLength1D() * haloSize - haloSize, mpi_buf, haloSize, tagID_F);
-					//paraDevRecv<FTYPE, BACK>(dd_u[gpuSize-1] + haloSize +  pGPUplan->node(gpuSize - 1)->getLength1D() * haloSize, mpi_buf, haloSize, tagID_B);
-					//pGPUplan->setDevice(0);
-					//paraDevSend<FTYPE, BACK>(dd_u[0] + haloSize, mpi_buf, haloSize, tagID_B);
-
-					//delete [] mpi_buf_r;
-					//delete [] mpi_buf_s;
-					//for (int i = 0; i < gpuSize; i++)
-					//{
-					//	pGPUplan->setDevice(i);
-					//	gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream), "ScalarField3D::syncHalos(): cudaStreamSynchronize", i);
-					//	gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream2), "ScalarField3D::syncHalos(): cudaStreamSynchronize", i);
-					//}
 				}
 #endif
 				pGPUplan->deviceSynchronize();
@@ -547,9 +522,9 @@ template <typename T, SwipeType swipe>
 		void syncHalos(FTYPE *mpi_buf = NULL)
 		{
 			U->syncHalos(666, 667, mpi_buf);
-			V->syncHalos(668, 669, mpi_buf);
-			W->syncHalos(670, 671, mpi_buf);
-			T->syncHalos(672, 673, mpi_buf);
+			V->syncHalos(666, 667, mpi_buf);
+			W->syncHalos(666, 667, mpi_buf);
+			T->syncHalos(666, 667, mpi_buf);
 		}
 		
 		inline FTYPE DissFuncX(int i, int j, int k)

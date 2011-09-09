@@ -18,6 +18,7 @@
 
 #define PROFILE_ENABLE		1
 #define BLOCKING_SOLVER_ENABLE 1
+#define INTERNAL_MERGE_ENABLE 0
 
 #ifdef _WIN32
 #include "..\Common\Profiler.h"
@@ -36,7 +37,7 @@ namespace FluidSolver3D
 	enum VarType { type_U, type_V, type_W, type_T };
 
 	extern void SolveSegments_GPU( FTYPE dt, FluidParams params, int* num_seg, Segment3D **segs, VarType var, DirType dir, Node **nodes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
-								   FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt, FTYPE *mpi_buf = NULL );
+								   FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt, int numSegs, FTYPE *mpi_buf = NULL);
 
 	class AdiSolver3D : public Solver3D
 	{
@@ -48,6 +49,7 @@ namespace FluidSolver3D
 		void TimeStep(FTYPE dt, int num_global, int num_local);
 		void SetOptionsGPU(bool _transposeOpt, bool _decomposeOpt);
 		double sum_layer(char ch);
+		void debug(bool ifdebug);
 
 	private:
 		Profiler prof;
@@ -69,6 +71,8 @@ namespace FluidSolver3D
 
 		FTYPE *a, *b, *c, *d, *x;									// matrices in CPU mem
 		FTYPE **d_a, **d_b, **d_c, **d_d, **d_x; // same matrices in GPU mem
+
+		bool ifdebug; // flag for printing stats only;
 
 		void BuildMatrix(FTYPE dt, int i, int j, int k, VarType var, DirType dir, FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int n, TimeLayer3D *cur, TimeLayer3D *temp);
 		void ApplyBC0(int i, int j, int k, VarType var, FTYPE &b0, FTYPE &c0, FTYPE &d0);

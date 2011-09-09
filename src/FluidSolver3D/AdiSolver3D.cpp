@@ -58,9 +58,16 @@ namespace FluidSolver3D
 		return sum;
 	}
 
+	void AdiSolver3D::debug(bool _debug)
+	{
+		ifdebug = _debug;
+	}
+
 	AdiSolver3D::AdiSolver3D()
 	{
 		grid = NULL;
+
+		ifdebug = false;
 
 		cur = NULL;
 		temp = NULL;
@@ -123,7 +130,8 @@ namespace FluidSolver3D
 		if (d_listY != NULL) multiDevFree<Segment3D>(d_listY);
 		if (d_listZ != NULL) multiDevFree<Segment3D>(d_listZ);
 
-		if (mpi_buf != NULL) gpuSafeCall( cudaFreeHost(mpi_buf), "cudaFreeHost"); //delete [] mpi_buf;
+		if (mpi_buf != NULL) gpuSafeCall( cudaFreeHost(mpi_buf), "cudaFreeHost");
+		//if (mpi_buf != NULL) delete [] mpi_buf; //delete [] mpi_buf;
 
 		for (int i = 0; i < 3; i++ )
 			delete [] numSegsGPU[i];
@@ -184,7 +192,7 @@ namespace FluidSolver3D
 
 #ifdef __PARA
 		gpuSafeCall(cudaHostAlloc(&mpi_buf, sizeof(FTYPE) * 2 * n * n * MAX_SEGS_PER_ROW, cudaHostAllocDefault), "cudaHostAlloc");
-		//mpi_buf = new FTYPE[2 * haloSize];
+		//mpi_buf = new FTYPE[2 * n * n * MAX_SEGS_PER_ROW];
 #endif
 
 		}
@@ -263,10 +271,24 @@ namespace FluidSolver3D
 			SolveDirection(X, dt, num_local, h_listX, d_listX, half, temp, next);			
 			//printf("AdiSolver3D::TimeStep: temp, next after SolveDirection(Z,Y, and X): %f    %f\n",  sum_layer('t'), sum_layer('n'));
 
-			// update non-linear layer
-			prof.StartEvent();
-			next->MergeLayerTo(grid, temp, NODE_IN);
-			prof.StopEvent("MergeLayer");
+
+			//SolveDirection(Z, dt, num_local, h_listZ, d_listZ, cur, temp, half);
+			//SolveDirection(Y, dt, num_local, h_listY, d_listY, half, temp, next);
+			//SolveDirection(X, dt, num_local, h_listZ, d_listZ, cur, temp, next);
+
+
+			 //update non-linear layer
+			switch (backend)
+			{
+			case CPU:
+#if !INTERNAL_MERGE_ENABLE
+			case GPU:
+#endif
+				prof.StartEvent();
+				next->MergeLayerTo(grid, temp, NODE_IN);
+				prof.StopEvent("MergeLayer");
+				break;
+			}
 		}		
 		// smooth results
 		//temp->Smooth(grid, next, NODE_IN);
@@ -323,6 +345,12 @@ namespace FluidSolver3D
 		grid->GenerateListSegments(numSeg, hh_list, dim1, dim2, dim3, dir);	
 
 		numSeg = _nodeSplitListSegments<dir>(h_list, numSeg, hh_list, dimxNode, dimxNodeOffset);
+		
+		if (ifdebug)
+		{
+			printf("CreateListSegments: Node(%d), total number of segments per direction %d: %d\n",pplan->rank(), dir, numSeg);
+			fflush(stdout);
+		}
 
 		if( backend == GPU )
 		{
@@ -338,9 +366,11 @@ namespace FluidSolver3D
 				numSegsGPU[dir][i] = nSegGPU;
 				dimxNodeOffset += dimxNode;
 				
-				//printf("CreateListSegments: Node(%d), printing list of segment sizes per direction %d, device %d:\n",pplan->rank(), dir, i);
-				//printf("numSegsGPU[%d][%d] = %d\n", dir, i, nSegGPU);
-				//fflush(stdout);
+				if (ifdebug)
+				{
+					printf("CreateListSegments: Node(%d), number of segments per direction %d, device %d:  %d\n",pplan->rank(), dir, i, nSegGPU);
+					fflush(stdout);
+				}
 
 
 				pGPUplan->setDevice(i);
@@ -393,15 +423,7 @@ template<DirType dir>
 						nSeg++;
 						break;
 				}
-		}
-		
-		//PARAplan *pplan = PARAplan::Instance();
-		//printf("Node(%d), direction %d:\n", pplan->rank(), dir);
-		//for (int i = 0; i < nSeg; i++)
-		//	printf("%d,%d,%d  %d %d %d  %d %d  %d  \n", dest_list[i].posx, dest_list[i].posy, dest_list[i].posz, dest_list[i].endx, dest_list[i].endy, dest_list[i].endz, dest_list[i].type, dest_list[i].size, dest_list[i].skipX);
-		//printf("\n");
-		//fflush(stdout);
-
+		}		
 		return nSeg;
 	}
 
@@ -422,6 +444,10 @@ template<DirType dir>
 		TimeLayer3D *cur_new = cur;
 		TimeLayer3D *temp_new = temp;
 		TimeLayer3D *next_new = next;
+		Node** dev_nodes;
+
+		if (backend == GPU)
+				dev_nodes = grid->GetNodesGPU();
 
 		// transpose non-linear layer if opt is enabled
 		if( transposeOpt && dir == Z )
@@ -467,15 +493,13 @@ template<DirType dir>
 				case Y: prof.StopEvent("syncHalos_Y"); break;
 				case Z: prof.StopEvent("syncHalos_Z"); break;
 				}
-				//printf("AdiSolver3D::TimeStep on node(%d), direction %d: temp after syncHalos: %f\n",pplan->rank(), dir, sum_layer('t'));
-				//fflush(stdout);
 
 				prof.StartEvent();
 
-				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_U, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, mpi_buf);	
-				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_V, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, mpi_buf);
-				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_W, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, mpi_buf);
-				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_T, dir_new, grid->GetNodesGPU(), cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, mpi_buf);				
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_U, dir_new, dev_nodes, cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs[dir], mpi_buf);	
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_V, dir_new, dev_nodes, cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs[dir], mpi_buf);
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_W, dir_new, dev_nodes, cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs[dir], mpi_buf);
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_T, dir_new, dev_nodes, cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs[dir], mpi_buf);				
 				break;
 			}
 
@@ -486,19 +510,27 @@ template<DirType dir>
 			case Z: prof.StopEvent("SolveSegments_Z"); break;
 			}
 
-			if( dir_new == Z_as_Y )
+			switch (backend)
 			{
-				// update non-linear layer
-				prof.StartEvent();
-				nextT->MergeLayerTo(grid, tempT, NODE_IN, true);
-				prof.StopEvent("MergeLayer");
-			}
-			else
-			{
-				// update non-linear layer
-				prof.StartEvent();
-				next->MergeLayerTo(grid, temp, NODE_IN);
-				prof.StopEvent("MergeLayer");
+			case CPU:
+#if !INTERNAL_MERGE_ENABLE
+			case GPU:
+#endif
+				if( dir_new == Z_as_Y )
+				{
+					// update non-linear layer
+					prof.StartEvent();
+					nextT->MergeLayerTo(grid, tempT, NODE_IN, true);
+					prof.StopEvent("MergeLayer");
+				}
+				else
+				{
+					// update non-linear layer
+					prof.StartEvent();
+					next->MergeLayerTo(grid, temp, NODE_IN);
+					prof.StopEvent("MergeLayer");
+				}
+				break;
 			}
 		}
 
