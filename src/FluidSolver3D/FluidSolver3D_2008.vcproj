@@ -228,10 +228,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\Common\test_util.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\TimeLayer3D.cu"
 				>
 			</File>
@@ -287,10 +283,6 @@
 			</File>
 			<File
 				RelativePath=".\Solver3D.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Common\test_util.h"
 				>
 			</File>
 			<File
