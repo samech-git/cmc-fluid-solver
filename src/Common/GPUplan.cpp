@@ -1,7 +1,9 @@
 #include "GPUplan.h"
-#include <cstdlib> // for exit()
-#include <cstring>
-#include <exception>
+
+#ifdef linux
+#include "LinuxIO.h"
+using namespace LinuxIO;
+#endif
 
 namespace Common
 {
@@ -12,7 +14,6 @@ namespace Common
 			gpuSafeCall( cudaEventCreate(&event[i]), "GPUNode::init(): on event create" ); 
 		gpuSafeCall( cudaStreamCreate(&stream), "GPUNode::init(): on stream create" );
 		gpuSafeCall( cudaStreamCreate(&stream2), "GPUNode::init(): on stream create" );
-		gpuSafeCall( cudaStreamCreate(&stream3), "GPUNode::init(): on stream create" );
 	}
 
 	void GPUNode::destroy()
@@ -21,11 +22,10 @@ namespace Common
 			gpuSafeCall( cudaEventDestroy(event[i]), "GPUNode::~GPUNode(): on event destroy" );
 		gpuSafeCall( cudaStreamDestroy(stream), "GPUNode::~GPUNode(): on stream destroy" );
 		gpuSafeCall( cudaStreamDestroy(stream2), "GPUNode::~GPUNode(): on stream destroy" );
-		gpuSafeCall( cudaStreamDestroy(stream3), "GPUNode::~GPUNode(): on stream destroy" );
 	}
 
 	bool GPUplan::isInstance = false;
-	GPUplan* GPUplan::self = NULL;
+	GPUplan *GPUplan::self = NULL;
 
 	GPUplan::GPUplan()
 	{
@@ -34,11 +34,6 @@ namespace Common
 
   void GPUplan::init()
 	{
-		//int cudaCacheSize = 64*1000000;
-		//hstRegPtr = malloc(cudaCacheSize);
-		//cudaHostRegister(hstRegPtr, 64*1000000, cudaHostRegisterMapped);
-		//gpuSafeCall(cudaHostAlloc(&hstRegPtr, cudaCacheSize, cudaHostAllocMapped), "GPUplan::init(): cudaHostAlloc");
-		//gpuSafeCall(cudaHostRegister(hstRegPtr, cudaCacheSize, cudaHostRegisterMapped), "GPUplan::init(): cudaHostRegister" );
 #if MGPU_EMU
 		nMaxGPU = nGPU = GPU_NUM;
 #else
@@ -76,7 +71,6 @@ namespace Common
 						printf("Enabling peer access from device %d on device %d\n", i, i-1);
 				}
 			}
-			/**/
 		}
 	}
 
@@ -120,7 +114,6 @@ namespace Common
 
 	void GPUplan::setGPUnum( int num )
 	{
-		//if (plan != NULL) GPUplan::destroy();
 		nGPU = (num <= nMaxGPU)?num:nMaxGPU; 
 	}
 
@@ -168,15 +161,12 @@ namespace Common
 			plan[i]->destroy();
 		}
 		delete [] plan;
-		//gpuSafeCall(cudaHostUnregister(hstRegPtr), "GPUplan::~GPUplan(): cudaHostUnregister" );
-	  //gpuSafeCall(cudaFreeHost(hstRegPtr), "GPUplan::~GPUplan(): cudaFreeHost");
 	}
 
 	GPUplan::~GPUplan()
 	{
 		GPUplan::destroy();
 	}
-
 
 	void gpuSafeCall(cudaError_t status, char* message, int id)
 	{
@@ -195,7 +185,7 @@ namespace Common
 			if (len > bufSize)
 				throw (std::logic_error("gpuSafeCall: buffer size is too small"));
 			char buffer[bufSize];
-			sprintf(buffer, "%s on device %d", message, id);
+			sprintf_s(buffer, "%s on device %d", message, id);
 			throw std::runtime_error(buffer);
 		}
 	}

@@ -25,8 +25,6 @@
 #define SEG_BLOCK_DIM_X		32
 #define SEG_BLOCK_DIM_Y		8
 
-#include "../Common/test_util.h"
-
 namespace FluidSolver3D
 {
 	struct FluidParamsGPU
@@ -88,9 +86,6 @@ namespace FluidSolver3D
 			};
 		}
 
-		//b0 = c0 = d0 = 1.;
-	//	return;
-
 		int id = i * dimy * dimz;
 		if (dir != Z_as_Y) id += j * dimz + k;
 			else id += j * dimy + k;
@@ -132,9 +127,6 @@ namespace FluidSolver3D
 				return;
 			}
 		}
-
-		//a1 = b1 = d1 = 2.;
-		//return;
 
 		int id = i * dimy * dimz;
 		if (dir != Z_as_Y) id += j * dimz + k;
@@ -292,33 +284,10 @@ template<int dir, int swipe>
 				{
 					get(c,i) = get(c,i) / (get(b,i) - get(a,i) * get(c,i-1));
 					get(d,i) = (get(d,i) - get(d,i-1) * get(a,i)) / (get(b,i) - get(a,i) * get(c,i-1));
-					/*
-					switch (segType)
-					{
-						case BOUND_START:
-							if ( i ==  num - 1)
-							{
-								printf("BOUND_START: id = %d    get(d, %d) = %f\n",id ,is, get(d, is));
-							}
-							break;
-						case BOUND_END:
-							if ( i == start)
-								printf("BOUND_END: id = %d    get(d, %d) = %f\n",id ,is, get(d, is));
-							break;
-					}
-					/**/
 				}
 				switch (dir)
 				{
 				case X:
-					//switch(segType)
-					//{
-					//case UNBOUND:
-					//case BOUND_START:
-					//	get(c, dimX-1) = get(c, num-1);
-					//	get(d, dimX-1) = get(d, num-1);
-					//	break;
-					//}
 					get(c, dimX-1) = get(c, num-1);
 					get(d, dimX-1) = get(d, num-1);
 					break;
@@ -361,24 +330,7 @@ template<int dir, int swipe>
 				}
 
 				for (int i = end-1; i >= 0; i--) 
-				{
 					get(x,i) = get(d,i) -  get(c,i) * get(x, i+1);
-					/*
-					switch (segType)
-					{
-						case BOUND_START:
-							if ( i ==  end - 1)
-							{
-								printf("BOUND_START: id = %d    get(x, %d+1) = %f\n",id ,i, get(x, i+1));
-							}
-							break;
-						case BOUND_END:
-							if ( i == 0)
-								printf("BOUND_END: id = %d    get(x, %d) = %f\n",id ,i, get(x, i));
-							break;
-					}
-					/**/
-				}
 				break;
 			}
 		}
@@ -390,8 +342,6 @@ template<int dir, int swipe>
 		int i = seg.posx;
 		int j = seg.posy;
 		int k = seg.posz;
-		
-		int idn;
 
 		if( dir == Z_as_Y ) 
 		{
@@ -409,7 +359,7 @@ template<int dir, int swipe>
 			case type_T: layer.elem(layer.T, i, j, k) = get(x,t); break;
 			}
 #if INTERNAL_MERGE_ENABLE == 1
-			idn = i * layer.dimy * layer.dimz;
+			int idn = i * layer.dimy * layer.dimz;
 			switch(dir)
 			{
 			case Z_as_Y:
@@ -596,7 +546,6 @@ template<int dir, int swipe>
 				solve_matrix<dir, var, ALL><<<grid, block>>>( num_seg[i], segs[i], nodes[i], temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], dimX, max_n_max_n );
 			}
 		}
-
 		pGPUplan->deviceSynchronize();
 	}
 
@@ -617,19 +566,15 @@ template<int dir, int swipe>
 			LaunchSolveSegments_dir_var<X, var>( p, num_seg, segs, nodes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt );
 			return;
 		}
-		/**/
 		
 		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
 		int max_n_max_n = max_n * max_n;
 
 		int haloSize = max_n * max_n * MAX_SEGS_PER_ROW;
-		int comSize = numSegs; //cur.dimy * cur.dimz;
+		int comSize = numSegs;
 		int dimX;
 
 		dim3 block(SOLVER_BLOCK_DIM);
-
-#ifdef __PARA
-#endif
 
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
@@ -638,23 +583,14 @@ template<int dir, int swipe>
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
 			build_matrix<X, var><<<grid, block>>>( p, num_seg[i], segs[i], nodes[i], cur, temp, d_a[i], d_b[i], d_c[i], d_d[i], max_n_max_n );
 		}
-
 #ifdef __PARA
 		if (pplan->size() > 1)
 		{			
 			pGPUplan->setDevice(0);
-			//cudaDeviceSynchronize();
 			paraDevRecv<FTYPE, FORWARD>(d_c[0], mpi_buf, comSize, 666);
 			paraDevRecv<FTYPE, FORWARD>(d_d[0], mpi_buf + comSize, comSize, 667);
-			//if (irank > 0)
-			//{
-			//	mpiSafeCall( MPI_Recv(mpi_buf, 2 * comSize, mpi_typeof(mpi_buf), irank-1, 666, MPI_COMM_WORLD, &status1),  "LaunchSolveSegments_X_var<FORWARD>: MPI_Recv" );
-			//	gpuSafeCall( cudaMemcpy(d_c[0], mpi_buf, sizeof(FTYPE) * comSize, cudaMemcpyHostToDevice), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
-			//	gpuSafeCall( cudaMemcpy(d_d[0], mpi_buf + comSize, sizeof(FTYPE) * comSize, cudaMemcpyHostToDevice), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
-			//}
 		}
 #endif
-
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
 			pGPUplan->setDevice(i);
@@ -674,22 +610,9 @@ template<int dir, int swipe>
 #ifdef __PARA
 		if (pplan->size() > 0)
 		{
-			//pGPUplan->deviceSynchronize();
 			pGPUplan->setDevice(pGPUplan->size()-1);
-			if (irank < size - 1)
-			//{
-			//	gpuSafeCall( cudaMemcpy(mpi_buf, d_c[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, sizeof(FTYPE) * comSize, cudaMemcpyDeviceToHost), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
-			//	gpuSafeCall( cudaMemcpy(mpi_buf + comSize, d_d[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, sizeof(FTYPE) * comSize, cudaMemcpyDeviceToHost), "LaunchSolveSegments_X_var<FORWARD>: cudaMemcpy" );
-			//	mpiSafeCall( MPI_Ssend(mpi_buf, 2 * comSize, mpi_typeof(mpi_buf), irank + 1, 666, MPI_COMM_WORLD), "LaunchSolveSegments_X_var<FORWARD>:  MPI_Send" );
-			//}
 			paraDevSend<FTYPE, FORWARD>(d_c[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf, comSize, 666);
 			paraDevSend<FTYPE, FORWARD>(d_d[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf + comSize, comSize, 667);
-
-			//if (irank < size - 1)
-			//{
-			//	mpiSafeCall( MPI_Recv(mpi_buf, comSize, mpi_typeof(mpi_buf), irank+1, 667, MPI_COMM_WORLD, &status2), "LaunchSolveSegments_X_var<BACK>: MPI_Recv" );
-			//	gpuSafeCall( cudaMemcpy(d_x[pGPUplan->size()-1] + haloSize +  dimX * haloSize, mpi_buf, sizeof(FTYPE) * comSize, cudaMemcpyHostToDevice), "LaunchSolveSegments_X_var<BACK>: cudaMemcpy" );
-			//}
 			paraDevRecv<FTYPE, BACK>(d_x[pGPUplan->size()-1] + haloSize +  dimX * haloSize, mpi_buf, comSize, 668);
 		}
 #endif
@@ -706,21 +629,13 @@ template<int dir, int swipe>
 			if (i > 0)
 				haloMemcpyPeer<FTYPE, BACK>(d_x, i, haloSize, pGPUplan->node(i-1)->getLength1D()*haloSize, 0, comSize);
 		}
-
 #ifdef __PARA		
 		if (pplan->size() > 0)
 		{			
 			pGPUplan->setDevice(0);
-			//cudaDeviceSynchronize();
-			//if (irank > 0)
-			//{
-			//	gpuSafeCall( cudaMemcpy(mpi_buf, d_x[0] + haloSize, sizeof(FTYPE) * comSize, cudaMemcpyDeviceToHost), "LaunchSolveSegments_X_var<BACK>: cudaMemcpy" );
-			//	mpiSafeCall( MPI_Ssend(mpi_buf, comSize, mpi_typeof(mpi_buf), irank - 1, 667, MPI_COMM_WORLD), "LaunchSolveSegments_X_var<BACK>: MPI_Send" );
-			//}
 			paraDevSend<FTYPE, BACK>(d_x[0] + haloSize, mpi_buf, comSize, 668);
 		}
 #endif
-
 		for (int i = 0; i < pGPUplan->size(); i++)
 		{
 			pGPUplan->setDevice(i);
@@ -746,9 +661,6 @@ template<int dir, int swipe>
 
 	void LaunchSolveSegments_X( FluidParamsGPU p, int *num_seg, Segment3D **segs, VarType var, Node **nodes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
 								  FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt, int numSegs, FTYPE *mpi_buf = NULL )
-	/*
-		Will change later to solve variables in parallel on mGPU (more memory)
-	*/
 	{
 		switch( var )
 		{

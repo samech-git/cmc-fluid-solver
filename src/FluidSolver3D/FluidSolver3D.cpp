@@ -15,8 +15,6 @@
  */
 
 #include "FluidSolver3D.h"
-#include "../Common/test_util.h"
-//#include <conio.h> // for getch
 
 #ifdef linux
 #include <typeinfo>
@@ -60,7 +58,6 @@ int main(int argc, char **argv)
 		int nGPU = 0;
 		parse_cmd_params(argc, argv, backend, csv, transpose, decompose, align, nGPU);
 
-#define SIMPLE_GRID 0
 		pplan->init(backend);
 		if( backend == CPU )
 		{
@@ -108,7 +105,6 @@ int main(int argc, char **argv)
 		Config::Config();
 		Config::LoadFromFile(configPath);
 		//--------------------------------------- Initializing ---------------------------------------
-#if !SIMPLE_GRID
 		Grid3D *grid = NULL;
 
 		SplitType split_type = EVEN_X; //EVEN_X, EVEN_SEGMENTS or EVEN_VOLUME
@@ -154,10 +150,8 @@ int main(int argc, char **argv)
 				grid->GetGrid2D()->OutputImage(gridPath);
 			}	
 		}
-		//grid->printTypes();
-#endif
 
-// calculate volume:
+		//calculate volume:
 		double indsidePoints = 0.;
 		for (int i = 0; i < grid->dimx; i++)
 			for (int j = 0; j < grid->dimy; j++)
@@ -167,57 +161,6 @@ int main(int argc, char **argv)
 		if (pplan->rank() == 0)
 			printf("NODE_IN points = %f of total %f, volume = %f\n", indsidePoints, double(grid->dimx) * grid->dimy * grid->dimz, indsidePoints * grid->dx * grid->dy * grid->dz);
 
-		//--------------------------------------- For Testing ---------------------------------------
-#if SIMPLE_GRID
-		Grid3D *grid = NULL;
-		grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::baseT, backend);
-		grid->SetFrameTime( Config::frame_time );
-
-		grid->SetFrameTime( Config::frame_time );
-		grid->SetBoundParams( Config::bc_inV, Config::bc_inT );
-		grid->genRandom();
-		printf("Geometry: rectangular shape with random T data:  %d	%d	%d\n", grid->dimx, grid->dimy, grid->dimz);
-
-		grid->Prepare2();
-
-		//grid->printTypes();
-
-		FluidParams *params;
-		if (Config::useNormalizedParams) params = new FluidParams(Config::Re, Config::Pr, Config::lambda);
-			else params = new FluidParams(Config::viscosity, Config::density, Config::R_specific, Config::k, Config::cv);
-
-		Solver3D *solver;
-		switch (Config::solverID)
-		{
-			case Explicit: printf("Explicit solver is not implemented yet!\n"); break;
-			case Stable: printf("Stable solver is not implemented yet!\n"); break;
-			case ADI: 
-				solver = new AdiSolver3D(); 
-				if( backend == GPU ) 
-				{
-					printf("Solver options:\n  transpose %s\n  decompose %s\n", transpose ? "ON" : "OFF", decompose ? "ON" : "OFF");
-					dynamic_cast<AdiSolver3D*>(solver)->SetOptionsGPU(transpose, decompose);
-				}
-				break;
-		}
-
-		// allocate result arrays			
-		int outsize = Config::outdimy * Config::outdimz;
-		int noutdimx, outoffset;
-		pplan->get1D(noutdimx, outoffset, Config::outdimx);
-		outsize *= (pplan->rank()==0)? Config::outdimx : noutdimx;
-		Vec3D *resVel = new Vec3D[outsize];
-		double *resT = new double[outsize];
-
-		solver->Init(backend, csv, grid, *params);
-		
-		solver->UpdateBoundaries();
-		solver->TimeStep((FTYPE)0.1, Config::num_global, Config::num_local);
-		solver->SetGridBoundaries();
-#endif
-		//-------------------------------------------------------------------------------------------
-
-#if !SIMPLE_GRID
 		FluidParams *params;
 		if (Config::useNormalizedParams) params = new FluidParams(Config::Re, Config::Pr, Config::lambda);
 			else params = new FluidParams(Config::viscosity, Config::density, Config::R_specific, Config::k, Config::cv);
@@ -249,8 +192,8 @@ int main(int argc, char **argv)
 		if (pplan->rank() == 0)
 		{
 			// create file and output header
-			sprintf_s(outputPath, MAX_STR_SIZE, "%s_res.nc", argv[2]);
 			BBox3D *bbox = NULL;
+			sprintf_s(outputPath, MAX_STR_SIZE, "%s_res.nc", argv[2]);
 			if( Config::in_fmt == Shape2D ) bbox = new BBox3D( grid->GetGrid2D()->bbox, (float)Config::depth );
 				else bbox = &grid->GetBBox();
 			OutputNetCDF3D_header(outputPath, bbox, grid->GetDepthInfo(), dt * Config::out_time_steps, finaltime, Config::outdimx, Config::outdimy, Config::outdimz, Config::out_vars, Config::in_fmt == SeaNetCDF );
@@ -264,8 +207,8 @@ int main(int argc, char **argv)
 			outsize *= (pplan->rank()==0)? Config::outdimx : noutdimx;
 			Vec3D *resVel = new Vec3D[outsize];
 			double *resT = new double[outsize];
-//
-//		//------------------------------------------ Solving ------------------------------------------
+
+		//------------------------------------------ Solving ------------------------------------------
 		cpu_timer timer;
 		timer.start();
 		int lastframe = -1;
@@ -284,8 +227,8 @@ int main(int argc, char **argv)
 
 			grid->Prepare(t);
 
-			if (i == 0)
-				solver->debug(true);
+			//if (i == 0)
+			//	solver->debug(true);
 			solver->UpdateBoundaries();
 			solver->TimeStep((FTYPE)dt, Config::num_global, Config::num_local);
 			solver->SetGridBoundaries();
@@ -309,12 +252,6 @@ int main(int argc, char **argv)
 			}
 		}
 		timer.stop();
-		if (pplan->rank() == 0)
-		{
-			printf("\nTotal time: %.2f sec\n", timer.elapsed_sec());
-			OutputSliceResult("last_zslice.txt", 2, resVel, resT, Config::outdimx, Config::outdimy, Config::outdimz, (float)dt * Config::out_time_steps);
-		}
-#endif
 
 		delete solver;
 		delete [] resVel;
@@ -331,13 +268,11 @@ int main(int argc, char **argv)
 		fprintf (stderr, "\nTerminating...\n");
 		fflush(stdout);
 		fflush(stderr);
-		//getch();
 #ifdef __PARA
 		MPI_Abort(MPI_COMM_WORLD, -1);
 #endif
 		return -1;
 	}
 	fflush(stdout);
-	//getch();
 	return 0;
 }

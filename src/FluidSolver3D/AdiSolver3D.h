@@ -48,7 +48,6 @@ namespace FluidSolver3D
 		void Init(BackendType backend, bool _csv, Grid3D* _grid, FluidParams &_params);
 		void TimeStep(FTYPE dt, int num_global, int num_local);
 		void SetOptionsGPU(bool _transposeOpt, bool _decomposeOpt);
-		double sum_layer(char ch);
 		void debug(bool ifdebug);
 
 	private:

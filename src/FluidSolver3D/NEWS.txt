@@ -14,4 +14,6 @@
 	Fixed a bug in MPI version
 	INTERNAL_MERGE_ENABLE = 1 in AdiSolver.h will switch on Nonlinear Layer Merging on segment's update
 	Added ifdebug flag for printing stats in AdiSolver, set by debug(ifdebug)
+14.09.2011
+	Cleaned the solution from redundant and commented code. Removed routines used for debugging.
 

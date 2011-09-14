@@ -22,41 +22,8 @@
 #include "../Common/Algorithms.h"
 #endif
 
-#include "../Common/test_util.h"
-
-
 namespace FluidSolver3D
 {
-
-	double  AdiSolver3D::sum_layer(char ch)
-	{
-		PARAplan *pplan = PARAplan::Instance();
-
-		TimeLayer3D* layer;
-		switch (ch)
-		{
-		case 'c':
-			layer = cur;
-			break;
-		case 't':
-			layer = temp;
-			break;
-		case 'n':
-			layer = next;
-			break;
-		case 'h':
-			layer = half;
-			break;
-		}
-
-		double sum = 0.;
-		int ndimx = pplan->getLength1D();
-		sum += TestUtil::sumEllementsMultiGPU(layer->U->getMultiArray(), ndimx*dimy*dimz, layer->haloSize);
-		sum += TestUtil::sumEllementsMultiGPU(layer->V->getMultiArray(), ndimx*dimy*dimz, layer->haloSize);
-		sum += TestUtil::sumEllementsMultiGPU(layer->W->getMultiArray(), ndimx*dimy*dimz, layer->haloSize);
-		sum += TestUtil::sumEllementsMultiGPU(layer->T->getMultiArray(), ndimx*dimy*dimz, layer->haloSize);
-		return sum;
-	}
 
 	void AdiSolver3D::debug(bool _debug)
 	{
@@ -131,7 +98,6 @@ namespace FluidSolver3D
 		if (d_listZ != NULL) multiDevFree<Segment3D>(d_listZ);
 
 		if (mpi_buf != NULL) gpuSafeCall( cudaFreeHost(mpi_buf), "cudaFreeHost");
-		//if (mpi_buf != NULL) delete [] mpi_buf; //delete [] mpi_buf;
 
 		for (int i = 0; i < 3; i++ )
 			delete [] numSegsGPU[i];
@@ -265,17 +231,8 @@ namespace FluidSolver3D
 		{
 			// alternating directions
 			SolveDirection(Z, dt, num_local, h_listZ, d_listZ, cur, temp, next);
-     	//printf("AdiSolver3D::TimeStep: temp, next after SolveDirection(Z): %f    %f\n",  sum_layer('t'), sum_layer('n'));
-			SolveDirection(Y, dt, num_local, h_listY, d_listY, next, temp, half);
-			//printf("AdiSolver3D::TimeStep: temp, half after SolveDirection(Z and Y): %f    %f\n",  sum_layer('t'), sum_layer('h'));						
+			SolveDirection(Y, dt, num_local, h_listY, d_listY, next, temp, half);				
 			SolveDirection(X, dt, num_local, h_listX, d_listX, half, temp, next);			
-			//printf("AdiSolver3D::TimeStep: temp, next after SolveDirection(Z,Y, and X): %f    %f\n",  sum_layer('t'), sum_layer('n'));
-
-
-			//SolveDirection(Z, dt, num_local, h_listZ, d_listZ, cur, temp, half);
-			//SolveDirection(Y, dt, num_local, h_listY, d_listY, half, temp, next);
-			//SolveDirection(X, dt, num_local, h_listZ, d_listZ, cur, temp, next);
-
 
 			 //update non-linear layer
 			switch (backend)
@@ -372,7 +329,6 @@ namespace FluidSolver3D
 					fflush(stdout);
 				}
 
-
 				pGPUplan->setDevice(i);
 				cudaMemcpy( d_list[i], hh_list, sizeof(Segment3D) * nSegGPU, cudaMemcpyHostToDevice );
 			}
@@ -423,7 +379,7 @@ template<DirType dir>
 						nSeg++;
 						break;
 				}
-		}		
+		}
 		return nSeg;
 	}
 

@@ -25,7 +25,6 @@
 using namespace FluidSolver3D;
 
 #include <cuda_runtime.h>
-#include "../Common/test_util.h"
 
 extern void CopyFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE **src, FTYPE **dest, Node **nodes, NodeType target, int haloSize);
 extern void MergeFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE **src, FTYPE **dest, Node **nodes, NodeType target, int haloSize);
@@ -42,7 +41,6 @@ namespace FluidSolver3D
 		FORWARD,
 		BACK
 	};
-
 
 #ifdef __PARA
 template <typename T, SwipeType swipe>
@@ -198,11 +196,9 @@ template <typename T, SwipeType swipe>
 		{
 		case FORWARD:
 			gpuSafeCall( cudaMemcpyPeerAsync(dev_array[idev+1] + haloShift,  ip1, dev_array[idev] + haloSize + (num_elems_total - haloSize) + haloShift, i,  sizeof(T) * haloPartSize, stream), "haloMemcpyPeerAsync: FORWARD", i);
-			//gpuSafeCall( cudaMemcpyPeer(dev_array[idev+1] + haloShift,  ip1, dev_array[idev] + haloSize + (num_elems_total - haloSize) + haloShift, i,  sizeof(T) * haloPartSize), "haloMemcpyPeer: FORWARD");
 			break;
 		case BACK:
 			gpuSafeCall( cudaMemcpyPeerAsync(dev_array[idev-1] + haloSize + num_elems_total + haloShift,  im1, dev_array[idev] + haloSize + haloShift, i,  sizeof(T) * haloPartSize, stream), "haloMemcpyPeerAsync: BACK", i);
-			//gpuSafeCall( cudaMemcpyPeer(dev_array[idev-1] + haloSize + num_elems_total + haloShift,  im1, dev_array[idev] + haloSize + haloShift, i,  sizeof(T) * haloPartSize), "haloMemcpyPeer: BACK" );
 			break;
 		}
 	}  
@@ -277,20 +273,18 @@ template <typename T, SwipeType swipe>
 					FTYPE *mpi_buf_r = mpi_buf + haloSize;
 					MPI_Request request_s, request_r;
 					MPI_Status status;
-
 					pGPUplan->setDevice(gpuSize-1);
 					gpuSafeCall( cudaMemcpy(mpi_buf_s, dd_u[gpuSize-1] + haloSize + pGPUplan->node(gpuSize - 1)->getLength1D() * haloSize - haloSize, sizeof(FTYPE) * haloSize, cudaMemcpyDeviceToHost), "syncHalos<FORWARD>: cudaMemcpy" );
 					if (irank > 0)
 						mpiSafeCall( MPI_Irecv(mpi_buf_r, haloSize, mpi_typeof(mpi_buf_r), irank - 1, tagID_F, MPI_COMM_WORLD, &request_r), "syncHalos<FORWARD>: MPI_Irecv" );
 					if (irank < size - 1)
 						mpiSafeCall( MPI_Isend(mpi_buf_s, haloSize, mpi_typeof(mpi_buf_s), irank + 1, tagID_F, MPI_COMM_WORLD, &request_s), "syncHalos<FORWARD>: MPI_Isend" );
-					if (irank > 0)	
+					if (irank > 0)
 						MPI_Wait(&request_r, &status);
 					if (irank < size - 1)
 						MPI_Wait(&request_s, &status);				
 					pGPUplan->setDevice(0);
 					gpuSafeCall( cudaMemcpy(dd_u[0], mpi_buf_r, sizeof(FTYPE) * haloSize, cudaMemcpyHostToDevice), "syncHalos<FORWARD>: cudaMemcpy" );
-
 					gpuSafeCall( cudaMemcpy(mpi_buf_s, dd_u[0] + haloSize, sizeof(FTYPE) * haloSize, cudaMemcpyDeviceToHost), "syncHalos<BACK>: cudaMemcpy" );
 					if (irank < size - 1)
 						mpiSafeCall( MPI_Irecv(mpi_buf_r, haloSize, mpi_typeof(mpi_buf_r), irank + 1, tagID_B, MPI_COMM_WORLD, &request_r), "syncHalos<BACK>: MPI_Irecv" );
@@ -454,7 +448,6 @@ template <typename T, SwipeType swipe>
 			case GPU:
 				{
 					throw logic_error("not implemented yet!\n");
-					//MergeFieldTo_GPU(dimx, dimy, dimz, u, dest->getArray(), nodes, type);
 				}
 			}
 		}
@@ -597,15 +590,6 @@ template <typename T, SwipeType swipe>
 								W_cpu->elem(i, j, k-1) - W_cpu->elem(i, j-1, k-1) - W_cpu->elem(i-1, j-1, k-1) - W_cpu->elem(i-1, j, k-1)) * dx * dy / 4.0;
 
 							err += abs(err_x + err_y + err_z);
-							//if (err != err)
-							//{
-							//	 printf("Error = nan! err_x = %f, err_y = %f, err_z = %f\n", err_x, err_y, err_z );
-							//	 printf("\nU_cpu->elem(i, j-1, k), U_cpu->elem(i, j-1, k-1), U_cpu->elem(i, j, k-1), U_cpu->elem(i-1, j, k), U_cpu->elem(i-1, j-1, k), U_cpu->elem(i-1, j-1, k-1), U_cpu->elem(i-1, j, k-1) = %f, %f, %f, %f, %f ,%f, %f\n", U_cpu->elem(i, j-1, k), U_cpu->elem(i, j-1, k-1), U_cpu->elem(i, j, k-1), U_cpu->elem(i-1, j, k), U_cpu->elem(i-1, j-1, k), U_cpu->elem(i-1, j-1, k-1), U_cpu->elem(i-1, j, k-1) );
-							//	 printf("\nV_cpu->elem(i, j-1, k), V_cpu->elem(i, j-1, k-1), V_cpu->elem(i, j, k-1), V_cpu->elem(i-1, j, k), V_cpu->elem(i-1, j-1, k), V_cpu->elem(i-1, j-1, k-1), V_cpu->elem(i-1, j, k-1) = %f, %f, %f, %f, %f ,%f, %f\n", V_cpu->elem(i, j-1, k), V_cpu->elem(i, j-1, k-1), V_cpu->elem(i, j, k-1), V_cpu->elem(i-1, j, k), V_cpu->elem(i-1, j-1, k), V_cpu->elem(i-1, j-1, k-1), V_cpu->elem(i-1, j, k-1) );
-							//	 printf("\nW_cpu->elem(i, j-1, k), W_cpu->elem(i, j-1, k-1), W_cpu->elem(i, j, k-1), W_cpu->elem(i-1, j, k), W_cpu->elem(i-1, j-1, k), W_cpu->elem(i-1, j-1, k-1), W_cpu->elem(i-1, j, k-1) = %f, %f, %f, %f, %f ,%f, %f\n", W_cpu->elem(i, j-1, k), W_cpu->elem(i, j-1, k-1), W_cpu->elem(i, j, k-1), W_cpu->elem(i-1, j, k), W_cpu->elem(i-1, j-1, k), W_cpu->elem(i-1, j-1, k-1), W_cpu->elem(i-1, j, k-1) );
-							//	 printf("\n i = %d, j = %d, k = %d\n", i, j, k);
-							//	throw logic_error("");
-							//}
 							count++;
 						}
 			delete U_cpu;
@@ -619,7 +603,7 @@ template <typename T, SwipeType swipe>
 			MPI_Bcast(&err_total, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 			MPI_Reduce(&count, &count_total, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 			MPI_Bcast(&count_total, 1, MPI_INT, 0, MPI_COMM_WORLD);
-			return err_total/count_total;
+			return err_total / count_total;
 #else
 			return err / count;
 #endif
@@ -684,7 +668,6 @@ template <typename T, SwipeType swipe>
 					multiDevMemcpy<FTYPE>(dest->V->getMultiArray(), V->getArray() + haloSize, dimx * dimy * dimz, haloSize); 
 					multiDevMemcpy<FTYPE>(dest->W->getMultiArray(), W->getArray() + haloSize, dimx * dimy * dimz, haloSize); 
 					multiDevMemcpy<FTYPE>(dest->T->getMultiArray(), T->getArray() + haloSize, dimx * dimy * dimz, haloSize); 
-					//cudaDeviceSynchronize();
 					return;
 				}
 				break;
@@ -696,14 +679,12 @@ template <typename T, SwipeType swipe>
 					multiDevMemcpy<FTYPE>(dest->V->getArray() + dest->haloSize, V->getMultiArray(), dimx * dimy * dimz, haloSize);
 					multiDevMemcpy<FTYPE>(dest->W->getArray() + dest->haloSize, W->getMultiArray(), dimx * dimy * dimz, haloSize);
 					multiDevMemcpy<FTYPE>(dest->T->getArray() + dest->haloSize, T->getMultiArray(), dimx * dimy * dimz, haloSize);
-					//cudaDeviceSynchronize();
 					return;
 				case GPU:
 					multiDevMemcpy<FTYPE>(dest->U->getMultiArray(), U->getMultiArray(), dimx * dimy * dimz, haloSize);
 					multiDevMemcpy<FTYPE>(dest->V->getMultiArray(), V->getMultiArray(), dimx * dimy * dimz, haloSize);
 					multiDevMemcpy<FTYPE>(dest->W->getMultiArray(), W->getMultiArray(), dimx * dimy * dimz, haloSize);
 					multiDevMemcpy<FTYPE>(dest->T->getMultiArray(), T->getMultiArray(), dimx * dimy * dimz, haloSize);
-					//cudaDeviceSynchronize();
 					return;
 				}
 				break;

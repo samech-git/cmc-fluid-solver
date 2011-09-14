@@ -44,58 +44,6 @@ namespace FluidSolver3D
 		if (depthInfo != NULL) delete depthInfo;
 	}
 
-	void Grid3D::genRandom()
-	{
-		Init2();
-		for(int i = 0; i < dimx * dimy * dimz; i++)
-		{
-			nodes[i].v.x = 0.;
-			nodes[i].v.y = 0.;
-			nodes[i].v.z = 0.;
-			nodes[i].T = 10.f + std::rand() % 1024;
-		}
-	}
-
-	void Grid3D::printTypes()
-	{
-		PARAplan *pplan = PARAplan::Instance();
-		if (pplan->rank() > 1)
-			return;
-		for (int i = 0; i < dimx; i++)
-		{
-			for (int j = 0; j < dimy; j++)
-			{
-				for (int k = 0; k < dimz; k++)
-					printf("%d  ", nodes[i*dimy*dimz + j*dimz + k].type);
-				printf("\n");
-			}
-			printf("\n");
-		}		
-	}    
-
-	void Grid3D::Prepare2()
-	{
-		//initialize the grid with dummy data
-		for(int i = 0; i < dimx; i++)
-			for(int j = 0; j < dimy; j++)
-				for(int k = 0; k < dimz; k++)
-				{ 
-					int idx = i*dimy*dimz + j*dimz + k;
-					if (( i == 0 || i == dimx-1 )  ||
-						  ( j == 0 || j == dimy-1 ) ||
-						  ( k == 0 || k == dimz-1 ))
-							nodes[idx].type = NODE_BOUND;
-					else 
-						nodes[idx].type = NODE_IN;
-				}
-		// copy to GPU as well
-		if( backend == GPU )
-		{
-			PARAplan* pplan = PARAplan::Instance();
-			multiDevMemcpy<Node>(d_nodes, nodes +	pplan->getOffset1D() * dimy * dimz, pplan->getLength1D() * dimy * dimz);
-		}
-	}
-
 	void Grid3D::GenerateListSegments(int &numSeg, Segment3D *h_list, int dim1, int dim2, int dim3, DirType dir)
 	{
 		numSeg = 0;
@@ -161,7 +109,8 @@ namespace FluidSolver3D
 			splitting[0] = dimx;
 			return;
 		}
-		int i, num_seg_X, num_seg_Y, num_seg_Z, loadPerGPU;
+		int i, num_seg_X, num_seg_Y, num_seg_Z;
+		double loadPerGPU;
 		double *acu_sum = new double[dimx];
 
 		Segment3D *h_list_X = NULL, *h_list_Y = NULL, *h_list_Z = NULL;

@@ -24,7 +24,7 @@ LIB_NETCDF := -L$(NETCDF_INSTALL_PATH)/lib -lnetcdf  -lnetcdff -lhdf5_hl -lhdf5 
 LIB_MPI := -L$(MPIHOME)/lib
 
 OBJS = AdiSolver3D.cpp.o AdiSolver3D.cu.o ../FluidSolver2D/Grid2D.cpp.o Grid3D.cpp.o  \
-       TimeLayer3D.cu.o Solver3D.cpp.o FluidSolver3D.cpp.o LinuxIO.cpp.o GPUplan.cpp.o PARAplan.cpp.o test_util.cpp.o
+       TimeLayer3D.cu.o Solver3D.cpp.o FluidSolver3D.cpp.o LinuxIO.cpp.o GPUplan.cpp.o PARAplan.cpp.o
 TARGET = ../../bin/Release/FluidSolver3D
 LINKLINE = $(LINK) -o $(TARGET) $(OBJS) $(LIB_CUDA) $(LIB_NETCDF) $(LIB_MPI) -lrt 
 
@@ -49,9 +49,6 @@ GPUplan.cpp.o: ../Common/GPUplan.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 	
 PARAplan.cpp.o: ../Common/PARAplan.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@	
-
-test_util.cpp.o: ../Common/test_util.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@	
 
 clean:

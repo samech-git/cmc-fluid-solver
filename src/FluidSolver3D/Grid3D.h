@@ -103,10 +103,6 @@ namespace FluidSolver3D
 
 		BBox3D GetBBox();
 
-		void genRandom();
-		void Prepare2();
-		void printTypes();
-
 		void GenerateListSegments(int &numSeg, Segment3D *h_list, int dim1, int dim2, int dim3, DirType dir);
 		void SplitSegments_X(int *splitting);
 
@@ -152,7 +148,7 @@ namespace FluidSolver3D
 		Node*		nodes;		// all grid nodes
 
 		Node**	d_nodes;	  // same nodes stored on multiple GPUs
-		Node**		d_nodesT;	// transposed nodes on multiple GPU
+		Node**	d_nodesT;	// transposed nodes on multiple GPU
 
 		bool use3Dshape;
 		bool useNetCDF;

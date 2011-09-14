@@ -3,7 +3,7 @@
 namespace Common
 {
 	bool PARAplan::isInstance = false;
-	PARAplan* PARAplan::self = NULL;
+	PARAplan *PARAplan::self = NULL;
 
 	PARAplan::PARAplan()
 	{
@@ -149,9 +149,8 @@ namespace Common
 #endif
 	}
 
-
 #ifdef __PARA
-	void mpiSafeCall(int status, char* message)
+	void mpiSafeCall(int status, char *message)
 	{
 		if (status != MPI_SUCCESS )
 			throw std::runtime_error(message);		 

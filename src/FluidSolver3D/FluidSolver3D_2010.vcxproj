@@ -106,7 +106,6 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClCompile Include="..\Common\GPUplan.cpp" />
     <ClCompile Include="..\Common\PARAplan.cpp" />
-    <ClCompile Include="..\Common\test_util.cpp" />
     <ClCompile Include="..\FluidSolver2D\Grid2D.cpp" />
     <ClCompile Include="AdiSolver3D.cpp" />
     <ClCompile Include="FluidSolver3D.cpp" />
@@ -121,7 +120,6 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="..\Common\IO.h" />
     <ClInclude Include="..\Common\PARAplan.h" />
     <ClInclude Include="..\Common\Profiler.h" />
-    <ClInclude Include="..\Common\test_util.h" />
     <ClInclude Include="..\Common\Timer.h" />
     <ClInclude Include="..\FluidSolver2D\Grid2D.h" />
     <ClInclude Include="AdiSolver3D.h" />
