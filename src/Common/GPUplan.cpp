@@ -102,8 +102,8 @@ namespace Common
 	{
 		for (int i = 0; i < nGPU; i++)
 		{
-			gpuSafeCall(cudaSetDevice(i + ibegin), "GPUplan::syncDefaultStreams(): cudaSetDevice", i);
-			gpuSafeCall(cudaDeviceSynchronize(), "GPUplan::syncDefaultStreams(): cudaDeviceSynchronize", i);
+			gpuSafeCall(cudaSetDevice(i + ibegin), "GPUplan::deviceSynchronize(): cudaSetDevice", i);
+			gpuSafeCall(cudaDeviceSynchronize(), "GPUplan::deviceSynchronize(): cudaDeviceSynchronize", i);
 		}
 	}
 

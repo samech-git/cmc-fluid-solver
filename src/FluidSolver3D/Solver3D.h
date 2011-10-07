@@ -27,11 +27,12 @@ namespace FluidSolver3D
 		virtual void Init(BackendType backend, bool csvFormat, Grid3D* grid, FluidParams &params) = 0;
 		virtual void TimeStep(FTYPE dt, int num_global, int num_local) = 0;
 
+		virtual double sum_layer(char ch) = 0;
 		virtual void debug(bool ifdebug) = 0;
 		
 		void GetLayer(Vec3D *v, double *T, int outdimx = 0, int outdimy = 0, int outdimz = 0);
 
-		void UpdateBoundaries();
+		virtual void UpdateBoundaries();
 		void SetGridBoundaries();
 		void ClearOutterCells();
 

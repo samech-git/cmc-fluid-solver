@@ -16,4 +16,9 @@
 	Added ifdebug flag for printing stats in AdiSolver, set by debug(ifdebug)
 14.09.2011
 	Cleaned the solution from redundant and commented code. Removed routines used for debugging.
+07.10.2011
+	Considerably reduced amount of GPU memory required. Grid and its transposed version are not stored in GPU anymore.
+	Grid Boundaries are used instead and located in NodesBoundary3D *array. At the moment, grid and transposed grid node types 
+	are still stored in the GPU memory. Layer 'half' is not required when transpose optimization is ON.
+	Also put back few routines for debugging into AdiSolver3D. 
 

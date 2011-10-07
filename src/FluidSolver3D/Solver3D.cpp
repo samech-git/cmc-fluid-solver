@@ -28,6 +28,7 @@ namespace FluidSolver3D
 	{
 		cur->CopyFromGrid(grid, NODE_BOUND);
 		cur->CopyFromGrid(grid, NODE_VALVE);
+
 		cur->CopyLayerTo(grid, next, NODE_BOUND);
 		cur->CopyLayerTo(grid, next, NODE_VALVE);
 	}

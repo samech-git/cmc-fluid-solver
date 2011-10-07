@@ -26,10 +26,11 @@ using namespace FluidSolver3D;
 
 #include <cuda_runtime.h>
 
-extern void CopyFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE **src, FTYPE **dest, Node **nodes, NodeType target, int haloSize);
-extern void MergeFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE **src, FTYPE **dest, Node **nodes, NodeType target, int haloSize);
+extern void CopyFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE **src, FTYPE **dest, NodeType **nodes, NodeType target, int haloSize);
+extern void MergeFieldTo_GPU(int dimx, int dimy, int dimz, FTYPE **src, FTYPE **dest, NodeType **nodes, NodeType target, int haloSize);
 extern void CopyFromGrid_GPU(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **v, FTYPE **w, FTYPE **T, Node **nodes, NodeType target, int haloSize);
-extern void Clear_GPU(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **v, FTYPE **w, FTYPE **T, Node **nodes, NodeType target, FTYPE const_u, FTYPE const_v, FTYPE const_w, FTYPE const_T, int haloSize);
+extern void CopyGridBoundary_GPU(DirType dir, int dimx, int dimy, int dimz, FTYPE **u, FTYPE **v, FTYPE **w, FTYPE **T, int *num_seg, Segment3D **segs, NodesBoundary3D **nodes, int haloSize);
+extern void Clear_GPU(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **v, FTYPE **w, FTYPE **T, NodeType **nodes, NodeType target, FTYPE const_u, FTYPE const_v, FTYPE const_w, FTYPE const_T, int haloSize);
 extern void Transpose_GPU(int dimx, int dimy, int dimz, FTYPE **u, FTYPE **dest_u, int haloSize); // need to test
 
 namespace FluidSolver3D
@@ -375,7 +376,7 @@ template <typename T, SwipeType swipe>
 				}
 			case GPU: 
 				{
-					CopyFieldTo_GPU(dimx, dimy, dimz, dd_u, dest->getMultiArray(), grid->GetNodesGPU(), type, haloSize); 
+					CopyFieldTo_GPU(dimx, dimy, dimz, dd_u, dest->getMultiArray(), grid->GetTypesGPU(), type, haloSize); 
 					break;
 				}
 			}
@@ -404,7 +405,7 @@ template <typename T, SwipeType swipe>
 		}
 	}
 
-		void MergeFieldTo(Node **nodes, ScalarField3D *dest, NodeType type)
+		void MergeFieldTo(NodeType **nodes, ScalarField3D *dest, NodeType type)
 		{
 			switch( hw )
 			{
@@ -612,7 +613,7 @@ template <typename T, SwipeType swipe>
 		void Smooth(Grid3D *grid, TimeLayer3D *dest, NodeType type)
 		{
 			Node *cpu_nodes = grid->GetNodesCPU();
-			Node **dev_nodes = grid->GetNodesGPU(false);
+			Node **dev_nodes = NULL;// = grid->GetNodesGPU(false);
 			switch (hw)
 			{
 			case CPU:
@@ -633,7 +634,8 @@ template <typename T, SwipeType swipe>
 		void MergeLayerTo(Grid3D *grid, TimeLayer3D *dest, NodeType type, bool transposed = false)
 		{
 			Node *cpu_nodes = grid->GetNodesCPU();
-			Node** dev_nodes = grid->GetNodesGPU(transposed);
+			NodeType **dev_nodes = grid->GetTypesGPU(transposed);
+			//Node** dev_nodes = grid->GetNodesGPU();
 			switch (hw)
 			{
 			case CPU:
@@ -912,10 +914,31 @@ template <typename T, SwipeType swipe>
 				}
 			case GPU:
 				{
-					CopyFromGrid_GPU(dimx, dimy, dimz, U->getMultiArray(), V->getMultiArray(), W->getMultiArray(), T->getMultiArray(), grid->GetNodesGPU(), target, haloSize); 
+					//CopyFromGrid_GPU(dimx, dimy, dimz, U->getMultiArray(), V->getMultiArray(), W->getMultiArray(), T->getMultiArray(), grid->GetNodesGPU(), target, haloSize); 
 					break;
 				}
 			}
+		}
+
+		void CopyGridBoundary(Grid3D *grid)
+		{
+			switch (hw)
+			{
+			case CPU:
+				CopyFromGrid(grid, NODE_BOUND);
+				CopyFromGrid(grid, NODE_VALVE);
+				break;
+			}			
+		}
+
+		void CopyGridBoundary(DirType dir, int *num_seg, Segment3D **segs,  NodesBoundary3D **nodes)
+		{
+			switch (hw)
+			{
+			case GPU:
+				CopyGridBoundary_GPU(dir, dimx, dimy, dimz, U->getMultiArray(), V->getMultiArray(), W->getMultiArray(), T->getMultiArray(), num_seg, segs, nodes, haloSize);
+				break;
+			}			
 		}
 
 		void Clear(Grid3D *grid, NodeType target, FTYPE const_u, FTYPE const_v, FTYPE const_w, FTYPE const_T)
@@ -938,7 +961,7 @@ template <typename T, SwipeType swipe>
 				}
 			case GPU:
 				{
-					Clear_GPU(dimx, dimy, dimz, U->getMultiArray(), V->getMultiArray(), W->getMultiArray(), T->getMultiArray(), grid->GetNodesGPU(), target, const_u, const_v, const_w, const_T, haloSize);
+					Clear_GPU(dimx, dimy, dimz, U->getMultiArray(), V->getMultiArray(), W->getMultiArray(), T->getMultiArray(), grid->GetTypesGPU(), target, const_u, const_v, const_w, const_T, haloSize);
 					break;
 				}
 			}

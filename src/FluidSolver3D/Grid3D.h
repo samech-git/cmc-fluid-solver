@@ -73,7 +73,6 @@ namespace FluidSolver3D
 	struct Node
 	{
 		NodeType type;
-
 		BCtype bc_vel, bc_temp;
 		Vec3D v;
 		FTYPE T;
@@ -86,6 +85,11 @@ namespace FluidSolver3D
 			v = _v;
 			T = _T;
 		}
+	};
+
+	struct NodesBoundary3D
+	{
+		Node first, last; // first and last node of a 3D segment
 	};
 
 	struct Grid3D
@@ -104,6 +108,7 @@ namespace FluidSolver3D
 		BBox3D GetBBox();
 
 		void GenerateListSegments(int &numSeg, Segment3D *h_list, int dim1, int dim2, int dim3, DirType dir);
+		void GenerateGridBoundaries(NodesBoundary3D *node_list, int numSeg, Segment3D *h_list, bool transposed);
 		void SplitSegments_X(int *splitting);
 
 		NodeType GetType(int i, int j, int k);
@@ -117,7 +122,7 @@ namespace FluidSolver3D
 
 		// return all nodes info as an array
 		Node *GetNodesCPU();							 
-		Node **GetNodesGPU(bool transposed = false);
+		NodeType **GetTypesGPU(bool transposed = false);
 
 		void SetNodeVel(int i, int j, int k, Vec3D new_v);
 
@@ -147,8 +152,8 @@ namespace FluidSolver3D
 
 		Node*		nodes;		// all grid nodes
 
-		Node**	d_nodes;	  // same nodes stored on multiple GPUs
-		Node**	d_nodesT;	// transposed nodes on multiple GPU
+		NodeType** d_types; // node types stored on multiple GPUs
+		NodeType** d_typesT; // transposed node types on multiple GPU
 
 		bool use3Dshape;
 		bool useNetCDF;
@@ -170,7 +175,6 @@ namespace FluidSolver3D
 
 		// helper functions for 3D shape update
 		void Init(bool align);
-		void Init2();
 		void Prepare_GPU();
 		void Prepare3D_Shape(double time);
 		void Prepare3D_NetCDF(double time);

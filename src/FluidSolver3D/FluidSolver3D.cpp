@@ -106,7 +106,6 @@ int main(int argc, char **argv)
 		Config::LoadFromFile(configPath);
 		//--------------------------------------- Initializing ---------------------------------------
 		Grid3D *grid = NULL;
-
 		SplitType split_type = EVEN_X; //EVEN_X, EVEN_SEGMENTS or EVEN_VOLUME
 
 		if( Config::in_fmt == Shape3D ) 
@@ -138,7 +137,6 @@ int main(int argc, char **argv)
 		grid->Prepare_CPU(0.0);
 		grid->Split();
 		grid->Init_GPU();
-
 		if (pplan->rank() == 0)
 		{
 			sprintf_s(gridPath, "%s_grid_3d", argv[2]);
@@ -180,7 +178,6 @@ int main(int argc, char **argv)
 				}
 				break;
 		}
-
 		solver->Init(backend, csv, grid, *params);
 
 		int startFrame = 0;
@@ -224,13 +221,12 @@ int main(int argc, char **argv)
 				lastframe = currentframe;
 				i = 0;
 			}
-
 			grid->Prepare(t);
 
 			//if (i == 0)
-			//	solver->debug(true);
+			//	solver->debug(true);		
 			solver->UpdateBoundaries();
-			solver->TimeStep((FTYPE)dt, Config::num_global, Config::num_local);
+			solver->TimeStep((FTYPE)dt, Config::num_global, Config::num_local);			
 			solver->SetGridBoundaries();
 			if (i == 0)
 				solver->debug(false);
