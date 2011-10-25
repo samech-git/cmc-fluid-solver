@@ -71,186 +71,52 @@ namespace FluidSolver3D
 //	#define get(a, elem_id)			a[elem_id + id * max_n]
 #endif
 
-	template<int dir, int var>
-	__device__ void apply_bc0(int i, int j, int k, int dimy, int dimz, FTYPE &b0, FTYPE &c0, FTYPE &d0, Node &node, SegmentType segType = BOUND)
+template<int dir, int swipe, int var>
+	__device__ void solve_tridiagonal(FluidParamsGPU params, FTYPE *c, FTYPE *d, FTYPE *x, Segment3D &seg, int num, NodesBoundary3D &nodesBound, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, int id, int num_seg, int max_n_max_n, int dimX, SegmentType segType = BOUND)
 	{
-		switch (dir)
-		{
-		case X:
-			switch (segType)
-			{
-			case UNBOUND:
-				return;
-			case BOUND_END:
-				return;
-			};
-		}
+		FTYPE a_val, b_val, c_val, d_val;
+		int i = seg.posx;
+		int j = seg.posy;
+		int k = seg.posz;
 
-		//int id = i * dimy * dimz;
-		//if (dir != Z_as_Y) id += j * dimz + k;
-		//	else id += j * dimy + k;
-
-		if ((var == type_T && node.bc_temp == BC_FREE) ||
-			(var != type_T && node.bc_vel == BC_FREE))
-		{
-			// free: f(0) = 2 * f(1) - f(2)
-			b0 = 2.0; 
-			c0 = -1.0; 
-			d0 = 0.0;
-		}
-		else
-		{
-			// no-slip: f(0) = f(1)
-			b0 = 1.0; 
-			c0 = 0.0; 
-
-			switch (var)
-			{
-				case type_U: d0 = node.v.x; break;  
-				case type_V: d0 = node.v.y; break;
-				case type_W: d0 = node.v.z; break;
-				case type_T: d0 = node.T; break;
-			}
-		}
-	}
-
-	template<int dir, int var>
-	__device__ void apply_bc1(int i, int j, int k, int dimy, int dimz, FTYPE &a1, FTYPE &b1, FTYPE &d1, Node &node, SegmentType segType = BOUND)
-	{
-		switch (dir)
-		{
-		case X:
-			switch (segType)
-			{
-			case UNBOUND:
-				return;
-			case BOUND_START:
-				return;
-			}
-		}
-
-		//int id = i * dimy * dimz;
-		//if (dir != Z_as_Y) id += j * dimz + k;
-		//	else id += j * dimy + k;
-
-		if ((var == type_T && node.bc_temp == BC_FREE) ||
-			(var != type_T && node.bc_vel == BC_FREE))
-		{
-			// free: f(N) = 2 * f(N-1) - f(N-2)
-			a1 = -1.0;
-			b1 = 2.0;
-			d1 = 0.0;
-		}
-		else
-		{
-			// no-slip: f(N) = f(N-1)
-			a1 = 0.0; 
-			b1 = 1.0; 
-
-			switch (var)
-			{
-				case type_U: d1 = node.v.x; break;
-				case type_V: d1 = node.v.y; break;
-				case type_W: d1 = node.v.z; break;
-				case type_T: d1 = node.T; break;
-			}
-		}
-	}
-
-	template<int dir, int var>
-	__device__ void build_matrix(FluidParamsGPU params, int i, int j, int k, FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int n, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, int id, int num_seg, int max_n_max_n, SegmentType segType = BOUND)
-	{	
-		int start = 1;
-		int end = n-1;
-		switch (dir)
-		{
-		case X:
-			switch (segType)
-			{
-			case UNBOUND:
-				start = 0; end = n;				
-				break;
-			case BOUND_START:
-				end = n;
-				break;
-			case BOUND_END:
-				start = 0;
-				break;
-			}
-		}
-
-		for (int p = start; p < end; p++)
-		{
-			switch (dir)
-			{
-			case X:		
-				get(a,p) = - temp.elem(temp.u, i+p, j, k) / (2 * params.dx) - params.vis_dx2; 
-				get(b,p) = 3 / params.dt  +  2 * params.vis_dx2; 
-				get(c,p) = temp.elem(temp.u, i+p, j, k) / (2 * params.dx) - params.vis_dx2; 
-				
-				switch (var)	
-				{
-				case type_U: get(d,p) = cur.elem(cur.u, i+p, j, k) * 3 / params.dt - params.v_T * temp.d_x(temp.T, params.dx, i+p, j, k); break;
-				case type_V: get(d,p) = cur.elem(cur.v, i+p, j, k) * 3 / params.dt; break;
-				case type_W: get(d,p) = cur.elem(cur.w, i+p, j, k) * 3 / params.dt; break;
-				case type_T: get(d,p) = cur.elem(cur.T, i+p, j, k) * 3 / params.dt + params.t_phi * temp.DissFuncX(params.dx, params.dy, params.dz, i+p, j, k); break;
-				}	
-				break;
-
-			case Y:
-				get(a,p) = - temp.elem(temp.v, i, j+p, k) / (2 * params.dy) - params.vis_dx2; 
-				get(b,p) = 3 / params.dt  +  2 * params.vis_dx2; 
-				get(c,p) = temp.elem(temp.v, i, j+p, k) / (2 * params.dy) - params.vis_dx2; 
-				
-				switch (var)	
-				{
-				case type_U: get(d,p) = cur.elem(cur.u, i, j+p, k) * 3 / params.dt; break;
-				case type_V: get(d,p) = cur.elem(cur.v, i, j+p, k) * 3 / params.dt - params.v_T * temp.d_y(temp.T, params.dy, i, j+p, k); break;
-				case type_W: get(d,p) = cur.elem(cur.w, i, j+p, k) * 3 / params.dt; break;
-				case type_T: get(d,p) = cur.elem(cur.T, i, j+p, k) * 3 / params.dt + params.t_phi * temp.DissFuncY(params.dx, params.dy, params.dz, i, j+p, k); break;
-				}
-				break;
-
-			case Z:
-				get(a,p) = - temp.elem(temp.w, i, j, k+p) / (2 * params.dz) - params.vis_dx2; 
-				get(b,p) = 3 / params.dt  +  2 * params.vis_dx2; 
-				get(c,p) = temp.elem(temp.w, i, j, k+p) / (2 * params.dz) - params.vis_dx2; 
-				
-				switch (var)	
-				{
-				case type_U: get(d,p) = cur.elem(cur.u, i, j, k+p) * 3 / params.dt; break;
-				case type_V: get(d,p) = cur.elem(cur.v, i, j, k+p) * 3 / params.dt; break;
-				case type_W: get(d,p) = cur.elem(cur.w, i, j, k+p) * 3 / params.dt - params.v_T * temp.d_z(temp.T, params.dz, i, j, k+p); break;
-				case type_T: get(d,p) = cur.elem(cur.T, i, j, k+p) * 3 / params.dt + params.t_phi * temp.DissFuncZ(params.dx, params.dy, params.dz, i, j, k+p); break;
-				}
-				break;
-
-			case Z_as_Y:
-				get(a,p) = - temp.elem(temp.w, i, k+p, j) / (2 * params.dz) - params.vis_dx2; 
-				get(b,p) = 3 / params.dt  +  2 * params.vis_dx2; 
-				get(c,p) = temp.elem(temp.w, i, k+p, j) / (2 * params.dz) - params.vis_dx2; 
-				
-				switch (var)	
-				{
-				case type_U: get(d,p) = cur.elem(cur.u, i, k+p, j) * 3 / params.dt; break;
-				case type_V: get(d,p) = cur.elem(cur.v, i, k+p, j) * 3 / params.dt; break;
-				case type_W: get(d,p) = cur.elem(cur.w, i, k+p, j) * 3 / params.dt - params.v_T * temp.d_y(temp.T, params.dz, i, k+p, j); break;
-				case type_T: get(d,p) = cur.elem(cur.T, i, k+p, j) * 3 / params.dt + params.t_phi * temp.DissFuncZ_as_Y(params.dx, params.dz, params.dy, i, k+p, j); break;
-				}
-				break;
-			}
-		}
-	}
-
-template<int dir, int swipe>
-	__device__ void solve_tridiagonal(FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, FTYPE *x, int num, int id, int num_seg, int max_n_max_n, int dimX, SegmentType segType = BOUND)
-	{
 		switch (swipe)
 		{
 			case ALL:
 			case FORWARD:
 			{
+				// apply boundary 0 conditions:
+				switch (dir)
+				{
+				case X:
+					if (segType == UNBOUND || segType == BOUND_END)
+						break;
+				default:
+					if ((var == type_T && nodesBound.first.bc_temp == BC_FREE) ||
+						(var != type_T && nodesBound.first.bc_vel == BC_FREE))
+					{
+						// free: f(0) = 2 * f(1) - f(2)
+						b_val = 2.0; 
+						c_val = -1.0; 
+						d_val = 0.0;
+					}
+					else
+					{
+						// no-slip: f(0) = f(1)
+						b_val = 1.0; 
+						c_val = 0.0; 
+
+						switch (var)
+						{
+							case type_U: d_val = nodesBound.first.v.x; break;  
+							case type_V: d_val = nodesBound.first.v.y; break;
+							case type_W: d_val = nodesBound.first.v.z; break;
+							case type_T: d_val = nodesBound.first.T; break;
+						}
+					}
+				}
+
 				int start = 1;
+				int end = num - 1;
 
 				switch (dir)
 				{
@@ -259,6 +125,7 @@ template<int dir, int swipe>
 						{
 						case UNBOUND:
 							start = 0;
+							end = num;
 							break;
 						case BOUND_END:
 							start = 0;
@@ -266,35 +133,131 @@ template<int dir, int swipe>
 							break;
 						case BOUND:
 							get(c, num-1) = 0.0;
-							get(c,0) = get(c,0) / get(b,0);
-							get(d,0) = get(d,0) / get(b,0);
-							break;
 						case BOUND_START:
-							get(c,0) = get(c,0) / get(b,0);
-							get(d,0) = get(d,0) / get(b,0);
+							get(c,0) = c_val / b_val;
+							get(d,0) = d_val / b_val;
+							end = num;
 							break;
 						}
 						break;
 				default:
-					get(c,0) = get(c,0) / get(b,0);
-					get(d,0) = get(d,0) / get(b,0);
+					get(c,0) = c_val / b_val;
+					get(d,0) = d_val / b_val;
 					get(c,num-1) = 0.0;
 					break;
 				}
 
-				for (int i = start; i < num; i++)
+				for (int p = start; p < end; p++)
 				{
-					get(c,i) = get(c,i) / (get(b,i) - get(a,i) * get(c,i-1));
-					get(d,i) = (get(d,i) - get(d,i-1) * get(a,i)) / (get(b,i) - get(a,i) * get(c,i-1));
+					// Build matrix:
+					switch (dir)
+					{
+					case X:		
+						a_val = - temp.elem(temp.u, i+p, j, k) / (2 * params.dx) - params.vis_dx2; 
+						b_val = 3 / params.dt  +  2 * params.vis_dx2; 
+						c_val = temp.elem(temp.u, i+p, j, k) / (2 * params.dx) - params.vis_dx2; 
+				
+						switch (var)	
+						{
+						case type_U: d_val = cur.elem(cur.u, i+p, j, k) * 3 / params.dt - params.v_T * temp.d_x(temp.T, params.dx, i+p, j, k); break;
+						case type_V: d_val = cur.elem(cur.v, i+p, j, k) * 3 / params.dt; break;
+						case type_W: d_val = cur.elem(cur.w, i+p, j, k) * 3 / params.dt; break;
+						case type_T: d_val = cur.elem(cur.T, i+p, j, k) * 3 / params.dt + params.t_phi * temp.DissFuncX(params.dx, params.dy, params.dz, i+p, j, k); break;
+						}	
+						break;
+
+					case Y:
+						a_val = - temp.elem(temp.v, i, j+p, k) / (2 * params.dy) - params.vis_dx2; 
+						b_val = 3 / params.dt  +  2 * params.vis_dx2; 
+						c_val = temp.elem(temp.v, i, j+p, k) / (2 * params.dy) - params.vis_dx2; 
+				
+						switch (var)	
+						{
+						case type_U: d_val = cur.elem(cur.u, i, j+p, k) * 3 / params.dt; break;
+						case type_V: d_val = cur.elem(cur.v, i, j+p, k) * 3 / params.dt - params.v_T * temp.d_y(temp.T, params.dy, i, j+p, k); break;
+						case type_W: d_val = cur.elem(cur.w, i, j+p, k) * 3 / params.dt; break;
+						case type_T: d_val = cur.elem(cur.T, i, j+p, k) * 3 / params.dt + params.t_phi * temp.DissFuncY(params.dx, params.dy, params.dz, i, j+p, k); break;
+						}
+						break;
+
+					case Z:
+						a_val = - temp.elem(temp.w, i, j, k+p) / (2 * params.dz) - params.vis_dx2; 
+						b_val = 3 / params.dt  +  2 * params.vis_dx2; 
+						c_val = temp.elem(temp.w, i, j, k+p) / (2 * params.dz) - params.vis_dx2; 
+				
+						switch (var)	
+						{
+						case type_U: d_val = cur.elem(cur.u, i, j, k+p) * 3 / params.dt; break;
+						case type_V: d_val = cur.elem(cur.v, i, j, k+p) * 3 / params.dt; break;
+						case type_W: d_val = cur.elem(cur.w, i, j, k+p) * 3 / params.dt - params.v_T * temp.d_z(temp.T, params.dz, i, j, k+p); break;
+						case type_T: d_val = cur.elem(cur.T, i, j, k+p) * 3 / params.dt + params.t_phi * temp.DissFuncZ(params.dx, params.dy, params.dz, i, j, k+p); break;
+						}
+						break;
+
+					case Z_as_Y:
+						a_val = - temp.elem(temp.w, i, k+p, j) / (2 * params.dz) - params.vis_dx2; 
+						b_val = 3 / params.dt  +  2 * params.vis_dx2; 
+						c_val = temp.elem(temp.w, i, k+p, j) / (2 * params.dz) - params.vis_dx2; 
+				
+						switch (var)	
+						{
+						case type_U: d_val = cur.elem(cur.u, i, k+p, j) * 3 / params.dt; break;
+						case type_V: d_val = cur.elem(cur.v, i, k+p, j) * 3 / params.dt; break;
+						case type_W: d_val = cur.elem(cur.w, i, k+p, j) * 3 / params.dt - params.v_T * temp.d_y(temp.T, params.dz, i, k+p, j); break;
+						case type_T: d_val = cur.elem(cur.T, i, k+p, j) * 3 / params.dt + params.t_phi * temp.DissFuncZ_as_Y(params.dx, params.dz, params.dy, i, k+p, j); break;
+						}
+						break;
+					} // end of build matrix
+
+					// forward solver step:
+					get(c,p) = c_val / (b_val - a_val * get(c,p-1));
+					get(d,p) = (d_val - get(d,p-1) * a_val) / (b_val - a_val * get(c,p-1));
 				}
+
+				// apply boundary 1 conditions:
 				switch (dir)
 				{
 				case X:
+					if (segType == UNBOUND || segType == BOUND_START)
+						break;
+				default:
+					if ((var == type_T && nodesBound.last.bc_temp == BC_FREE) ||
+						(var != type_T && nodesBound.last.bc_vel == BC_FREE))
+					{
+						// free: f(N) = 2 * f(N-1) - f(N-2)
+						a_val = -1.0;
+						b_val = 2.0;
+						d_val = 0.0;
+					}
+					else
+					{
+						// no-slip: f(N) = f(N-1)
+						a_val = 0.0; 
+						b_val = 1.0; 
+
+						switch (var)
+						{
+							case type_U: d_val = nodesBound.last.v.x; break;
+							case type_V: d_val = nodesBound.last.v.y; break;
+							case type_W: d_val = nodesBound.last.v.z; break;
+							case type_T: d_val = nodesBound.last.T; break;
+						}
+					}
+					// move boundary setting in here
+					get(c, num-1) = 0.0;
+					get(d,num-1) = (d_val - get(d,num-2) * a_val) / (b_val - a_val * get(c,num-2));
+				}
+
+				switch (dir)
+				{
+				case X:
+					// copy segments' ends to halo area
 					get(c, dimX-1) = get(c, num-1);
 					get(d, dimX-1) = get(d, num-1);
 					break;
 				}
-				break;
+
+				break; // SWIPE
 			}			
 		}
 
@@ -401,7 +364,7 @@ template<int dir, int swipe>
 
 	template<int dir, int var, int swipe>
 	__global__ void solve_segments( FluidParamsGPU p, int num_seg, Segment3D *segs, NodesBoundary3D *nodesBounds, NodeType *nodeTypes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, TimeLayer3D_GPU next,
-									FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, FTYPE *x, int  max_n_max_n, int dimX, int id_shift = 0 )
+									FTYPE *c, FTYPE *d, FTYPE *x, int  max_n_max_n, int dimX, int id_shift = 0 )
 	{
 		// fetch current segment info
 		int id = id_shift + blockIdx.x * blockDim.x + threadIdx.x;
@@ -418,17 +381,7 @@ template<int dir, int swipe>
 				return;
 		}
 
-		switch (swipe)
-		{
-		case ALL:
-			apply_bc0<dir, var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes.first, seg.type);
-			apply_bc1<dir, var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes.last, seg.type);
-		case FORWARD:
-			build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n_max_n, seg.type);
-		case BACK:			
-			solve_tridiagonal<dir, swipe>(a, b, c, d, x, n, id, num_seg, max_n_max_n, dimX, seg.type);
-			break;
-		}
+		solve_tridiagonal<dir, swipe, var>(p, c, d, x, seg, n, nodes, cur, temp, id, num_seg, max_n_max_n, dimX, seg.type);
 			
 		switch (swipe)
 		{
@@ -457,65 +410,10 @@ template<int dir, int swipe>
 		update_segment<dir, var>(x, seg, nodeTypes, temp, next, id, num_seg, max_n_max_n);
 	}
 
-	template<int dir, int var>
-	__global__ void build_matrix( FluidParamsGPU p, int num_seg, Segment3D *segs, NodesBoundary3D *nodesBounds, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, 
-								  FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int max_n_max_n, int id_shift = 0 )
-	{
-		// fetch current segment info
-		int id = id_shift + blockIdx.x * blockDim.x + threadIdx.x;
-		if( id >= num_seg + id_shift) return;
-		Segment3D &seg = segs[id];
-		NodesBoundary3D &nodes = nodesBounds[id];
-
-		int n = seg.size;
-
-		switch (dir)
-		{
-		case X:
-			if (seg.skipX)
-				return;
-		}
-		
-		apply_bc0<dir, var>(seg.posx, seg.posy, seg.posz, cur.dimy, cur.dimz, get(b,0), get(c,0), get(d,0), nodes.first, seg.type);
-		apply_bc1<dir, var>(seg.endx, seg.endy, seg.endz, cur.dimy, cur.dimz, get(a,n-1), get(b,n-1), get(d,n-1), nodes.last, seg.type);
-		build_matrix<dir, var>(p, seg.posx, seg.posy, seg.posz, a, b, c, d, n, cur, temp, id, num_seg, max_n_max_n, seg.type);		
-	}
-
-	template<int dir, int var, int swipe>
-	__global__ void solve_matrix( int num_seg, Segment3D *segs, NodeType *nodeTypes, TimeLayer3D_GPU temp, TimeLayer3D_GPU next, 
-								  FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, FTYPE *x, int max_n_max_n, int dimX, int id_shift = 0 )
-	{
-		// fetch current segment info
-		int id = id_shift + blockIdx.x * blockDim.x + threadIdx.x;
-		if( id >= num_seg + id_shift) return;
-		Segment3D &seg = segs[id];
-		//NodesBoundary3D &nodes = nodesBounds[id];
-
-		switch (dir)
-		{
-		case X:
-			if (seg.skipX)
-				return;
-		}
-
-		int n = seg.size;
-
-		solve_tridiagonal<dir, swipe>(a, b, c, d, x, n, id, num_seg, max_n_max_n, dimX, seg.type);
-		
-		switch (swipe)
-		{
-		case ALL:
-			update_segment<dir, var>(x, seg, nodeTypes, temp, next, id, num_seg, max_n_max_n);
-			break;
-		}
-	}
-
 	template<DirType dir, VarType var>
 	void LaunchSolveSegments_dir_var( FluidParamsGPU p, int *num_seg, Segment3D **segs, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-									  FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt )
-	/*
-		Y and Z direction only (and X if nGPUs = 1)
-	*/
+									  FTYPE **d_c, FTYPE **d_d, FTYPE **d_x )
+// Y or Z direction only (and X if nGPUs = 1)
 	{
 		GPUplan *pGPUplan = GPUplan::Instance();
 
@@ -533,40 +431,15 @@ template<int dir, int swipe>
 
 			max_n_max_n = pGPUplan->node(i)->getLength1D() * max_n;  // valid for Y and Z direction only if nGPUs > 1
 
-			switch( decomposeOpt )
-			{
-			case true:
-				build_matrix<dir, var><<<grid, block>>>( p, num_seg[i], segs[i], nodesBounds[i], cur, temp, d_a[i], d_b[i], d_c[i], d_d[i], max_n_max_n );
-				break;
-
-			case false:
-				//cudaFuncSetCacheConfig(solve_segments<dir, var, ALL>, cudaFuncCachePreferL1);
-				solve_segments<dir, var, ALL><<<grid, block>>>( p, num_seg[i], segs[i], nodesBounds[i], nodeTypes[i], cur, temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
-				break;
-			}
-		}
-
-		if ( decomposeOpt )
-		{
-			for (int i = 0; i < pGPUplan->size(); i++)
-			{
-				pGPUplan->setDevice(i);
-				cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
-
-				int dimX = pGPUplan->node(i)->getLength1D();
-				dim3 grid((num_seg[i] + block.x - 1)/block.x);
-
-				max_n_max_n = pGPUplan->node(i)->getLength1D() * max_n;
-
-				solve_matrix<dir, var, ALL><<<grid, block>>>( num_seg[i], segs[i], nodeTypes[i], temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], dimX, max_n_max_n );
-			}
+			//cudaFuncSetCacheConfig(solve_segments<dir, var, ALL>, cudaFuncCachePreferL1);			
+			solve_segments<dir, var, ALL><<<grid, block>>>( p, num_seg[i], segs[i], nodesBounds[i], nodeTypes[i], cur, temp, next, d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
 		}
 		pGPUplan->deviceSynchronize();
 	}
 
 	template<VarType var>
 	void LaunchSolveSegments_X_var( FluidParamsGPU p, int *num_seg, Segment3D **segs, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-									  FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt, int numSegs, FTYPE *mpi_buf = NULL )
+									  FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, int numSegs, FTYPE *mpi_buf = NULL )
 	/*
 		X direction only
 	*/
@@ -578,7 +451,7 @@ template<int dir, int swipe>
 		
 		if (pGPUplan->size() == 1 && pplan->size() == 1)
 		{
-			LaunchSolveSegments_dir_var<X, var>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt );
+			LaunchSolveSegments_dir_var<X, var>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x );
 			return;
 		}
 		
@@ -591,13 +464,6 @@ template<int dir, int swipe>
 
 		dim3 block(SOLVER_BLOCK_DIM);
 
-		for (int i = 0; i < pGPUplan->size(); i++)
-		{
-			pGPUplan->setDevice(i);
-			cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
-			dim3 grid((num_seg[i] + block.x - 1)/block.x);
-			build_matrix<X, var><<<grid, block>>>( p, num_seg[i], segs[i], nodesBounds[i], cur, temp, d_a[i], d_b[i], d_c[i], d_d[i], max_n_max_n );
-		}
 #ifdef __PARA
 		if (pplan->size() > 1)
 		{			
@@ -615,7 +481,7 @@ template<int dir, int swipe>
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
 
 			//cudaFuncSetCacheConfig(solve_segments<dir, var, ALL>, cudaFuncCachePreferL1);
-			solve_matrix<X, var, FORWARD><<<grid, block>>>( num_seg[i], segs[i], nodeTypes[i], temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
+			solve_segments<X, var, FORWARD><<<grid, block>>>( p, num_seg[i], segs[i], nodesBounds[i], nodeTypes[i], cur, temp, next, d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
 			if (i < pGPUplan->size() - 1) //  send to node n+1
 			{
 				haloMemcpyPeer<FTYPE, FORWARD>( d_c, i, haloSize, dimX * haloSize, 0, comSize);
@@ -640,7 +506,7 @@ template<int dir, int swipe>
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
 
 			max_n_max_n = max_n * max_n;
-			solve_matrix<X, var, BACK><<<grid, block>>>( num_seg[i], segs[i], nodeTypes[i], temp, next, d_a[i], d_b[i], d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
+			solve_segments<X, var, BACK><<<grid, block>>>( p, num_seg[i], segs[i], nodesBounds[i], nodeTypes[i], cur, temp, next, d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
 			if (i > 0)
 				haloMemcpyPeer<FTYPE, BACK>(d_x, i, haloSize, pGPUplan->node(i-1)->getLength1D()*haloSize, 0, comSize);
 		}
@@ -663,31 +529,31 @@ template<int dir, int swipe>
 
 	template<DirType dir>
 	void LaunchSolveSegments_dir( FluidParamsGPU p, int *num_seg, Segment3D **segs, VarType var, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-								  FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt )
+								  FTYPE **d_c, FTYPE **d_d, FTYPE **d_x )
 	{
 		switch( var )
 		{
-		case type_U: LaunchSolveSegments_dir_var<dir, type_U>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
-		case type_V: LaunchSolveSegments_dir_var<dir, type_V>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
-		case type_W: LaunchSolveSegments_dir_var<dir, type_W>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
-		case type_T: LaunchSolveSegments_dir_var<dir, type_T>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
+		case type_U: LaunchSolveSegments_dir_var<dir, type_U>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x ); break;
+		case type_V: LaunchSolveSegments_dir_var<dir, type_V>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x ); break;
+		case type_W: LaunchSolveSegments_dir_var<dir, type_W>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x ); break;
+		case type_T: LaunchSolveSegments_dir_var<dir, type_T>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x ); break;
 		}
 	}
 
 	void LaunchSolveSegments_X( FluidParamsGPU p, int *num_seg, Segment3D **segs, VarType var, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-								  FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt, int numSegs, FTYPE *mpi_buf = NULL )
+								  FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, int numSegs, FTYPE *mpi_buf = NULL )
 	{
 		switch( var )
 		{
-		case type_U: LaunchSolveSegments_X_var<type_U>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs, mpi_buf ); break;
-		case type_V: LaunchSolveSegments_X_var<type_V>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs, mpi_buf ); break;
-		case type_W: LaunchSolveSegments_X_var<type_W>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs, mpi_buf ); break;
-		case type_T: LaunchSolveSegments_X_var<type_T>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs, mpi_buf ); break;
+		case type_U: LaunchSolveSegments_X_var<type_U>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x, numSegs, mpi_buf ); break;
+		case type_V: LaunchSolveSegments_X_var<type_V>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x, numSegs, mpi_buf ); break;
+		case type_W: LaunchSolveSegments_X_var<type_W>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x, numSegs, mpi_buf ); break;
+		case type_T: LaunchSolveSegments_X_var<type_T>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x, numSegs, mpi_buf ); break;
 		}
 	}
 
 	void SolveSegments_GPU( FTYPE dt, FluidParams params, int *num_seg, Segment3D **segs, VarType var, DirType dir, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
-							FTYPE **d_a, FTYPE **d_b, FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, bool decomposeOpt,  int numSegs, FTYPE *mpi_buf )
+							FTYPE **d_c, FTYPE **d_d, FTYPE **d_x,  int numSegs, FTYPE *mpi_buf )
 	{
 		TimeLayer3D_GPU d_cur( cur );
 		TimeLayer3D_GPU d_temp( temp );
@@ -697,10 +563,10 @@ template<int dir, int swipe>
 
 		switch( dir )
 		{
-		case X: LaunchSolveSegments_X( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs, mpi_buf ); break;
-		case Y: LaunchSolveSegments_dir<Y>( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
-		case Z: LaunchSolveSegments_dir<Z>( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
-		case Z_as_Y: LaunchSolveSegments_dir<Z_as_Y>( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_a, d_b, d_c, d_d, d_x, decomposeOpt ); break;
+		case X: LaunchSolveSegments_X( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_d, d_x, numSegs, mpi_buf ); break;
+		case Y: LaunchSolveSegments_dir<Y>( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_d, d_x ); break;
+		case Z: LaunchSolveSegments_dir<Z>( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_d, d_x ); break;
+		case Z_as_Y: LaunchSolveSegments_dir<Z_as_Y>( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_d, d_x ); break;
 		}
 	}
 }

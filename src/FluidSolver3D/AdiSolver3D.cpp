@@ -84,8 +84,6 @@ namespace FluidSolver3D
 		d = NULL;
 		x = NULL;
 
-		d_a = NULL;
-		d_b = NULL;
 		d_c = NULL;
 		d_d = NULL;
 		d_x = NULL;
@@ -124,8 +122,6 @@ namespace FluidSolver3D
 		if (h_listY != NULL) delete [] h_listY;
 		if (h_listZ != NULL) delete [] h_listZ;
 
-		if (d_a != NULL) multiDevFree<FTYPE>(d_a);
-		if (d_b != NULL) multiDevFree<FTYPE>(d_b);
 		if (d_c != NULL) multiDevFree<FTYPE>(d_c);
 		if (d_d != NULL) multiDevFree<FTYPE>(d_d);
 		if (d_x != NULL) multiDevFree<FTYPE>(d_x);
@@ -187,9 +183,7 @@ namespace FluidSolver3D
 			for (int i = 0; i < 3; i++ )
 				numSegsGPU[i] = new int[pplan->gpuNum()];
 			// create GPU matrices
-			multiDevAlloc<FTYPE>( d_a, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW); // with halos for intercommunication );
-			multiDevAlloc<FTYPE>( d_b, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW);
-			multiDevAlloc<FTYPE>( d_c, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW);
+			multiDevAlloc<FTYPE>( d_c, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW); // with halos for intercommunication );
 			multiDevAlloc<FTYPE>( d_d, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW);
 			multiDevAlloc<FTYPE>( d_x, dimxNode * n * n * MAX_SEGS_PER_ROW, true, 2 * n * n * MAX_SEGS_PER_ROW);
 
@@ -548,10 +542,10 @@ template<DirType dir>
 
 				prof.StartEvent();
 
-				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_U, dir_new, d_node_list, d_node_types, cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs[dir], mpi_buf);	
-				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_V, dir_new, d_node_list, d_node_types, cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs[dir], mpi_buf);
-				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_W, dir_new, d_node_list, d_node_types, cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs[dir], mpi_buf);
-				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_T, dir_new, d_node_list, d_node_types, cur_new, temp_new, next_new, d_a, d_b, d_c, d_d, d_x, decomposeOpt, numSegs[dir], mpi_buf);				
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_U, dir_new, d_node_list, d_node_types, cur_new, temp_new, next_new, d_c, d_d, d_x, numSegs[dir], mpi_buf);	
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_V, dir_new, d_node_list, d_node_types, cur_new, temp_new, next_new, d_c, d_d, d_x, numSegs[dir], mpi_buf);
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_W, dir_new, d_node_list, d_node_types, cur_new, temp_new, next_new, d_c, d_d, d_x, numSegs[dir], mpi_buf);
+				SolveSegments_GPU(dt, params, numSegsGPU[dir], d_list, type_T, dir_new, d_node_list, d_node_types, cur_new, temp_new, next_new, d_c, d_d, d_x, numSegs[dir], mpi_buf);				
 				break;
 			}
 
