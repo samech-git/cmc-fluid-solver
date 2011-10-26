@@ -34,7 +34,7 @@ namespace FluidSolver2D
 		memcpy(curData, grid.curData, dimx * dimy * sizeof(CondData2D));
 
 		nextData = new CondData2D[dimx * dimy];
-		memcpy(nextData, grid.nextData, dimx * dimy * sizeof(Vec2D));
+		memcpy(nextData, grid.nextData, dimx * dimy * sizeof(CondData2D));
 	}
 
 	Grid2D::~Grid2D()
