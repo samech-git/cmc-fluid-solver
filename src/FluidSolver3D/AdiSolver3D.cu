@@ -33,14 +33,15 @@ namespace FluidSolver3D
 		FTYPE dt, dx, dy, dz;
 		FTYPE v_T, t_phi;
 
-		FluidParamsGPU( VarType var, DirType dir, FTYPE _dt, FTYPE _dx, FTYPE _dy, FTYPE _dz, FluidParams _params ) : 
+		//FluidParamsGPU() :  dt(0.0), dx(0.0), dy(0.0), dz(0.0){;};
+		FluidParamsGPU( VarType var, DirType dir, FTYPE _dt, FTYPE _dx, FTYPE _dy, FTYPE _dz, FluidParams _params ) :
 			dt(_dt), dx(_dx), dy(_dy), dz(_dz)
 		{
 			switch (var)
 			{
 			case type_U:
 			case type_V:
-			case type_W:	
+			case type_W:
 				switch (dir)
 				{
 				case X:	vis_dx2 = _params.v_vis / (dx * dx); break;
@@ -129,10 +130,10 @@ template<int dir, int swipe, int var>
 							break;
 						case BOUND_END:
 							start = 0;
-							get(c, num-1) = 0.0;
+							//get(c, num-1) = 0.0;
 							break;
 						case BOUND:
-							get(c, num-1) = 0.0;
+							//get(c, num-1) = 0.0;
 						case BOUND_START:
 							get(c,0) = c_val / b_val;
 							get(d,0) = d_val / b_val;
@@ -143,7 +144,7 @@ template<int dir, int swipe, int var>
 				default:
 					get(c,0) = c_val / b_val;
 					get(d,0) = d_val / b_val;
-					get(c,num-1) = 0.0;
+					//get(c,num-1) = 0.0;
 					break;
 				}
 
@@ -212,6 +213,9 @@ template<int dir, int swipe, int var>
 					// forward solver step:
 					get(c,p) = c_val / (b_val - a_val * get(c,p-1));
 					get(d,p) = (d_val - get(d,p-1) * a_val) / (b_val - a_val * get(c,p-1));
+
+					//c_cur = c_val / (b_val - a_val * c_m1);
+					//d_cur = (d_val - d_m1 * a_val) / (b_val - a_val * c_m1);
 				}
 
 				// apply boundary 1 conditions:
@@ -260,6 +264,13 @@ template<int dir, int swipe, int var>
 				break; // SWIPE
 			}			
 		}
+
+				switch (dir)
+				{
+				case Y:
+					;
+					break;
+				}
 
 		switch (swipe)
 		{
@@ -362,9 +373,9 @@ template<int dir, int swipe, int var>
 		}
 	}
 
-	template<int dir, int var, int swipe>
-	__global__ void solve_segments( FluidParamsGPU p, int num_seg, Segment3D *segs, NodesBoundary3D *nodesBounds, NodeType *nodeTypes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, TimeLayer3D_GPU next,
-									FTYPE *c, FTYPE *d, FTYPE *x, int  max_n_max_n, int dimX, int id_shift = 0 )
+	template<int dir, int swipe, int var>
+	__global__ void solve_segments_var(FluidParamsGPU p, int num_seg, Segment3D *segs, NodesBoundary3D *nodesBounds, NodeType *nodeTypes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, TimeLayer3D_GPU next,
+									FTYPE *c, FTYPE *x, int  max_n_max_n, int dimX, int id_shift = 0 )
 	{
 		// fetch current segment info
 		int id = id_shift + blockIdx.x * blockDim.x + threadIdx.x;
@@ -381,19 +392,26 @@ template<int dir, int swipe, int var>
 				return;
 		}
 
-		solve_tridiagonal<dir, swipe, var>(p, c, d, x, seg, n, nodes, cur, temp, id, num_seg, max_n_max_n, dimX, seg.type);
-			
+		solve_tridiagonal<dir, swipe, var>(p, c, x, x, seg, n, nodes, cur, temp, id, num_seg, max_n_max_n, dimX, seg.type);
+
 		switch (swipe)
 		{
 		case ALL:
-		case BACK:
 			update_segment<dir, var>(x, seg, nodeTypes, temp, next, id, num_seg, max_n_max_n);
+		case BACK:			
 			break;
 		}
 	}
 
+	//template<DirType dir, int swipe>
+	//void solve_segments(dim3 grid, dim3 block, FluidParamsGPU p, int num_seg, Segment3D *segs, NodesBoundary3D *nodesBounds, NodeType *nodeTypes, TimeLayer3D_GPU cur, TimeLayer3D_GPU temp, TimeLayer3D_GPU next,
+	//								FTYPE *c, FTYPE *x, int  max_n_max_n, int dimX, int id_shift = 0)
+	//{
+	//	solve_segments<dir, swipe, type_U><<<grid, block>>>( *p[type_U], num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, c, d_x[i] + typeID*varOffset, max_n_max_n, dimX );
+	//}
+
 	template<int dir, int var>
-	__global__ void update_segments(int num_seg, Segment3D *segs, NodeType *nodeTypes, TimeLayer3D_GPU temp, TimeLayer3D_GPU next,  FTYPE *x, int  max_n_max_n, int id_shift = 0)
+	__global__ void update_segments_var(int num_seg, Segment3D *segs, NodeType *nodeTypes, TimeLayer3D_GPU temp, TimeLayer3D_GPU next,  FTYPE *x, int  max_n_max_n, int id_shift = 0)
 	{
 		// fetch current segment info
 		int id = id_shift + blockIdx.x * blockDim.x + threadIdx.x;
@@ -410,15 +428,82 @@ template<int dir, int swipe, int var>
 		update_segment<dir, var>(x, seg, nodeTypes, temp, next, id, num_seg, max_n_max_n);
 	}
 
-	template<DirType dir, VarType var>
-	void LaunchSolveSegments_dir_var( FluidParamsGPU p, int *num_seg, Segment3D **segs, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-									  FTYPE **d_c, FTYPE **d_d, FTYPE **d_x )
+	template<int dir>
+	void update_segments(dim3 grid, dim3 block, cudaStream_t &stream, int num_seg, Segment3D *segs, 
+		                   NodeType *nodeTypes, TimeLayer3D_GPU temp, TimeLayer3D_GPU next,  FTYPE *d_x, int  max_n, int dimX, int id_shift = 0)
+	{
+		int max_n_max_n;
+		int varOffset = (dimX + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
+		switch (dir)
+		{
+		case X:
+			max_n_max_n = max_n * max_n;
+			break;
+		default:
+			max_n_max_n = dimX * max_n; 
+		}
+		update_segments_var<dir, type_U><<<grid, block, 0, stream>>>(num_seg, segs, nodeTypes, temp, next, d_x + type_U*varOffset,  max_n_max_n, id_shift);
+		update_segments_var<dir, type_V><<<grid, block, 0, stream>>>(num_seg, segs, nodeTypes, temp, next, d_x + type_V*varOffset,  max_n_max_n, id_shift);
+		update_segments_var<dir, type_W><<<grid, block, 0, stream>>>(num_seg, segs, nodeTypes, temp, next, d_x + type_W*varOffset,  max_n_max_n, id_shift);
+		update_segments_var<dir, type_T><<<grid, block, 0, stream>>>(num_seg, segs, nodeTypes, temp, next, d_x + type_T*varOffset,  max_n_max_n, id_shift);
+	}
+
+	template<int dir>
+	void update_segments(dim3 grid, dim3 block, int num_seg, Segment3D *segs, 
+		                   NodeType *nodeTypes, TimeLayer3D_GPU temp, TimeLayer3D_GPU next,  FTYPE *d_x, int  max_n, int dimX, int id_shift = 0)
+	{
+		cudaStream_t stream = 0;
+		update_segments<dir>( grid, block, stream, num_seg, segs, nodeTypes, temp, next,  d_x, max_n, dimX, id_shift);
+	}
+
+	template<int dir, int swipe>
+	void solve_segments(dim3 grid, dim3 block, cudaStream_t &stream, FluidParamsGPU **p, int num_seg, Segment3D *segs, NodesBoundary3D *nodesBounds, NodeType *nodeTypes, 
+			                  TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next, FTYPE *d_c, FTYPE *d_x, int max_n, int dimX, int id_shift = 0, int nBlockZ = 1)
+	{
+		int varOffset = ((max_n * max_n) % nBlockZ == 0) ? (max_n * max_n)/nBlockZ: (max_n * max_n)/nBlockZ + 1;
+		varOffset *= (dimX + 2) * MAX_SEGS_PER_ROW;
+		int max_n_max_n;
+		switch (dir)
+		{
+		case X:
+			max_n_max_n = max_n * max_n;
+			break;
+		case Y:
+			max_n_max_n = dimX * max_n;
+			max_n_max_n = ( max_n_max_n % nBlockZ == 0)? max_n_max_n / nBlockZ : max_n_max_n / nBlockZ + 1;
+			break;
+		default:
+			max_n_max_n = dimX * max_n; 
+		}
+
+		solve_segments_var<dir, swipe, type_U><<<grid, block, 0, stream>>>( *p[type_U], num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c + type_U*varOffset, d_x + type_U*varOffset, max_n_max_n, dimX, id_shift );
+		bool ok = (cudaSuccess == cudaGetLastError());
+		solve_segments_var<dir, swipe, type_V><<<grid, block, 0, stream>>>( *p[type_V], num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c + type_V*varOffset, d_x + type_V*varOffset, max_n_max_n, dimX, id_shift );
+		ok = (cudaSuccess == cudaGetLastError());
+		solve_segments_var<dir, swipe, type_W><<<grid, block, 0, stream>>>( *p[type_W], num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c + type_W*varOffset, d_x + type_W*varOffset, max_n_max_n, dimX, id_shift );
+		ok = (cudaSuccess == cudaGetLastError());
+		solve_segments_var<dir, swipe, type_T><<<grid, block, 0, stream>>>( *p[type_T], num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c + type_T*varOffset, d_x + type_T*varOffset, max_n_max_n, dimX, id_shift );
+		ok = (cudaSuccess == cudaGetLastError());
+	}
+
+	template<int dir, int swipe>
+    void solve_segments(dim3 grid, dim3 block, FluidParamsGPU **p, int num_seg, Segment3D *segs, NodesBoundary3D *nodesBounds, NodeType *nodeTypes, 
+			                  TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next, FTYPE *d_c, FTYPE *d_x, int max_n, int dimX)
+		{
+			cudaStream_t stream = 0;
+			solve_segments<dir, swipe>(grid, block, stream, p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_x, max_n, dimX);
+		}
+
+	template<DirType dir>
+	void LaunchSolveSegments_dir( FluidParamsGPU **p, int *num_seg, Segment3D **segs, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
+									  FTYPE **d_c, FTYPE **d_x )
 // Y or Z direction only (and X if nGPUs = 1)
 	{
 		GPUplan *pGPUplan = GPUplan::Instance();
+		PARAplan* pplan = PARAplan::Instance();
 
-		int max_n_max_n;
 		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
+
 		dim3 block(SOLVER_BLOCK_DIM);
 
 		for (int i = 0; i < pGPUplan->size(); i++)
@@ -429,47 +514,50 @@ template<int dir, int swipe, int var>
 			int dimX = pGPUplan->node(i)->getLength1D();
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
 
-			max_n_max_n = pGPUplan->node(i)->getLength1D() * max_n;  // valid for Y and Z direction only if nGPUs > 1
-
-			//cudaFuncSetCacheConfig(solve_segments<dir, var, ALL>, cudaFuncCachePreferL1);			
-			solve_segments<dir, var, ALL><<<grid, block>>>( p, num_seg[i], segs[i], nodesBounds[i], nodeTypes[i], cur, temp, next, d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
+			//cudaFuncSetCacheConfig(solve_segments<dir, var, ALL>, cudaFuncCachePreferL1);	 // will it create a queue?
+            solve_segments<dir, ALL>(grid, block, p, num_seg[i], segs[i], nodesBounds[i], nodeTypes[i], cur, temp, next, d_c[i], d_x[i], max_n, dimX );
 		}
 		pGPUplan->deviceSynchronize();
 	}
 
-	template<VarType var>
-	void LaunchSolveSegments_X_var( FluidParamsGPU p, int *num_seg, Segment3D **segs, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-									  FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, int numSegs, FTYPE *mpi_buf = NULL )
+	//template<VarType var>
+	void LaunchSolveSegments_X( FluidParamsGPU **p, int *num_seg, Segment3D **segs, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
+									  FTYPE **d_c, FTYPE **d_x, int numSegs, FTYPE *mpi_buf = NULL )
 	/*
 		X direction only
 	*/
 	{
+		int typeID;
+		int varOffset;
 		GPUplan *pGPUplan = GPUplan::Instance();
 		PARAplan* pplan = PARAplan::Instance();
 		int irank =  pplan->rank();
-		int size = pplan->size();
+		int size = pplan->size();        
 		
 		if (pGPUplan->size() == 1 && pplan->size() == 1)
 		{
-			LaunchSolveSegments_dir_var<X, var>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x );
+			LaunchSolveSegments_dir<X>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_x );
 			return;
 		}
 		
 		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
-		int max_n_max_n = max_n * max_n;
 
 		int haloSize = max_n * max_n * MAX_SEGS_PER_ROW;
 		int comSize = numSegs;
 		int dimX;
 
 		dim3 block(SOLVER_BLOCK_DIM);
-
 #ifdef __PARA
 		if (pplan->size() > 1)
-		{			
+		{	
 			pGPUplan->setDevice(0);
-			paraDevRecv<FTYPE, FORWARD>(d_c[0], mpi_buf, comSize, 666);
-			paraDevRecv<FTYPE, FORWARD>(d_d[0], mpi_buf + comSize, comSize, 667);
+			dimX = pGPUplan->node(0)->getLength1D();
+			varOffset = (dimX + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
+			for (typeID = 0; typeID < SOLVER_VAR_NUM; typeID++)
+			{
+				paraDevRecv<FTYPE, FORWARD>(d_c[0] + typeID*varOffset, mpi_buf, comSize, 666 + typeID);
+				paraDevRecv<FTYPE, FORWARD>(d_x[0] + typeID*varOffset, mpi_buf + comSize, comSize, 666 + SOLVER_VAR_NUM + typeID);
+			}
 		}
 #endif
 		for (int i = 0; i < pGPUplan->size(); i++)
@@ -479,22 +567,31 @@ template<int dir, int swipe, int var>
 
 			dimX = pGPUplan->node(i)->getLength1D();
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
-
+			varOffset = (dimX + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
 			//cudaFuncSetCacheConfig(solve_segments<dir, var, ALL>, cudaFuncCachePreferL1);
-			solve_segments<X, var, FORWARD><<<grid, block>>>( p, num_seg[i], segs[i], nodesBounds[i], nodeTypes[i], cur, temp, next, d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
-			if (i < pGPUplan->size() - 1) //  send to node n+1
-			{
-				haloMemcpyPeer<FTYPE, FORWARD>( d_c, i, haloSize, dimX * haloSize, 0, comSize);
-				haloMemcpyPeer<FTYPE, FORWARD>( d_d, i, haloSize, dimX * haloSize, 0, comSize);
-			}
+            solve_segments<X, FORWARD>(grid, block, p, num_seg[i], segs[i], nodesBounds[i], nodeTypes[i], cur, temp, next, d_c[i], d_x[i], max_n, dimX );
+
+			for (typeID = 0; typeID < SOLVER_VAR_NUM; typeID++)
+				if (i < pGPUplan->size() - 1) //  send to node n+1
+				{	
+					int varOffset_p1 = (pGPUplan->node(i+1)->getLength1D() + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
+					haloMemcpyPeer<FTYPE, FORWARD>( d_c, i, haloSize, dimX * haloSize + typeID*(varOffset - varOffset_p1), typeID*varOffset_p1, comSize);					
+					haloMemcpyPeer<FTYPE, FORWARD>( d_x, i, haloSize, dimX * haloSize + typeID*(varOffset - varOffset_p1), typeID*varOffset_p1, comSize);
+				}			
 		}
 #ifdef __PARA
 		if (pplan->size() > 0)
 		{
 			pGPUplan->setDevice(pGPUplan->size()-1);
-			paraDevSend<FTYPE, FORWARD>(d_c[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf, comSize, 666);
-			paraDevSend<FTYPE, FORWARD>(d_d[pGPUplan->size()-1] + haloSize + dimX * haloSize - haloSize, mpi_buf + comSize, comSize, 667);
-			paraDevRecv<FTYPE, BACK>(d_x[pGPUplan->size()-1] + haloSize +  dimX * haloSize, mpi_buf, comSize, 668);
+			dimX = pGPUplan->node(pGPUplan->size()-1)->getLength1D();
+			varOffset = (dimX + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
+			for (typeID = 0; typeID < SOLVER_VAR_NUM; typeID++)
+			{
+				paraDevSend<FTYPE, FORWARD>(d_c[pGPUplan->size()-1] + typeID * varOffset + haloSize + dimX * haloSize - haloSize, mpi_buf, comSize, 666 + typeID);
+				paraDevSend<FTYPE, FORWARD>(d_x[pGPUplan->size()-1]  + typeID * varOffset + haloSize + dimX * haloSize - haloSize, mpi_buf + comSize, comSize, 666 + SOLVER_VAR_NUM + typeID);				
+			}
+			for (typeID = 0; typeID < SOLVER_VAR_NUM; typeID++)
+				paraDevRecv<FTYPE, BACK>(d_x[pGPUplan->size()-1] + typeID * varOffset + haloSize +  dimX * haloSize, mpi_buf, comSize, 666 + 2 * SOLVER_VAR_NUM + typeID);
 		}
 #endif
 		for (int i = pGPUplan->size() - 1; i >= 0; i--)
@@ -504,17 +601,24 @@ template<int dir, int swipe, int var>
 
 			dimX = pGPUplan->node(i)->getLength1D();
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
-
-			max_n_max_n = max_n * max_n;
-			solve_segments<X, var, BACK><<<grid, block>>>( p, num_seg[i], segs[i], nodesBounds[i], nodeTypes[i], cur, temp, next, d_c[i], d_d[i], d_x[i], max_n_max_n, dimX );
-			if (i > 0)
-				haloMemcpyPeer<FTYPE, BACK>(d_x, i, haloSize, pGPUplan->node(i-1)->getLength1D()*haloSize, 0, comSize);
+			varOffset = (dimX + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
+			solve_segments<X, BACK>(grid, block, p, num_seg[i], segs[i], nodesBounds[i], nodeTypes[i], cur, temp, next, d_c[i], d_x[i], max_n, dimX );
+			for (typeID = 0; typeID < SOLVER_VAR_NUM; typeID++)
+				if (i > 0)
+				{
+					int dimXm1 = pGPUplan->node(i-1)->getLength1D();
+					int varOffset_m1 = (dimXm1 + 2) * max_n * max_n * MAX_SEGS_PER_ROW;					
+					haloMemcpyPeer<FTYPE, BACK>(d_x, i, haloSize, dimXm1*haloSize + typeID * (varOffset_m1 - varOffset), typeID*varOffset, comSize);
+				}
 		}
 #ifdef __PARA		
 		if (pplan->size() > 0)
 		{			
 			pGPUplan->setDevice(0);
-			paraDevSend<FTYPE, BACK>(d_x[0] + haloSize, mpi_buf, comSize, 668);
+			dimX = pGPUplan->node(0)->getLength1D();
+			varOffset = (dimX + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
+			for (typeID = 0; typeID < SOLVER_VAR_NUM; typeID++)
+				paraDevSend<FTYPE, BACK>(d_x[0] + typeID * varOffset + haloSize, mpi_buf, comSize, 666 + 2 * SOLVER_VAR_NUM + typeID);
 		}
 #endif
 		for (int i = 0; i < pGPUplan->size(); i++)
@@ -522,51 +626,353 @@ template<int dir, int swipe, int var>
 			pGPUplan->setDevice(i);
 			cur.SetDevice(i); temp.SetDevice(i); next.SetDevice(i);
 			dim3 grid((num_seg[i] + block.x - 1)/block.x);
-			update_segments<X, var><<<grid, block>>>( num_seg[i], segs[i], nodeTypes[i], temp, next, d_x[i],  max_n_max_n);
+			//for (int typeID = 0; typeID < SOLVER_VAR_NUM; typeID++)
+			dimX = pGPUplan->node(i)->getLength1D();
+			varOffset = (dimX + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
+			update_segments<X>(grid, block, num_seg[i], segs[i], nodeTypes[i], temp, next, d_x[i], max_n, dimX);
+			//update_segments_var<X, type_U><<<grid, block>>>(num_seg[i], segs[i], nodeTypes[i], temp, next, d_x[i] + type_U*varOffset,  max_n_max_n);
+			//update_segments_var<X, type_V><<<grid, block>>>(num_seg[i], segs[i], nodeTypes[i], temp, next, d_x[i] + type_V*varOffset,  max_n_max_n);
+			//update_segments_var<X, type_W><<<grid, block>>>(num_seg[i], segs[i], nodeTypes[i], temp, next, d_x[i] + type_W*varOffset,  max_n_max_n);
+			//update_segments_var<X, type_T><<<grid, block>>>(num_seg[i], segs[i], nodeTypes[i], temp, next, d_x[i] + type_T*varOffset,  max_n_max_n);
+			//update_segments<X, var><<<grid, block>>>( num_seg[i], segs[i], nodeTypes[i], temp, next, d_x[i],  max_n_max_n);
 		}
 		pGPUplan->deviceSynchronize();
 	}
 
-	template<DirType dir>
-	void LaunchSolveSegments_dir( FluidParamsGPU p, int *num_seg, Segment3D **segs, VarType var, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-								  FTYPE **d_c, FTYPE **d_d, FTYPE **d_x )
-	{
-		switch( var )
-		{
-		case type_U: LaunchSolveSegments_dir_var<dir, type_U>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x ); break;
-		case type_V: LaunchSolveSegments_dir_var<dir, type_V>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x ); break;
-		case type_W: LaunchSolveSegments_dir_var<dir, type_W>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x ); break;
-		case type_T: LaunchSolveSegments_dir_var<dir, type_T>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x ); break;
-		}
-	}
+	void LaunchSolveSegments_XY( FluidParamsGPU **px, FluidParamsGPU **py, int **num_segXBlZ,  int **num_segYBlZ, int **comuNumSegsXBlZ, int **comuNumSegsYBlZ, Segment3D **segsX, Segment3D **segsY, 
+		                                   int num_local, int nblock, NodesBoundary3D **nodesBoundsX, NodesBoundary3D **nodesBoundsY, NodeType **nodeTypes, 
+																			 TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &half, TimeLayer3D_GPU &next,
+																			 FTYPE **d_c, FTYPE **d_cY, FTYPE **d_x, FTYPE **d_xY )
+	{ 
+		PARAplan* pplan = PARAplan::Instance();
+#ifdef __PARA
+		if (pplan->size() > 1)
+			throw std::logic_error("Not Implemented");
+#endif
 
-	void LaunchSolveSegments_X( FluidParamsGPU p, int *num_seg, Segment3D **segs, VarType var, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
-								  FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, int numSegs, FTYPE *mpi_buf = NULL )
-	{
-		switch( var )
-		{
-		case type_U: LaunchSolveSegments_X_var<type_U>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x, numSegs, mpi_buf ); break;
-		case type_V: LaunchSolveSegments_X_var<type_V>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x, numSegs, mpi_buf ); break;
-		case type_W: LaunchSolveSegments_X_var<type_W>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x, numSegs, mpi_buf ); break;
-		case type_T: LaunchSolveSegments_X_var<type_T>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_d, d_x, numSegs, mpi_buf ); break;
-		}
-	}
+#if !INTERNAL_MERGE_ENABLE
+	throw std::logic_error("Not Implemented");
+#endif
 
-	void SolveSegments_GPU( FTYPE dt, FluidParams params, int *num_seg, Segment3D **segs, VarType var, DirType dir, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
-							FTYPE **d_c, FTYPE **d_d, FTYPE **d_x,  int numSegs, FTYPE *mpi_buf )
+		int typeID, varOffset;
+		int max_n = max( max( cur.dimx, cur.dimy ), cur.dimz );
+		int max_n_max_n_X = max_n * max_n;
+
+		// Need to sync halos at each iteration!!!
+
+		GPUplan *pGPUplan = GPUplan::Instance();
+		dim3 block(SOLVER_BLOCK_DIM);
+		int nnodes =  pGPUplan->size();
+		int haloSize, dimX;
+
+		int i, it, iblock, iblock_it, iblock_back_it;
+
+		for (iblock = 0 ; iblock < nblock + (2 * (nnodes - 1) + 1) * num_local - 1; iblock ++)
+		{
+			// Solve Y segment of iblock
+			if (iblock < nblock)
+				for (int it = 0; it < num_local; it++)
+				{
+					for ( i = 0; i < nnodes; i++)		
+					{
+						cudaSetDevice(i);
+						cur.SetDevice(i); temp.SetDevice(i); half.SetDevice(i); next.SetDevice(i);
+						int dimX = pGPUplan->node(i)->getLength1D();
+						//max_n_max_n_Y = max_n * pGPUplan->node(i)->getLength1D();
+						//max_n_max_n_Y = ( max_n_max_n_Y % nblock == 0)? max_n_max_n_Y / nblock : max_n_max_n_Y / nblock + 1;
+						dim3 grid((num_segYBlZ[i][iblock] + block.x - 1)/block.x);
+						//segsY[i] + comuNumSegsYBlZ[i][iblock]
+						//solve_segments<Y, ALL>(grid, block,  pGPUplan->node(i)->stream, py, num_segYBlZ[i][iblock] + comuNumSegsYBlZ[i][iblock], segsY[i], 
+						//												 nodesBoundsY[i], nodeTypes[i], cur, temp, half, d_cY[i],  d_xY[i], max_n, dimX, 0, nblock); //???
+						solve_segments<Y, ALL>(grid, block,  pGPUplan->node(i)->stream, py, num_segYBlZ[i][iblock], segsY[i], 
+																		 nodesBoundsY[i], nodeTypes[i], cur, temp, half, d_cY[i],  d_xY[i], max_n, dimX, comuNumSegsYBlZ[i][iblock], nblock); //???
+					}
+					for ( i = 0; i < nnodes; i++)
+					{
+						pGPUplan->setDevice(i);
+						gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream), "multiDevHaloSync(): cudaStreamSynchronize", i, __FILE__, __LINE__);
+					}
+					//sync:					
+					haloSize = cur.dimy * cur.dimz;
+					multiDevHaloSync<FTYPE>(temp.dd_u, haloSize, false, iblock*haloSize / nblock, haloSize / nblock);
+					//throw std::logic_error("Testing");
+					multiDevHaloSync<FTYPE>(temp.dd_v, haloSize, false, iblock*haloSize / nblock, haloSize / nblock);
+					multiDevHaloSync<FTYPE>(temp.dd_w, haloSize, false, iblock*haloSize / nblock, haloSize / nblock);
+					multiDevHaloSync<FTYPE>(temp.dd_T, haloSize, true, iblock*haloSize / nblock, haloSize / nblock);						
+				}
+
+				/*for ( i = 0; i < nnodes; i++)
+				{
+					pGPUplan->setDevice(i);
+					gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream), "multiDevHaloSync(): cudaStreamSynchronize", i, __FILE__, __LINE__);
+					gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream2), "multiDevHaloSync(): cudaStreamSynchronize", i, __FILE__, __LINE__);
+				}*/
+        
+			// Sync complete iterations:
+			//for (it = 1; it < num_local; it++)
+			//{
+			//	//iblock_it = (nnodes > 2)? iblock - 2 * it * (nnodes-1): iblock - 2 * it; 
+			//	iblock_it = iblock - 2 * it * (nnodes-1);
+			//	if (iblock_it < nblock && iblock_it >= 0)
+			//	{
+			//		haloSize = cur.dimy * cur.dimz;			
+			//		multiDevHaloSync<FTYPE>(temp.dd_u, haloSize, false, iblock_it*haloSize / nblock, haloSize / nblock);
+			//		multiDevHaloSync<FTYPE>(temp.dd_v, haloSize, false, iblock_it*haloSize / nblock, haloSize / nblock);
+			//		multiDevHaloSync<FTYPE>(temp.dd_w, haloSize, false, iblock_it*haloSize / nblock, haloSize / nblock);
+			//		multiDevHaloSync<FTYPE>(temp.dd_T, haloSize, true, iblock_it*haloSize / nblock, haloSize / nblock);
+			//	}
+			//}
+			//Wait for incoming X data from node i-1
+			for (i = 1; i < nnodes; i++)
+			{
+				cudaSetDevice(i);
+				for (it = 0; it < num_local; it++)
+				{
+					iblock_it = iblock -  it * (2 * (nnodes-1) + 1) - i; 
+					if (iblock_it >= 0 && i > 0 && iblock_it < nblock)	
+						gpuSafeCall( cudaStreamWaitEvent(pGPUplan->node(i)->stream, pGPUplan->node(i-1)->event[2 * iblock_it], 0), "LaunchSolveSegments_XY: cudaStreamWaitEvent" ); //event[0]
+				}
+			}
+
+			// Solve X segments forward
+			for (it = 0; it < num_local; it++)			
+				for (i = 0; i < nnodes; i++)
+				{ 
+					iblock_it = iblock - it * (2 * (nnodes-1) + 1) - i;
+					if (iblock_it < nblock && iblock_it >= 0)
+					{
+						cudaSetDevice(i);
+						cur.SetDevice(i); temp.SetDevice(i); half.SetDevice(i); next.SetDevice(i);
+						dimX = pGPUplan->node(i)->getLength1D();
+						//int num_elems = dimX * max_n_max_n_X * MAX_SEGS_PER_ROW;
+
+						//cudaStreamSynchronize(pGPUplan->node(i)->stream); // sync with Y calculation
+						dim3 grid(( num_segXBlZ[i][iblock_it] + block.x - 1)/block.x);
+						//solve_segments<X, FORWARD><<<grid, block, 0, pGPUplan->node(i)->stream>>>( num_segXBlZ[i][iblock_it], segsX[i], 
+						//															nodes[i], half, temp, next, dd_a[i],  dd_x[i], max_n_max_n_X, dimX, comuNumSegsXBlZ[i][iblock_it]);
+						solve_segments<X, FORWARD>(grid, block,  pGPUplan->node(i)->stream, px, num_segXBlZ[i][iblock_it], segsX[i], 
+																		nodesBoundsX[i], nodeTypes[i], half, temp, next, d_c[i],  d_x[i], max_n, dimX, comuNumSegsXBlZ[i][iblock_it]);						
+					}
+				}
+			
+			//Send data to node i+1
+			for (i = 0; i < nnodes - 1; i++)
+			{
+				haloSize = max_n_max_n_X * MAX_SEGS_PER_ROW;
+				dimX = pGPUplan->node(i)->getLength1D();
+				varOffset = (dimX + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
+				int varOffset_p1 = (pGPUplan->node(i+1)->getLength1D() + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
+				for (int it = 0; it < num_local; it++)
+				{
+					iblock_it = iblock - it * (2 * (nnodes-1) + 1) - i; 
+					if (iblock_it < nblock && iblock_it >= 0)
+					{						
+						for (typeID = 0; typeID < SOLVER_VAR_NUM; typeID++)
+						{
+							//haloMemcpyPeerAsync<FTYPE, FORWARD>(d_c, i, haloSize, dimX * haloSize, pGPUplan->node(i)->stream, comuNumSegsXBlZ[i][iblock_it], num_segXBlZ[i][iblock_it]);							
+							haloMemcpyPeerAsync<FTYPE, FORWARD>( d_c, i, haloSize, dimX * haloSize + typeID*(varOffset - varOffset_p1), pGPUplan->node(i)->stream, typeID*varOffset_p1 + comuNumSegsXBlZ[i][iblock_it], num_segXBlZ[i][iblock_it]);					
+							haloMemcpyPeerAsync<FTYPE, FORWARD>( d_x, i, haloSize, dimX * haloSize + typeID*(varOffset - varOffset_p1), pGPUplan->node(i)->stream, typeID*varOffset_p1 + comuNumSegsXBlZ[i][iblock_it], num_segXBlZ[i][iblock_it]);
+						}
+						cudaSetDevice(i);
+						gpuSafeCall( cudaEventRecord( pGPUplan->node(i)->event[2 * iblock_it],  pGPUplan->node(i)->stream), "");
+					}
+				}
+			}
+			
+			cudaStreamSynchronize(pGPUplan->node(nnodes-1)->stream); // sync for immediate back computation on last device
+			
+			//Wait for incoming X data from node i+1
+			for (i = 0; i < nnodes  - 1; i++)
+			{
+				cudaSetDevice(i);
+				for (it = 0; it < num_local; it++)
+				{
+					iblock_back_it = iblock - 2 * (nnodes-1) - it * (2 * (nnodes-1) + 1) + i;
+					if (iblock_back_it < nblock && iblock_back_it >= 0)
+						gpuSafeCall( cudaStreamWaitEvent(pGPUplan->node(i)->stream2, pGPUplan->node(i+1)->event[2 * iblock_back_it + 1], 0), ""); // event[1]
+				}
+			}
+			// Solve X segments backwards
+			for (it = 0; it < num_local; it++)		
+			{
+				for (i = 0; i < nnodes; i++)
+				{
+					cudaSetDevice(i);
+					cur.SetDevice(i); temp.SetDevice(i); half.SetDevice(i); next.SetDevice(i);
+					dimX = pGPUplan->node(i)->getLength1D();
+					varOffset = (dimX + 2) * max_n * max_n * MAX_SEGS_PER_ROW;				
+					iblock_back_it = iblock - 2 * (nnodes-1) - it * (2 * (nnodes-1) + 1) + i;
+					if (iblock_back_it < nblock && iblock_back_it >= 0)
+					{
+						dim3 grid(( num_segXBlZ[i][iblock_back_it] + block.x - 1)/block.x);
+						//solve_segments<X, BACK><<<grid, block, 0, pGPUplan->node(i)->stream2>>>( num_segXBlZ[i][iblock_back_it], segsX[i], 
+  					 //																						nodes[i], half, temp, next, dd_a[i],  dd_x[i], max_n_max_n_X, dimX, comuNumSegsXBlZ[i][iblock_back_it]);
+						solve_segments<X, BACK>(grid, block,  pGPUplan->node(i)->stream2, px, num_segXBlZ[i][iblock_back_it], segsX[i], 
+																	 nodesBoundsX[i], nodeTypes[i], half, temp, next, d_c[i],  d_x[i], max_n, dimX, comuNumSegsXBlZ[i][iblock_back_it]);
+						if (num_local > 1)
+							update_segments<X>(grid, block, pGPUplan->node(i)->stream2, num_segXBlZ[i][iblock_back_it], segsX[i], nodeTypes[i], temp, next, d_x[i], max_n, dimX, comuNumSegsXBlZ[i][iblock_back_it]);
+					}
+						//************************
+				}
+				// put nonlinear sync here:
+				if (num_local > 1) {
+					iblock_back_it = iblock - 2 * (nnodes-1) - it * (2 * (nnodes-1) + 1);
+					if (iblock_back_it < nblock && iblock_back_it >= 0)
+					{
+						haloSize = cur.dimy * cur.dimz;						
+						multiDevHaloSync2<FTYPE>(temp.dd_u, haloSize, false, iblock_back_it*haloSize / nblock, haloSize / nblock);
+						multiDevHaloSync2<FTYPE>(temp.dd_v, haloSize, false, iblock_back_it*haloSize / nblock, haloSize / nblock);
+						multiDevHaloSync2<FTYPE>(temp.dd_w, haloSize, false, iblock_back_it*haloSize / nblock, haloSize / nblock);
+						multiDevHaloSync2<FTYPE>(temp.dd_T, haloSize, true, iblock_back_it*haloSize / nblock, haloSize / nblock);			
+					}	
+				}
+			}
+
+			//Send data to node i-1
+			for (i = 1; i < nnodes; i++)
+			{
+				haloSize = max_n_max_n_X * MAX_SEGS_PER_ROW;
+				dimX = pGPUplan->node(i)->getLength1D();
+				int dimXm1 = pGPUplan->node(i-1)->getLength1D();
+				int varOffset_m1 = (dimXm1 + 2) * max_n * max_n * MAX_SEGS_PER_ROW;
+				for (int it = 0; it < num_local; it++)
+				{
+					iblock_back_it = iblock - 2 * (nnodes-1) - it * (2 * (nnodes-1) + 1) + i;
+					if (iblock_back_it < nblock && iblock_back_it >= 0)
+					{
+						for (typeID = 0; typeID < SOLVER_VAR_NUM; typeID++)
+						{
+							//haloMemcpyPeerAsync<FTYPE, BACK>(d_x, i, haloSize, pGPUplan->node(i-1)->getLength1D() * haloSize, pGPUplan->node(i)->stream2, comuNumSegsXBlZ[i-1][iblock_back_it], num_segXBlZ[i][iblock_back_it]);														
+							haloMemcpyPeerAsync<FTYPE, BACK>(d_x, i, haloSize, dimXm1*haloSize + typeID * (varOffset_m1 - varOffset), pGPUplan->node(i)->stream2, typeID*varOffset + comuNumSegsXBlZ[i-1][iblock_back_it], num_segXBlZ[i][iblock_back_it]);
+						}
+						cudaSetDevice(i);
+						gpuSafeCall( cudaEventRecord( pGPUplan->node(i)->event[2 * iblock_back_it + 1],  pGPUplan->node(i)->stream2), "" );
+					}
+				}
+			}
+			// put nonlinear sync here:
+			if (num_local == 1) {
+				for (i = 0; i < nnodes; i++)
+				{
+					cudaSetDevice(i);
+					cur.SetDevice(i); temp.SetDevice(i); half.SetDevice(i); next.SetDevice(i);
+					dimX = pGPUplan->node(i)->getLength1D();
+					varOffset = (dimX + 2) * max_n * max_n * MAX_SEGS_PER_ROW;				
+					iblock_back_it = iblock - 2 * (nnodes-1) + i;
+					if (iblock_back_it < nblock && iblock_back_it >= 0)
+					{
+						dim3 grid(( num_segXBlZ[i][iblock_back_it] + block.x - 1)/block.x);
+						update_segments<X>(grid, block, pGPUplan->node(i)->stream2, num_segXBlZ[i][iblock_back_it], segsX[i], nodeTypes[i], temp, next, d_x[i], max_n, dimX, comuNumSegsXBlZ[i][iblock_back_it]);						
+					}
+				}					
+				iblock_back_it = iblock - 2 * (nnodes-1);
+				if (iblock_back_it < nblock && iblock_back_it >= 0)
+				{
+					haloSize = cur.dimy * cur.dimz;						
+					multiDevHaloSync2<FTYPE>(temp.dd_u, haloSize, false, iblock_back_it*haloSize / nblock, haloSize / nblock);
+					multiDevHaloSync2<FTYPE>(temp.dd_v, haloSize, false, iblock_back_it*haloSize / nblock, haloSize / nblock);
+					multiDevHaloSync2<FTYPE>(temp.dd_w, haloSize, false, iblock_back_it*haloSize / nblock, haloSize / nblock);
+					multiDevHaloSync2<FTYPE>(temp.dd_T, haloSize, true, iblock_back_it*haloSize / nblock, haloSize / nblock);			
+				}				
+			}
+		}
+		//throw std::logic_error("Testing...");
+		pGPUplan->deviceSynchronize();
+	}
+		
+	//void SolveSegments_GPU( int* num_seg, Segment3D **segs, DirType dir, Node **nodes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
+	//						FTYPE **dd_a, FTYPE **dd_x )
+	//{
+	//	TimeLayer3D_GPU d_cur( cur );
+	//	TimeLayer3D_GPU d_temp( temp );
+	//	TimeLayer3D_GPU d_next( next );
+
+	//	switch( dir )
+	//	{
+	//	case X: LaunchSolveSegments_X( num_seg, segs, nodes, d_cur, d_temp, d_next, dd_a, dd_x ); break;
+	//	case Y: LaunchSolveSegments_dir<Y>( num_seg, segs, nodes, d_cur, d_temp, d_next, dd_a, dd_x ); break;
+	//	case Z: LaunchSolveSegments_dir<Z>( num_seg, segs, nodes, d_cur, d_temp, d_next, dd_a, dd_x ); break;
+	//	}
+	//}
+
+	//template<DirType dir>
+	//void LaunchSolveSegments_dir( FluidParamsGPU p, int *num_seg, Segment3D **segs, VarType var, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
+	//							  FTYPE **d_c, FTYPE **d_x )
+	//{
+	//	switch( var )
+	//	{
+	//	case type_U: LaunchSolveSegments_dir_var<dir, type_U>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_x ); break;
+	//	case type_V: LaunchSolveSegments_dir_var<dir, type_V>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_x ); break;
+	//	case type_W: LaunchSolveSegments_dir_var<dir, type_W>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_x ); break;
+	//	case type_T: LaunchSolveSegments_dir_var<dir, type_T>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_x ); break;
+	//	}
+	//}
+
+	//void LaunchSolveSegments_X( FluidParamsGPU p, int *num_seg, Segment3D **segs, VarType var, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D_GPU &cur, TimeLayer3D_GPU &temp, TimeLayer3D_GPU &next,
+	//							  FTYPE **d_c, FTYPE **d_x, int numSegs, FTYPE *mpi_buf = NULL )
+	//{
+	//	switch( var )
+	//	{
+	//	case type_U: LaunchSolveSegments_X_var<type_U>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_x, numSegs, mpi_buf ); break;
+	//	case type_V: LaunchSolveSegments_X_var<type_V>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_x, numSegs, mpi_buf ); break;
+	//	case type_W: LaunchSolveSegments_X_var<type_W>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_x, numSegs, mpi_buf ); break;
+	//	case type_T: LaunchSolveSegments_X_var<type_T>( p, num_seg, segs, nodesBounds, nodeTypes, cur, temp, next, d_c, d_x, numSegs, mpi_buf ); break;
+	//	}
+	//}
+
+	void SolveSegments_GPU( FTYPE dt, FluidParams params, int *num_seg, Segment3D **segs, DirType dir, NodesBoundary3D **nodesBounds,  NodeType **nodeTypes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
+							FTYPE **d_c, FTYPE **d_x,  int numSegs, FTYPE *mpi_buf )
 	{
 		TimeLayer3D_GPU d_cur( cur );
 		TimeLayer3D_GPU d_temp( temp );
 		TimeLayer3D_GPU d_next( next );
 
-		FluidParamsGPU p( var, dir, dt, cur->dx, cur->dy, cur->dz, params );
+		FluidParamsGPU *p[SOLVER_VAR_NUM];
+
+		for (int ip = 0; ip < SOLVER_VAR_NUM; ip++)
+		{
+			p[ip] = new FluidParamsGPU( VarType(ip), dir, dt, cur->dx, cur->dy, cur->dz, params );
+		}
+		//FluidParamsGPU pp( var, dir, dt, cur->dx, cur->dy, cur->dz, params );
 
 		switch( dir )
 		{
-		case X: LaunchSolveSegments_X( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_d, d_x, numSegs, mpi_buf ); break;
-		case Y: LaunchSolveSegments_dir<Y>( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_d, d_x ); break;
-		case Z: LaunchSolveSegments_dir<Z>( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_d, d_x ); break;
-		case Z_as_Y: LaunchSolveSegments_dir<Z_as_Y>( p, num_seg, segs, var, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_d, d_x ); break;
+		case X: LaunchSolveSegments_X( p, num_seg, segs, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_x, numSegs, mpi_buf ); break;
+		case Y: LaunchSolveSegments_dir<Y>( p, num_seg, segs, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_x ); break;
+		case Z: LaunchSolveSegments_dir<Z>( p, num_seg, segs, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_x ); break;
+		case Z_as_Y: LaunchSolveSegments_dir<Z_as_Y>( p, num_seg, segs, nodesBounds, nodeTypes, d_cur, d_temp, d_next, d_c, d_x ); break;
+		}
+
+		for (int ip = 0; ip < SOLVER_VAR_NUM; ip ++)
+			delete p[ip];
+	}
+
+	void SolveSegments_XY_GPU( FTYPE dt, FluidParams params, int **num_segXBlZ,  int **num_segYBlZ, int **comuNumSegsXBlZ, int **comuNumSegsYBlZ, Segment3D **segsX, Segment3D **segsY, 
+		                                   int num_local, int nblock, NodesBoundary3D **nodesBoundsX, NodesBoundary3D **nodesBoundsY, NodeType **nodeTypes, 
+																			 TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *half, TimeLayer3D *next,
+																			 FTYPE **d_c, FTYPE **d_cY, FTYPE **d_x, FTYPE **d_xY )
+	{
+		TimeLayer3D_GPU d_cur( cur );
+		TimeLayer3D_GPU d_temp( temp );
+		TimeLayer3D_GPU d_next( next );
+		TimeLayer3D_GPU d_half( half );
+
+		FluidParamsGPU *px[SOLVER_VAR_NUM];
+		FluidParamsGPU *py[SOLVER_VAR_NUM];
+
+		for (int ip = 0; ip < SOLVER_VAR_NUM; ip++)
+		{
+			px[ip] = new FluidParamsGPU( VarType(ip), X, dt, cur->dx, cur->dy, cur->dz, params );
+			py[ip] = new FluidParamsGPU( VarType(ip), Y, dt, cur->dx, cur->dy, cur->dz, params );
+		}
+
+		LaunchSolveSegments_XY(px, py, num_segXBlZ, num_segYBlZ, comuNumSegsXBlZ, comuNumSegsYBlZ, segsX, segsY, num_local, 
+			                      nblock, nodesBoundsX, nodesBoundsY, nodeTypes, d_cur, d_temp, d_half, d_next, d_c, d_cY, d_x, d_xY);		
+
+		for (int ip = 0; ip < SOLVER_VAR_NUM; ip ++)
+		{
+			delete py[ip];
+			delete px[ip];
 		}
 	}
 }

@@ -44,62 +44,78 @@ namespace FluidSolver3D
 		if (depthInfo != NULL) delete depthInfo;
 	}
 
-	void Grid3D::GenerateListSegments(int &numSeg, Segment3D *h_list, int dim1, int dim2, int dim3, DirType dir)
+	void Grid3D::GenerateListSegments(int &numSeg, Segment3D *h_list, int dim1, int dim2, int dim3, DirType dir, int nblockZ = 1)
 	{
 		numSeg = 0;
-		for (int i = 0; i < dim2; i++)
-			for (int j = 0; j < dim3; j++)
-			{
-				Segment3D seg, new_seg;
-				int state = 0, incx, incy, incz;
-				switch (dir)
-				{
-				case X:	
-					seg.posx = 0; seg.posy = i; seg.posz = j; 
-					incx = 1; incy = 0; incz = 0;
-					break;
-				case Y: 
-					seg.posx = i; seg.posy = 0; seg.posz = j; 
-					incx = 0; incy = 1; incz = 0;
-					break;
-				case Z: 
-					seg.posx = i; seg.posy = j; seg.posz = 0; 
-					incx = 0; incy = 0; incz = 1; 
-					break;
-				}
-				seg.dir = (DirType)dir;
+		int _nblockZ = 1;
+		switch (dir)
+		{
+		case X:
+		case Y:
+			_nblockZ = nblockZ;
+			break;
+		}
+		int block_start = 0;
+		int block_end = dim3 / _nblockZ; // will sort by blocks along Z
 
-				while ((seg.posx + incx < dimx) && (seg.posy + incy < dimy) && (seg.posz + incz < dimz))
+		while (block_end <= dim3)
+		{
+			for (int i = 0; i < dim2; i++)
+				for (int j = block_start; j < block_end; j++)
 				{
-					if (GetType(seg.posx + incx, seg.posy + incy, seg.posz + incz) == NODE_IN)
+					Segment3D seg, new_seg;
+					int state = 0, incx, incy, incz;
+					switch (dir)
 					{
-						if (state == 0) 
-							new_seg = seg;
-						state = 1;
+					case X:	
+						seg.posx = 0; seg.posy = i; seg.posz = j; 
+						incx = 1; incy = 0; incz = 0;
+						break;
+					case Y: 
+						seg.posx = i; seg.posy = 0; seg.posz = j; 
+						incx = 0; incy = 1; incz = 0;
+						break;
+					case Z: 
+						seg.posx = i; seg.posy = j; seg.posz = 0; 
+						incx = 0; incy = 0; incz = 1; 
+						break;
 					}
-					else
+					seg.dir = (DirType)dir;
+
+					while ((seg.posx + incx < dimx) && (seg.posy + incy < dimy) && (seg.posz + incz < dimz))
 					{
-						if (state == 1)
+						if (GetType(seg.posx + incx, seg.posy + incy, seg.posz + incz) == NODE_IN)
 						{
-							new_seg.endx = seg.posx + incx;
-							new_seg.endy = seg.posy + incy;
-							new_seg.endz = seg.posz + incz;
-
-							new_seg.size = (new_seg.endx - new_seg.posx) + (new_seg.endy - new_seg.posy) + (new_seg.endz - new_seg.posz) + 1;
-
-							new_seg.skipX = false;
-							new_seg.type = BOUND;
-							h_list[numSeg] = new_seg;
-							numSeg++;
-							state = 0;
+							if (state == 0) 
+								new_seg = seg;
+							state = 1;
 						}
-					}
+						else
+						{
+							if (state == 1)
+							{
+								new_seg.endx = seg.posx + incx;
+								new_seg.endy = seg.posy + incy;
+								new_seg.endz = seg.posz + incz;
+
+								new_seg.size = (new_seg.endx - new_seg.posx) + (new_seg.endy - new_seg.posy) + (new_seg.endz - new_seg.posz) + 1;
+
+								new_seg.skipX = false;
+								new_seg.type = BOUND;
+								h_list[numSeg] = new_seg;
+								numSeg++;
+								state = 0;
+							}
+						}
 					
-					seg.posx += incx;
-					seg.posy += incy;
-					seg.posz += incz;
+						seg.posx += incx;
+						seg.posy += incy;
+						seg.posz += incz;
+					}
 				}
-			}
+				block_start = block_end;
+				block_end += (block_end + dim3 / _nblockZ == (dim3 / _nblockZ)* _nblockZ)? dim3 / _nblockZ + dim3 % _nblockZ: dim3 / _nblockZ;
+		}
 	}
 
 	void Grid3D::GenerateGridBoundaries(NodesBoundary3D *node_list, int numSeg, Segment3D *h_list, bool transposed)

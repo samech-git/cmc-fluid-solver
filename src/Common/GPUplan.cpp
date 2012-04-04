@@ -49,6 +49,7 @@ namespace Common
 			plan[i - ibegin] = new GPUNode();
 			plan[i - ibegin]->init();	
 
+#if !MGPU_EMU
 			int canAccessPeer;
 			cudaError_t status;
 			if (i < nMaxGPU - 1)
@@ -71,6 +72,7 @@ namespace Common
 						printf("Enabling peer access from device %d on device %d\n", i, i-1);
 				}
 			}
+#endif
 		}
 	}
 
@@ -168,7 +170,7 @@ namespace Common
 		GPUplan::destroy();
 	}
 
-	void gpuSafeCall(cudaError_t status, char* message, int id)
+	void gpuSafeCall(cudaError status, char* message, int id, char *file, int linenum)
 	{
 		if (status != cudaSuccess )
 		{
@@ -185,7 +187,7 @@ namespace Common
 			if (len > bufSize)
 				throw (std::logic_error("gpuSafeCall: buffer size is too small"));
 			char buffer[bufSize];
-			sprintf_s(buffer, "%s on device %d", message, id);
+			sprintf_s(buffer, "%s on device %d: %d %s\nEncountered in %s, line# %d", message, id, int(status), cudaGetErrorString(status), file, linenum);
 			throw std::runtime_error(buffer);
 		}
 	}

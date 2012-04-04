@@ -10,8 +10,8 @@
 # define MGPU_EMU 0
 #if MGPU_EMU
 #define DEFAULT_DEVICE 0
-	#define cudaSetDevice(i) cudaSetDevice(DEFAULT_DEVICE)
-	#define GPU_NUM 16
+#define cudaSetDevice(i) cudaSetDevice(DEFAULT_DEVICE)
+#define GPU_NUM 16
 #endif
 
 namespace Common
@@ -19,7 +19,7 @@ namespace Common
 
 	struct GPUNode
 	{
-		static const int nMaxEvents = 1; // max events per node
+		static const int nMaxEvents = 128; // max events per node
     cudaEvent_t event[nMaxEvents];
     cudaStream_t stream, stream2, stream3;
 
@@ -71,7 +71,7 @@ namespace Common
 			int data1D;
 	};
 
-	extern void gpuSafeCall(cudaError_t status, char* message = "cudaSafeCall", int id = -1);
+	extern void gpuSafeCall(cudaError status, char* message, int id = -1, char *file = NULL, int linenum = -1);
 
 	extern GPUplan *CheckGPUplan(int num_elems_total);
 

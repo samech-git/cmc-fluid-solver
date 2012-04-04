@@ -19,6 +19,7 @@
 #define PROFILE_ENABLE		1
 #define BLOCKING_SOLVER_ENABLE 1
 #define INTERNAL_MERGE_ENABLE 1
+#define SOLVER_VAR_NUM 4
 
 #ifdef _WIN32
 #include "..\Common\Profiler.h"
@@ -36,8 +37,14 @@ namespace FluidSolver3D
 {
 	enum VarType { type_U, type_V, type_W, type_T };
 
-	extern void SolveSegments_GPU( FTYPE dt, FluidParams params, int* num_seg, Segment3D **segs, VarType var, DirType dir, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next,
-								   FTYPE **d_c, FTYPE **d_d, FTYPE **d_x, int numSegs, FTYPE *mpi_buf = NULL);
+	extern void SolveSegments_GPU( FTYPE dt, FluidParams params, int* num_seg, Segment3D **segs, DirType dir, NodesBoundary3D **nodesBounds, NodeType **nodeTypes, 
+		                             TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next, FTYPE **d_c, FTYPE **d_x, int numSegs, FTYPE *mpi_buf = NULL);
+
+	extern void SolveSegments_XY_GPU( FTYPE dt, FluidParams params, int **num_segXBlZ,  int **num_segYBlZ, int **comuNumSegsXBlZ, int **comuNumSegsYBlZ, Segment3D **segsX, Segment3D **segsY, 
+		                                   int num_local, int nblock, NodesBoundary3D **nodesBoundsX, NodesBoundary3D **nodesBoundsY, NodeType **nodeTypes, 
+																			 TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *half, TimeLayer3D *next,
+																			 FTYPE **d_c, FTYPE **d_cY, FTYPE **d_x, FTYPE **d_xY );
+
 
 	class AdiSolver3D : public Solver3D
 	{
@@ -45,9 +52,10 @@ namespace FluidSolver3D
 		AdiSolver3D();
 		~AdiSolver3D();
 
-		void Init(BackendType backend, bool _csv, Grid3D* _grid, FluidParams &_params);
+		void Init(BackendType backend, bool _csv, Grid3D* _grid, FluidParams &_params, bool _useBlocking, int _nblockZ);
 		void UpdateBoundaries();
-		void TimeStep(FTYPE dt, int num_global, int num_local);
+		void CreateSegments();
+		void TimeStep(FTYPE dt, int num_global, int num_local, bool computeError);
 		void SetOptionsGPU(bool _transposeOpt, bool _decomposeOpt);
 		double sum_layer(char ch);
 		void debug(bool ifdebug);
@@ -59,6 +67,11 @@ namespace FluidSolver3D
 
 		// options, optimizations
 		bool transposeOpt, decomposeOpt;
+		bool useBlocking;
+		
+		int nblockZ; // split Z into blocks in GPU version
+		int** numSegsBlZGPU[3]; // segments per direction per GPU per blockZ
+		int** comuNumSegsBlZGPU[3]; // CDF of numSegsBlZGPU
 		
 		int numSegs[3];
 		int* numSegsGPU[3];  // segments per direction per GPU
@@ -72,9 +85,12 @@ namespace FluidSolver3D
 		FTYPE *mpi_buf;
 
 		FTYPE *a, *b, *c, *d, *x;									// matrices in CPU mem
-		FTYPE **d_c, **d_d, **d_x; // same matrices in GPU mem
+		FTYPE **d_c, **d_x; // same matrices in GPU mem
+		FTYPE **d_cY, **d_xY; // cache of Y for LaunchSolveSegments_XY
 
 		bool ifdebug; // flag for printing stats only;
+
+		double diffError;
 
 		void BuildMatrix(FTYPE dt, int i, int j, int k, VarType var, DirType dir, FTYPE *a, FTYPE *b, FTYPE *c, FTYPE *d, int n, TimeLayer3D *cur, TimeLayer3D *temp);
 		void ApplyBC0(int i, int j, int k, VarType var, FTYPE &b0, FTYPE &c0, FTYPE &d0);
@@ -84,15 +100,15 @@ namespace FluidSolver3D
 		void CreateListSegments(int &numSeg, Segment3D *h_list, Segment3D **d_list, NodesBoundary3D **d_node_list, int dim1, int dim2, int dim3);
 		template<DirType dir>
 		int _nodeSplitListSegments(Segment3D *dest_list, NodesBoundary3D *dest_node_list, int numSeg, Segment3D *src_list, NodesBoundary3D *src_node_list, int length, int offset);
+		void _blockSplitListSegments(int* numSegs, int* comuNumSegs, int dimz, int _nblockZ, int numSeg, Segment3D *src_list);
 		
 		void OutputSegmentsInfo(int num, Segment3D *list, char *filename);
-		void CreateSegments();
 
 		void SolveSegment(FTYPE dt, int id, Segment3D seg, VarType var, DirType dir, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
 		void UpdateSegment(FTYPE *x, Segment3D seg, VarType var, TimeLayer3D *layer);
 		
 		void SolveDirection(DirType dir, FTYPE dt, int num_local, Segment3D *h_list, Segment3D **d_list, NodesBoundary3D **d_node_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
-		void SolveDirection_XY(FTYPE dt, int num_local, Segment3D *h_list, Segment3D **d_list, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *next);
+		void SolveDirection_XY(FTYPE dt, int num_local, TimeLayer3D *cur, TimeLayer3D *temp, TimeLayer3D *half, TimeLayer3D *next);
 
 		void FreeMemory();
 	};

@@ -16,4 +16,3 @@ done
 
 $RUN $box_pipe_2D_data_txt$ext box_pipe_example $box_pipe_2D_config_txt$ext align
 $RUN $SAMPLES_DIR/white_sea/white_sea_data.nc white_sea_example $white_sea_config_txt$ext align
-

@@ -1,6 +1,6 @@
 #pragma once
 
-#define __PARA
+//#define __PARA
 
 #ifdef __PARA
 #include <mpi.h>

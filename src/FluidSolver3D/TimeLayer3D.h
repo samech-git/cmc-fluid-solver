@@ -204,6 +204,48 @@ template <typename T, SwipeType swipe>
 		}
 	}  
 
+	template <typename T>
+	void multiDevHaloSync(T** dev_array, int haloSize, bool wait, int haloShift = 0, int haloPartSize = -1)
+	{
+		GPUplan *pGPUplan = GPUplan::Instance();
+		int gpuSize = pGPUplan->size();
+		for (int i = 0; i < gpuSize; i++)
+		{
+			if ( i < gpuSize - 1)
+				haloMemcpyPeerAsync<FTYPE, FORWARD>( dev_array, i, haloSize, haloSize * pGPUplan->node(i)->getLength1D(), pGPUplan->node(i)->stream, haloShift, haloPartSize);
+			if ( i > 0)
+				haloMemcpyPeerAsync<FTYPE, BACK>( dev_array, i, haloSize, haloSize * pGPUplan->node(i-1)->getLength1D(), pGPUplan->node(i)->stream, haloShift, haloPartSize);
+		}
+		if (wait)
+			for (int i = 0; i < gpuSize; i++)
+			{
+				pGPUplan->setDevice(i);
+				gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream), "multiDevHaloSync(): cudaStreamSynchronize", i, __FILE__, __LINE__);
+				//gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream2), "multiDevHaloSync(): cudaStreamSynchronize", i, __FILE__, __LINE__);
+			}
+	}
+
+	template <typename T>
+	void multiDevHaloSync2(T** dev_array, int haloSize, bool wait, int haloShift = 0, int haloPartSize = -1)
+	{
+		GPUplan *pGPUplan = GPUplan::Instance();
+		int gpuSize = pGPUplan->size();
+		for (int i = 0; i < gpuSize; i++)
+		{
+			if ( i < gpuSize - 1)
+				haloMemcpyPeerAsync<FTYPE, FORWARD>( dev_array, i, haloSize, haloSize * pGPUplan->node(i)->getLength1D(), pGPUplan->node(i)->stream2, haloShift, haloPartSize);
+			if ( i > 0)
+				haloMemcpyPeerAsync<FTYPE, BACK>( dev_array, i, haloSize, haloSize * pGPUplan->node(i-1)->getLength1D(), pGPUplan->node(i)->stream2, haloShift, haloPartSize);
+		}
+		if (wait)
+			for (int i = 0; i < gpuSize; i++)
+			{
+				pGPUplan->setDevice(i);
+				gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream2), "multiDevHaloSync(): cudaStreamSynchronize", i, __FILE__, __LINE__);
+				//gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream2), "multiDevHaloSync(): cudaStreamSynchronize", i, __FILE__, __LINE__);
+			}
+	}
+
 	struct ScalarField3D
 	{
 		BackendType hw; 
@@ -250,24 +292,12 @@ template <typename T, SwipeType swipe>
 #endif
 				break;
 			case GPU:
+				multiDevHaloSync<FTYPE>(dd_u, haloSize, true);
 				GPUplan *pGPUplan = GPUplan::Instance();
-				int gpuSize = pGPUplan->size();
-				for (int i = 0; i < gpuSize; i++)
-				{
-					if ( i < gpuSize - 1)
-						haloMemcpyPeerAsync<FTYPE, FORWARD>( dd_u, i, haloSize, haloSize * pGPUplan->node(i)->getLength1D(), pGPUplan->node(i)->stream);
-					if ( i > 0)
-						haloMemcpyPeerAsync<FTYPE, BACK>( dd_u, i, haloSize, haloSize * pGPUplan->node(i-1)->getLength1D(), pGPUplan->node(i)->stream2);
-				}
-				for (int i = 0; i < gpuSize; i++)
-				{
-					pGPUplan->setDevice(i);
-					gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream), "ScalarField3D::syncHalos(): cudaStreamSynchronize", i);
-					gpuSafeCall(cudaStreamSynchronize(pGPUplan->node(i)->stream2), "ScalarField3D::syncHalos(): cudaStreamSynchronize", i);
-				}
 #ifdef __PARA				
 				int irank = pplan->rank();
 				int size = pplan->size();
+				int gpuSize = pGPUplan->size();
 				if (size > 1)
 				{
 					FTYPE *mpi_buf_s = mpi_buf;

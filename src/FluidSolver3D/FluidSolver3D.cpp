@@ -23,7 +23,7 @@
 using namespace FluidSolver3D;
 using namespace Common;
 
-void parse_cmd_params(int argc, char **argv, BackendType &backend, bool &csv, bool &transpose, bool &decompose, bool &align, int &nGPU)
+void parse_cmd_params(int argc, char **argv, BackendType &backend, bool &csv, bool &transpose, bool &decompose, bool &align, int &nGPU, bool &blocking, int &nBlockZ)
 {
 	for( int i = 4; i < argc; i++ )
 	{
@@ -34,6 +34,14 @@ void parse_cmd_params(int argc, char **argv, BackendType &backend, bool &csv, bo
 				nGPU = 0;
 			else
 				nGPU = atoi(argv[i+1]);
+		}
+		if( !strcmp(argv[i], "blocking") )
+			{
+				blocking = true;
+				if ( i == argc-1)
+					nBlockZ = 1;
+				else
+					nBlockZ = atoi(argv[i+1]);
 		}
 		if( !strcmp(argv[i], "CSV") ) csv = true;
 		if( !strcmp(argv[i], "transpose") ) transpose = true;
@@ -55,8 +63,10 @@ int main(int argc, char **argv)
 		bool transpose = false;
 		bool decompose = false;
 		bool align = false;
+		bool useBlocks = false;
+		int nBlockZ = 1;
 		int nGPU = 0;
-		parse_cmd_params(argc, argv, backend, csv, transpose, decompose, align, nGPU);
+		parse_cmd_params(argc, argv, backend, csv, transpose, decompose, align, nGPU, useBlocks, nBlockZ);
 
 		pplan->init(backend);
 		if( backend == CPU )
@@ -173,12 +183,12 @@ int main(int argc, char **argv)
 				if( backend == GPU ) 
 				{
 					if (pplan->rank() == 0)
-						printf("Solver options:\n  transpose %s\n  decompose %s\n", transpose ? "ON" : "OFF", decompose ? "ON" : "OFF");
+						printf("Solver options:\n  transpose %s\n  decompose %s\n  number of blocks %d\n", transpose ? "ON" : "OFF", decompose ? "ON" : "OFF", nBlockZ);
 					dynamic_cast<AdiSolver3D*>(solver)->SetOptionsGPU(transpose, decompose);
 				}
 				break;
 		}
-		solver->Init(backend, csv, grid, *params);
+		solver->Init(backend, csv, grid, *params, useBlocks, nBlockZ);
 
 		int startFrame = 0;
 
@@ -211,6 +221,8 @@ int main(int argc, char **argv)
 		int lastframe = -1;
 		int out_layer = 0;
 		double t = dt;
+		dynamic_cast<AdiSolver3D*>(solver)->CreateSegments();
+		grid->Prepare(0);
 		for (int i=0; t < finaltime; t+=dt, i++)
 		{
 			int currentframe = grid->GetFrame(t);
@@ -221,15 +233,16 @@ int main(int argc, char **argv)
 				lastframe = currentframe;
 				i = 0;
 			}
-			grid->Prepare(t);
 
+			//grid->Prepare(t);
+
+			/*if (i == 0)
+				solver->debug(true);*/			
+			solver->UpdateBoundaries(); // needs this since cur gets overwritten (do not call CreateSegments, so it is quite cheap)
+			solver->TimeStep((FTYPE)dt, Config::num_global, Config::num_local, (i%10 == 0) || (t + dt >= finaltime));			
+			// solver->SetGridBoundaries();
 			//if (i == 0)
-			//	solver->debug(true);		
-			solver->UpdateBoundaries();
-			solver->TimeStep((FTYPE)dt, Config::num_global, Config::num_local);			
-			solver->SetGridBoundaries();
-			if (i == 0)
-				solver->debug(false);
+			//	solver->debug(false);
 
 			timer.stop();
 
@@ -254,7 +267,6 @@ int main(int argc, char **argv)
 		delete [] resT;
 
 		delete grid;
-
 		delete pplan;
 	}
 	catch (std::exception& e)

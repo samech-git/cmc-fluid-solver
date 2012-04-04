@@ -24,8 +24,8 @@ namespace FluidSolver3D
 	class Solver3D
 	{
 	public:
-		virtual void Init(BackendType backend, bool csvFormat, Grid3D* grid, FluidParams &params) = 0;
-		virtual void TimeStep(FTYPE dt, int num_global, int num_local) = 0;
+		virtual void Init(BackendType backend, bool csvFormat, Grid3D* grid, FluidParams &params, bool _useBlocking, int _nblockZ) = 0; // pack launching parameters into a structure!!!
+		virtual void TimeStep(FTYPE dt, int num_global, int num_local, bool computeError) = 0;
 
 		virtual double sum_layer(char ch) = 0;
 		virtual void debug(bool ifdebug) = 0;

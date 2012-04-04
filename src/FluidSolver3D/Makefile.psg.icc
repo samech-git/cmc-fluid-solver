@@ -20,14 +20,11 @@ LIB_CUDA :=  -L$(CUDA_INSTALL_PATH)/lib64 -lcudart
 LIB_NETCDF := -L$(NETCDF_INSTALL_PATH)/lib64 -L/opt/hdf5/serial/lib -lnetcdf  -lnetcdff -lhdf5_hl -lhdf5 -lgfortran 
 
 OBJS = AdiSolver3D.cpp.o AdiSolver3D.cu.o ../FluidSolver2D/Grid2D.cpp.o Grid3D.cpp.o \
-       TimeLayer3D.cu.o Solver3D.cpp.o FluidSolver3D.cpp.o LinuxIO.cpp.o GPUplan.cpp.o test_util.cpp.o
+       TimeLayer3D.cu.o Solver3D.cpp.o FluidSolver3D.cpp.o LinuxIO.cpp.o
 TARGET = ../../bin/Release/FluidSolver3D
 LINKLINE = $(LINK) -o $(TARGET) -L../FluidSolver2D $(OBJS) $(LIB_INTEL) $(LIB_CUDA) $(LIB_NETCDF) -lrt
 
 .SUFFIXES: .cpp .cu .o
-
-all: $(OBJS) Makefile
-	$(LINKLINE)
 
 %.cu.o: %.cu
 	$(NVCC) $(NVCCFLAGS) -c $< -o $@
@@ -41,11 +38,8 @@ all: $(OBJS) Makefile
 LinuxIO.cpp.o: ../Common/LinuxIO.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-GPUplan.cpp.o: ../Common/GPUplan.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-test_util.cpp.o: ../Common/test_util.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@		
+all: $(OBJS) Makefile
+	$(LINKLINE)
 
 clean:
 	rm $(TARGET) *.o ../FluidSolver2D/*.o

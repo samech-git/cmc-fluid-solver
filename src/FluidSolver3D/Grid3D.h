@@ -107,7 +107,7 @@ namespace FluidSolver3D
 
 		BBox3D GetBBox();
 
-		void GenerateListSegments(int &numSeg, Segment3D *h_list, int dim1, int dim2, int dim3, DirType dir);
+		void GenerateListSegments(int &numSeg, Segment3D *h_list, int dim1, int dim2, int dim3, DirType dir, int nblockZ);
 		void GenerateGridBoundaries(NodesBoundary3D *node_list, int numSeg, Segment3D *h_list, bool transposed);
 		void SplitSegments_X(int *splitting);
 
