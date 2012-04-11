@@ -7,7 +7,7 @@
 #define MGPU
 
 //for debugging purposes:
-# define MGPU_EMU 0
+# define MGPU_EMU 1
 #if MGPU_EMU
 #define DEFAULT_DEVICE 0
 #define cudaSetDevice(i) cudaSetDevice(DEFAULT_DEVICE)
