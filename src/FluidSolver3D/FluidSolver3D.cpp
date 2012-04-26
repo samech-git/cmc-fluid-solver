@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 		}
 		else if( Config::in_fmt == Shape2D )
 		{
-			grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::depth, Config::baseT, backend, false, split_type);
+			grid = new Grid3D(Config::dx, Config::dy, Config::dz, Config::depth, Config::depth_var, Config::baseT, backend, false, split_type);
 			if (pplan->rank() == 0)
 				printf("Geometry: extruded 2D shape\n");
 		}

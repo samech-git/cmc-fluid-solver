@@ -101,7 +101,7 @@ namespace FluidSolver3D
 		Vec3D bcInVel;
 		double bcInT;
 
-		Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend, bool useNetCDF = false, SplitType = EVEN_X);			// 2D shape with constant depth
+		Grid3D(double _dx, double _dy, double _dz, double _depth, double _depth_var, double _baseT, BackendType _backend, bool useNetCDF = false, SplitType = EVEN_X);			// 2D shape with constant depth
 		Grid3D(double _dx, double _dy, double _dz, double _baseT, BackendType _backend, bool useNetCDF = false, SplitType = EVEN_X);						// 3D shape, polygons
 		~Grid3D();
 
@@ -195,6 +195,7 @@ namespace FluidSolver3D
 
 		FluidSolver2D::Grid2D *grid2D;		// 2D helper grid for borders
 		double depth;						// depth
+		double depth_var;					// depth variation parameter
 		int active_dimz;					// dimz before align
 	};
 }

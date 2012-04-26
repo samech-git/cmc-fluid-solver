@@ -22,8 +22,8 @@
 
 namespace FluidSolver3D
 {
-	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _baseT, BackendType _backend, bool useNetCDF, SplitType _split_type) : 
-		dx(_dx), dy(_dy), dz(_dz), depth(_depth), baseT(_baseT), nodes(NULL), d_types(NULL), d_typesT(NULL), backend(_backend), use3Dshape(false), frames(NULL), depthInfo(NULL), split_type(_split_type)
+	Grid3D::Grid3D(double _dx, double _dy, double _dz, double _depth, double _depth_var, double _baseT, BackendType _backend, bool useNetCDF, SplitType _split_type) : 
+		dx(_dx), dy(_dy), dz(_dz), depth(_depth), depth_var(_depth_var), baseT(_baseT), nodes(NULL), d_types(NULL), d_typesT(NULL), backend(_backend), use3Dshape(false), frames(NULL), depthInfo(NULL), split_type(_split_type)
 	{
 		grid2D = new FluidSolver2D::Grid2D(dx, dy, baseT, true, 0.0);
 	}
@@ -46,6 +46,7 @@ namespace FluidSolver3D
 
 	void Grid3D::GenerateListSegments(int &numSeg, Segment3D *h_list, int dim1, int dim2, int dim3, DirType dir, int nblockZ = 1)
 	{
+		bool warned = false;		// warning about num of segs per row
 		numSeg = 0;
 		int _nblockZ = 1;
 		switch (dir)
@@ -57,7 +58,7 @@ namespace FluidSolver3D
 		}
 		int block_start = 0;
 		int block_end = dim3 / _nblockZ; // will sort by blocks along Z
-
+		
 		while (block_end <= dim3)
 		{
 			for (int i = 0; i < dim2; i++)
@@ -81,7 +82,8 @@ namespace FluidSolver3D
 						break;
 					}
 					seg.dir = (DirType)dir;
-
+					
+					int num_segs_per_row = 0;
 					while ((seg.posx + incx < dimx) && (seg.posy + incy < dimy) && (seg.posz + incz < dimz))
 					{
 						if (GetType(seg.posx + incx, seg.posy + incy, seg.posz + incz) == NODE_IN)
@@ -104,6 +106,7 @@ namespace FluidSolver3D
 								new_seg.type = BOUND;
 								h_list[numSeg] = new_seg;
 								numSeg++;
+								num_segs_per_row++;
 								state = 0;
 							}
 						}
@@ -111,6 +114,11 @@ namespace FluidSolver3D
 						seg.posx += incx;
 						seg.posy += incy;
 						seg.posz += incz;
+					}
+					
+					if( num_segs_per_row > MAX_SEGS_PER_ROW && !warned ) {
+						printf("WARNING: num of segs per row (%i) > max allowed (%i)\n", num_segs_per_row, MAX_SEGS_PER_ROW );
+						warned = true;
 					}
 				}
 				block_start = block_end;
@@ -616,15 +624,19 @@ namespace FluidSolver3D
 				}
 				else
 				{
-					// set up & bottom bounds
-					nodes[i * dimy * dimz + j * dimz + 0].type = NODE_OUT;
+					// setup top bounds - constant height
 					for (int k = active_dimz-1; k < dimz; k++)
 						nodes[i * dimy * dimz + j * dimz + k].type = NODE_OUT;
-
-					nodes[i * dimy * dimz + j * dimz + 1].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), (FTYPE)baseT);
 					nodes[i * dimy * dimz + j * dimz + active_dimz-2].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), (FTYPE)baseT);
-					
-					for (int k = 2; k < active_dimz-2; k++)
+
+					// setup bottom bounds, add some perturbation
+					int height = max(active_dimz-2 - 2, 0);
+					int bottom = 1 + (int)(depth_var * ((float)rand()/RAND_MAX) * height);
+					nodes[i * dimy * dimz + j * dimz + 0].type = NODE_OUT;
+					for (int k = 1; k <= bottom; k++)
+						nodes[i * dimy * dimz + j * dimz + k].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), (FTYPE)baseT);
+										
+					for (int k = bottom+1; k < active_dimz-2; k++)
 					{
 						ind = i * dimy * dimz + j * dimz + k;
 						switch (grid2D->GetType(i, j))

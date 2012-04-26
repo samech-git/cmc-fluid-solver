@@ -52,6 +52,10 @@ namespace Common
 
 		// depth of our 3D object (along Z direction)
 		static double depth;				
+		
+		// depth variation: [0..1]
+		// controls perturbation of the volume at the bottom
+		static double depth_var;
 
 		// thermodynamic params
 		static double R_specific, k, cv, baseT;		 
@@ -86,6 +90,7 @@ namespace Common
 			viscosity = 0.05;
 			density = 1000.0;
 			Re = Pr = lambda = -1;
+			depth_var = 0.0;			// no perturbation
 
 			cycles = 1;
 			time_steps = 50;
@@ -225,6 +230,7 @@ namespace Common
 				if (!strcmp(str, "out_fmt")) ReadOutFormat(file);
 				
 				if (!strcmp(str, "depth")) ReadDouble(file, depth);		
+				if (!strcmp(str, "depth_var")) ReadDouble(file, depth_var);		
 
 				if (!strcmp(str, "solver")) ReadSolver(file);
 				if (!strcmp(str, "num_global")) ReadInt(file, num_global);
@@ -274,6 +280,7 @@ namespace Common
 	double Config::bc_inT;
 
 	double Config::depth;
+	double Config::depth_var;
 
 	double Config::R_specific, Config::k, Config::cv, Config::baseT;		 
 
