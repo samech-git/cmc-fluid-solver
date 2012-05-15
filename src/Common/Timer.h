@@ -54,8 +54,8 @@ namespace Common
 		void start() { QueryPerformanceCounter(&m_startTime); }
 		void stop()  { QueryPerformanceCounter(&m_endTime); }
 #elif linux
-		void start() { clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &startTime); }
-		void stop()  { clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &endTime); }
+		void start() { clock_gettime(CLOCK_REALTIME, &startTime); }
+		void stop()  { clock_gettime(CLOCK_REALTIME, &endTime); }
 #endif
 
 		float elapsed_sec() {

@@ -631,7 +631,10 @@ namespace FluidSolver3D
 
 					// setup bottom bounds, add some perturbation
 					int height = max(active_dimz-2 - 2, 0);
-					int bottom = 1 + (int)(depth_var * ((float)rand()/RAND_MAX) * height);
+					double x = -1 + 2*(double)i / dimx;
+					double y = -1 + 2*(double)j / dimy;
+					double z = 1.0 - ( x*x + y*y ) * 0.5;
+					int bottom = 1 + (int)(depth_var * z * height);
 					nodes[i * dimy * dimz + j * dimz + 0].type = NODE_OUT;
 					for (int k = 1; k <= bottom; k++)
 						nodes[i * dimy * dimz + j * dimz + k].SetBound(BC_NOSLIP, BC_FREE, Vec3D(0.0, 0.0, 0.0), (FTYPE)baseT);

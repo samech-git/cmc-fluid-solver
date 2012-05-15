@@ -47,7 +47,7 @@ namespace FluidSolver2D
 		delete[] frames;
 	}
 
-	inline NodeType Grid2D::GetType(int x, int y)
+	NodeType Grid2D::GetType(int x, int y)
 	{
 		return curData[x * dimy + y].cell;
 	}

@@ -57,7 +57,7 @@ namespace FluidSolver2D
 		int dimx, dimy;
 		double dx, dy;
 
-		inline NodeType GetType(int x, int y);
+		NodeType GetType(int x, int y);
 		CondData2D GetData(int x, int y);
 		void SetFieldData(int x, int y, CondData2D d);
 		

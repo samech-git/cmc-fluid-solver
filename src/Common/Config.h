@@ -127,6 +127,13 @@ namespace Common
 			value = f;
 		}
 
+		static void ReadFloat(FILE *file, double &value)
+		{
+			float f = 0.0f;
+			fscanf_s(file, "%f", &f);
+			value = (double)f;
+		}
+
 		static void ReadInt(FILE *file, int &value)
 		{
 			fscanf_s(file, "%i", &value);

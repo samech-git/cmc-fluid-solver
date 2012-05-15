@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 		FindFile(inputPath, argv[1]);
 		FindFile(configPath, argv[3]);
 	
-		Config::Config();
+		Config();
 		Config::LoadFromFile(configPath);
 		//--------------------------------------- Initializing ---------------------------------------
 		Grid3D *grid = NULL;
